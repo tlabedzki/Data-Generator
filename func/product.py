@@ -1,16 +1,15 @@
 import pandas as pd
 import numpy as np
 from faker import Faker
-from datetime import datetime, timedelta
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Settings:
 
-# Create faker instance for Polish language
+# Create faker instance for Polish language:
 fake = Faker('pl_PL')
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Functions:
+    # Variables:
 
 # List of brands for each category:
 categories_brands = {
@@ -81,7 +80,9 @@ colors_with_probabilities = {
 colors = list(colors_with_probabilities.keys())
 probabilities = list(colors_with_probabilities.values())
 
-# Funkcja generująca bazę produktów z dopasowanymi cenami i markami
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Functions:
+
 def generate_products(num_products):
     # First step - create a dictionary with product source:
     data = {
