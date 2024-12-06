@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from faker import Faker
 
+import settings.main_settings as s
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Settings:
 
@@ -12,69 +14,16 @@ fake = Faker('pl_PL')
     # Variables:
 
 # List of brands for each category:
-categories_brands = {
-    "Electronics": [
-        "Samsung", "Apple", "Sony", "LG", "Philips", "Huawei", "Lenovo", "Dell", "HP", "Panasonic",
-        "Acer", "Asus", "Toshiba", "Xiaomi", "Microsoft", "Nokia", "Canon", "Epson", "Garmin", "Polar"
-    ],
-    "Clothing": [
-        "Nike", "Adidas", "Zara", "H&M", "Puma", "Levi's", "Tommy Hilfiger", "Calvin Klein", "Under Armour",
-        "Gap", "Ralph Lauren", "Patagonia", "The North Face", "Columbia", "Reebok", "New Balance", "Gucci", "Prada", "Versace"
-    ],
-    "Home & Garden": [
-        "Bosch", "Tefal", "Black+Decker", "DeLonghi", "Dyson", "Rowenta", "Electrolux", "Miele", "Philips",
-        "Whirlpool", "Gardena", "Braun", "Kenwood", "Gorenje", "Russell Hobbs", "Zanussi", "Fiskars"
-    ],
-    "Sports": [
-        "Nike", "Adidas", "Puma", "Under Armour", "Asics", "Reebok", "New Balance", "Columbia", "Patagonia", "The North Face",
-        "Salomon", "Mammut", "Arc'teryx", "Merrell", "Decathlon", "Wilson", "Head", "Yonex", "Lululemon", "Fila"
-    ],
-    "Beauty": [
-        "L'Oréal", "Nivea", "Maybelline", "Estée Lauder", "Clinique", "Lancôme", "Dior", "Chanel", "MAC", "Revlon",
-        "Garnier", "Neutrogena", "Pantene", "Kylie", "Yves Rocher"
-    ],
-    "Toys": [
-        "Lego", "Hasbro", "Mattel", "Playmobil", "Fisher-Price", "Barbie", "Hot Wheels"
-    ],
-    "Automotive": [
-        "Bosch", "Michelin", "Goodyear", "Continental", "Castrol", "Bridgestone", "Hankook", "Pirelli", "Shell", "Mobil",
-        "NGK", "Valeo", "Denso", "Delphi", "ZF", "KYB", "Bilstein", "Brembo", "Ferodo", "Monroe"
-    ],
-}
+categories_brands = s.categories_brands
 
 # Price ranges for each category:
-price_ranges = {
-    "Electronics":      (500, 8000),
-    "Clothing":         (20, 300),
-    "Home & Garden":    (30, 5000),
-    "Sports":           (30, 3000),
-    "Beauty":           (10, 500),
-    "Toys":             (30, 250),
-    "Automotive":       (100, 3000),
-}
+price_ranges = s.price_ranges
 
 # Margin ranges for each category:
-margin_ranges = {
-    "Electronics":      (0.00, 0.10),
-    "Clothing":         (0.15, 0.60),
-    "Home & Garden":    (0.10, 0.50),
-    "Sports":           (0.15, 0.65),
-    "Beauty":           (0.10, 0.50),
-    "Toys":             (0.15, 0.35),
-    "Automotive":       (0.15, 0.35),
-}
+margin_ranges = s.margin_ranges
 
 # Colors definition with probabilities:
-colors_with_probabilities = {
-    "black":    0.35,
-    "red":      0.08,
-    "blue":     0.08,
-    "green":    0.12,
-    "yellow":   0.06,
-    "white":    0.10,
-    "pink":     0.11,
-    "brown":    0.10,
-}
+colors_with_probabilities = s.colors_with_probabilities
 
 # List of colors & list of probabilities:
 colors = list(colors_with_probabilities.keys())
