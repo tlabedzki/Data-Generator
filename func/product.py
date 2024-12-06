@@ -66,14 +66,14 @@ margin_ranges = {
 
 # Colors definition with probabilities:
 colors_with_probabilities = {
-    "Black":    0.35,
-    "Red":      0.08,
-    "Blue":     0.08,
-    "Green":    0.12,
-    "Yellow":   0.06,
-    "White":    0.10,
-    "Pink":     0.11,
-    "Brown":    0.10,
+    "black":    0.35,
+    "red":      0.08,
+    "blue":     0.08,
+    "green":    0.12,
+    "yellow":   0.06,
+    "white":    0.10,
+    "pink":     0.11,
+    "brown":    0.10,
 }
 
 # List of colors & list of probabilities:
@@ -84,6 +84,15 @@ probabilities = list(colors_with_probabilities.values())
     # Functions:
 
 def generate_products(num_products):
+    """
+    Generate a DataFrame containing product data.
+
+    Parameters:
+    num_products (int): The number of products to generate.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the generated product data.
+    """
     # First step - create a dictionary with product source:
     data = {
         "product_id": range(100001, 100001 + num_products),
@@ -95,7 +104,7 @@ def generate_products(num_products):
         "color": [np.random.choice(colors, p=probabilities) for _ in range(num_products)],
     }
 
-    # Second step - generate source where are additional dependencies:
+    # Second step - generate source where there are additional dependencies:
     for _ in range(num_products):
         # Category & brand selection:
         category = np.random.choice(list(categories_brands.keys()))
@@ -125,6 +134,15 @@ def generate_products(num_products):
     return pd.DataFrame(data)
 
 def round_to_9(price):
+    """
+    Round the given price to the nearest integer and ensure the last digit is 9.
+
+    Parameters:
+    price (float): The input price to be rounded.
+
+    Returns:
+    int: The rounded price with the last digit as 9.
+    """
     # Round to the nearest integer first:
     rounded_price = round(price)
 
@@ -135,6 +153,15 @@ def round_to_9(price):
     return rounded_price
 
 def generate_product_data(num_products):
+    """
+    Generate product data.
+
+    Parameters:
+    num_products (int): The number of products to generate.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the generated product data.
+    """
     # Generate source:
     product_data = generate_products(num_products)
 

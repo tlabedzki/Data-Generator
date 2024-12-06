@@ -14,6 +14,20 @@ fake = Faker('pl_PL')
     # Functions:
 
 def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_year, base_monthly_seasonality, base_weekday_seasonality, annual_growth_rate):
+    """
+    Generate a list of dates with seasonality and randomness.
+
+    Parameters:
+    num_rows (int): The number of dates to generate.
+    start_year (int): The starting year for date generation.
+    end_year (int): The ending year for date generation.
+    base_monthly_seasonality (list): A list of base monthly seasonality factors.
+    base_weekday_seasonality (list): A list of base weekday seasonality factors.
+    annual_growth_rate (float): The annual growth rate to apply to the year weights.
+
+    Returns:
+    list: A list of generated dates with seasonality and randomness.
+    """
     # Prepare variable:
     dates = []
 
@@ -63,8 +77,21 @@ def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_yea
 
     return dates
 
-# Funkcja generująca dane e-commerce
 def generate_ecommerce_data_with_seasonality(num_rows, params):
+    """
+    Generate e-commerce data with seasonality.
+
+    Parameters:
+    num_rows (int): The number of rows of data to generate.
+    params (dict): A dictionary containing the parameters for data generation, including:
+        - 'product_id_min' (int): The minimum product ID.
+        - 'product_id_max' (int): The maximum product ID.
+        - 'customer_id_min' (int): The minimum customer ID.
+        - 'customer_id_max' (int): The maximum customer ID.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the generated e-commerce data with seasonality.
+    """
     # Parameters definition:
     start_year = s.start_year
     end_year = s.end_year
@@ -94,6 +121,20 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
     return data
 
 def generate_order_data(num_rows, params):
+    """
+    Generate order data with seasonality.
+
+    Parameters:
+    num_rows (int): The number of rows of data to generate.
+    params (dict): A dictionary containing the parameters for data generation, including:
+        - 'product_id_min' (int): The minimum product ID.
+        - 'product_id_max' (int): The maximum product ID.
+        - 'customer_id_min' (int): The minimum customer ID.
+        - 'customer_id_max' (int): The maximum customer ID.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the generated order data with seasonality.
+    """
     # Generate source:
     order_data = generate_ecommerce_data_with_seasonality(num_rows, params)
 

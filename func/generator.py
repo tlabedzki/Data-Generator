@@ -19,6 +19,24 @@ sales_data_dir = EXPORT_DIR / "sales_data.csv"
     # Functions:
 
 def generate_full_sales_data():
+    """
+    Generate full sales data by merging customer, product, and order data,
+    then export the merged data to a CSV file.
+
+    This function performs the following steps:
+    1. Logs the start of data preparation.
+    2. Generates customer data.
+    3. Retrieves the minimum and maximum customer IDs.
+    4. Generates product data.
+    5. Retrieves the minimum and maximum product IDs.
+    6. Generates order data using customer and product ID ranges.
+    7. Merges order data with product and customer data.
+    8. Adds a calculated column for gross revenue.
+    9. Sorts the merged data by order date.
+    10. Logs the completion of data preparation.
+    11. Exports the sorted data to a CSV file.
+    12. Logs the success of the file save operation.
+    """
     l.log_info("Let's prepare some data!")
 
     # Generate customer source:
@@ -30,7 +48,7 @@ def generate_full_sales_data():
     # Generate product source:
     product_data = p.generate_product_data(s.product_data_rows)
 
-    # Get customer min and max id:
+    # Get product min and max id:
     product_id_min, product_id_max = product_data['product_id'].min(), product_data['product_id'].max()
 
     # Generate order source:
@@ -58,5 +76,12 @@ def generate_full_sales_data():
     l.log_success('File has been saved.')
 
 def get_pl_postal_code_data():
+    """
+    Read and return Polish postal code data from a CSV file.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing the Polish postal code data.
+    """
     pl_postal_code_data = pd.read_csv(POSTAL_CODE_DATA, sep=";")
+
     return pl_postal_code_data
