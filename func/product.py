@@ -104,7 +104,7 @@ def generate_products(num_products):
         "color": [np.random.choice(colors, p=probabilities) for _ in range(num_products)],
     }
 
-    # Second step - generate source where there are additional dependencies:
+    # Second step - create parameters with additional dependencies, which is why they need to be created in this step
     for _ in range(num_products):
         # Category & brand selection:
         category = np.random.choice(list(categories_brands.keys()))
