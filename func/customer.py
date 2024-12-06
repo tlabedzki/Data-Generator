@@ -15,7 +15,7 @@ fake = Faker('pl_PL')
     # Paths:
 
 SOURCE_DATA = Path("source")
-POSTAL_CODE_DATA = SOURCE_DATA / "postal_code.csv"
+POSTAL_CODE_DATA = SOURCE_DATA / "pl_postal_code.csv"
 
 code_df = pd.read_csv(POSTAL_CODE_DATA, sep=";")
 

@@ -11,7 +11,7 @@ SOURCE_DIR = Path("source")
 EXPORT_DIR = Path("export")
 
 # Path to files:
-POSTAL_CODE_DATA = SOURCE_DIR / "postal_code.csv"
+POSTAL_CODE_DATA = SOURCE_DIR / "pl_postal_code.csv"
 SALES_DATA = EXPORT_DIR / "sales_data.csv"
 sales_data_dir = EXPORT_DIR / "sales_data.csv"
 

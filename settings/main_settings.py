@@ -14,6 +14,6 @@ annual_growth_rate = 0.20
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Size of data settings:
 
-customer_data_rows = 35000
-product_data_rows = 50000
-order_data_rows = 70000
+customer_data_rows = 40000
+product_data_rows = 60000
+order_data_rows = 100000
