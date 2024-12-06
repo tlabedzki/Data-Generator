@@ -5,21 +5,21 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import unicodedata
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - - - - #
     # Settings:
 
 # Create faker instance for Polish language
 fake = Faker('pl_PL')
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Paths:
 
-SOURCE_DATA = Path("../source")
+SOURCE_DATA = Path("source")
 POSTAL_CODE_DATA = SOURCE_DATA / "postal_code.csv"
 
 code_df = pd.read_csv(POSTAL_CODE_DATA, sep=";")
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
 
 # Funkcja generująca dane klientów

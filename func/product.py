@@ -3,28 +3,28 @@ import numpy as np
 from faker import Faker
 from datetime import datetime, timedelta
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Settings:
 
 # Create faker instance for Polish language
 fake = Faker('pl_PL')
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
 
-# Rozszerzona lista marek dla każdej kategorii
+# List of brands for each category:
 categories_brands = {
     "Electronics": [
         "Samsung", "Apple", "Sony", "LG", "Philips", "Huawei", "Lenovo", "Dell", "HP", "Panasonic",
-        "Acer", "Asus", "Toshiba", "Xiaomi", "OnePlus", "Google", "Microsoft", "Nokia", "Canon", "Epson"
+        "Acer", "Asus", "Toshiba", "Xiaomi", "Microsoft", "Nokia", "Canon", "Epson", "Garmin", "Polar"
     ],
     "Clothing": [
-        "Nike", "Adidas", "Zara", "H&M", "Uniqlo", "Puma", "Levi's", "Tommy Hilfiger", "Calvin Klein", "Under Armour",
+        "Nike", "Adidas", "Zara", "H&M", "Puma", "Levi's", "Tommy Hilfiger", "Calvin Klein", "Under Armour",
         "Gap", "Ralph Lauren", "Patagonia", "The North Face", "Columbia", "Reebok", "New Balance", "Gucci", "Prada", "Versace"
     ],
     "Home & Garden": [
-        "Bosch", "Tefal", "Black+Decker", "DeLonghi", "Dyson", "KitchenAid", "Rowenta", "Electrolux", "Miele", "Philips",
-        "Whirlpool", "Siemens", "Braun", "Kenwood", "Gorenje", "Russell Hobbs", "Zanussi", "Fiskars", "Weber", "Le Creuset"
+        "Bosch", "Tefal", "Black+Decker", "DeLonghi", "Dyson", "Rowenta", "Electrolux", "Miele", "Philips",
+        "Whirlpool", "Gardena", "Braun", "Kenwood", "Gorenje", "Russell Hobbs", "Zanussi", "Fiskars"
     ],
     "Sports": [
         "Nike", "Adidas", "Puma", "Under Armour", "Asics", "Reebok", "New Balance", "Columbia", "Patagonia", "The North Face",
@@ -32,11 +32,10 @@ categories_brands = {
     ],
     "Beauty": [
         "L'Oréal", "Nivea", "Maybelline", "Estée Lauder", "Clinique", "Lancôme", "Dior", "Chanel", "MAC", "Revlon",
-        "Garnier", "Neutrogena", "Pantene", "Olay", "Sephora", "Urban Decay", "Bobbi Brown", "Shiseido", "Yves Rocher", "NYX"
+        "Garnier", "Neutrogena", "Pantene", "Kylie", "Yves Rocher"
     ],
     "Toys": [
-        "Lego", "Hasbro", "Mattel", "Playmobil", "Fisher-Price", "Barbie", "Hot Wheels", "Nerf", "Melissa & Doug", "VTech",
-        "Bandai", "Crayola", "Brio", "Schleich", "Magformers", "Tonka", "LeapFrog", "Mega Bloks", "Spin Master", "Funko"
+        "Lego", "Hasbro", "Mattel", "Playmobil", "Fisher-Price", "Barbie", "Hot Wheels"
     ],
     "Automotive": [
         "Bosch", "Michelin", "Goodyear", "Continental", "Castrol", "Bridgestone", "Hankook", "Pirelli", "Shell", "Mobil",
@@ -44,28 +43,43 @@ categories_brands = {
     ],
 }
 
-# Zakresy cen dla kategorii
+# Price ranges for each category:
 price_ranges = {
-    "Electronics": (500, 8000),
-    "Clothing": (20, 300),
-    "Home & Garden": (50, 5000),
-    "Sports": (50, 3000),
-    "Beauty": (10, 500),
-    "Toys": (50, 250),
-    "Automotive": (100, 3000),
-}
-margin_ranges = {
-    "Electronics": (0.00, 0.10),
-    "Clothing": (0.15, 0.60),
-    "Home & Garden": (0.10, 0.50),
-    "Sports": (0.15, 0.65),
-    "Beauty": (0.10, 0.50),
-    "Toys": (0.15, 0.35),
-    "Automotive": (0.15, 0.35),
+    "Electronics":      (500, 8000),
+    "Clothing":         (20, 300),
+    "Home & Garden":    (30, 5000),
+    "Sports":           (30, 3000),
+    "Beauty":           (10, 500),
+    "Toys":             (30, 250),
+    "Automotive":       (100, 3000),
 }
 
-# Przykładowe kolory
-colors = ["Red", "Blue", "Green", "Black", "White", "Yellow", "Pink", "Gray", "Orange", "Purple"]
+# Margin ranges for each category:
+margin_ranges = {
+    "Electronics":      (0.00, 0.10),
+    "Clothing":         (0.15, 0.60),
+    "Home & Garden":    (0.10, 0.50),
+    "Sports":           (0.15, 0.65),
+    "Beauty":           (0.10, 0.50),
+    "Toys":             (0.15, 0.35),
+    "Automotive":       (0.15, 0.35),
+}
+
+# Colors definition with probabilities:
+colors_with_probabilities = {
+    "Black":    0.35,
+    "Red":      0.08,
+    "Blue":     0.08,
+    "Green":    0.12,
+    "Yellow":   0.06,
+    "White":    0.10,
+    "Pink":     0.11,
+    "Brown":    0.10,
+}
+
+# List of colors & list of probabilities:
+colors = list(colors_with_probabilities.keys())
+probabilities = list(colors_with_probabilities.values())
 
 # Funkcja generująca bazę produktów z dopasowanymi cenami i markami
 def generate_products(num_products):
@@ -77,7 +91,7 @@ def generate_products(num_products):
         "currency": ["PLN"] * num_products,
         "category": [],
         "brand": [],
-        "color": [np.random.choice(colors) for _ in range(num_products)],
+        "color": [np.random.choice(colors, p=probabilities) for _ in range(num_products)],
     }
 
     # Second step - generate source where are additional dependencies:
