@@ -2,10 +2,7 @@ import pandas as pd
 
 from pathlib import Path
 
-import customer as c
-import product as p
-import order as o
-
+from func import customer as c, order as o, product as p
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     # Paths:
