@@ -7,7 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### 0.0.2 - 2024-12-06
 Changed:
 - Updated `README.md` file with more information about the project;
-- Updated `main_settings` file with more configuration options.
+- Updated `main_settings` file with more configuration options;
+- Updated `requirements.txt` file with new dependencies.
 
 ### 0.0.1 - 2024-12-06
 
