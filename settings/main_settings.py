@@ -21,6 +21,15 @@ customer_data_rows = 40000
 product_data_rows = 60000
 order_data_rows = 50000
 
+# Below, you can control the number of lines in an order using a probability indicator for each quantity from 1 to 5.
+order_line_number = {
+    1: 0.69,
+    2: 0.21,
+    3: 0.05,
+    4: 0.03,
+    5: 0.01,
+}
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Product & category settings:
 
