@@ -18,8 +18,8 @@ annual_growth_rate = 0.20
 # to the number of order lines should be smaller. It’s worth testing different scenarios in this case.
 # Have fun!
 customer_data_rows = 40000
-product_data_rows = 60000
-order_data_rows = 50000
+product_data_rows = 50000
+order_data_rows = 80000
 
 # Below, you can control the number of lines in an order using a probability indicator for each quantity from 1 to 5.
 order_line_number = {

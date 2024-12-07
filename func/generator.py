@@ -58,7 +58,9 @@ def generate_full_sales_data():
         'product_id_min': product_id_min,
         'product_id_max': product_id_max
     }
+    del customer_id_min, customer_id_max, product_id_min, product_id_max
     order_data = o.generate_order_data(s.order_data_rows, params)
+    del params
 
     # Merge order_data with customer_data and product_data:
     merged_data = pd.merge(order_data, product_data, on='product_id', how='left')
@@ -68,7 +70,7 @@ def generate_full_sales_data():
     merged_data['revenue_gross'] = merged_data['quantity'] * merged_data['sales_price_gross']
 
     # Sort data:
-    sorted_data = merged_data.sort_values('order_date', ascending=True)
+    sorted_data = merged_data.sort_values(['order_date', 'order_id'], ascending=[True, True])
     l.log_info('Data has been prepared.')
 
     # Get characteristic of created data:
@@ -78,6 +80,7 @@ def generate_full_sales_data():
     d_unique_customers = f.format_number(sorted_data['customer_id'].nunique())
     d_revenue_gross_pln = f.format_number(sorted_data['revenue_gross'].sum() / 1000000)
 
+    # Print some characteristic of created data to what exactly we have created:
     field_width = 25
     l.log_info(' -> Characteristic of created data:')
     l.log_info(f'{"Number of orders:":<{field_width}} {d_order_number}')
@@ -85,6 +88,7 @@ def generate_full_sales_data():
     l.log_info(f'{"Unique products sold:":<{field_width}} {d_unique_products_sold}')
     l.log_info(f'{"Unique customers:":<{field_width}} {d_unique_customers}')
     l.log_info(f'{"Total revenue gross PLN:":<{field_width}} {d_revenue_gross_pln} M')
+    del d_order_number, d_order_line_qty, d_unique_products_sold, d_unique_customers, d_revenue_gross_pln
 
     # Export data:
     sorted_data.to_csv(sales_data_dir, sep=';', index=False)
