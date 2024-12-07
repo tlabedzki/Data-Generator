@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from faker import Faker
 from datetime import datetime, timedelta
+import func.log as l
 import settings.main_settings as s
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -64,9 +65,18 @@ def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_yea
         monthly_seasonality = monthly_seasonality / monthly_seasonality.sum()
         monthly_cumulative = np.cumsum(monthly_seasonality)
 
-        # Weekday seasonality with random fluctuations:
-        weekday_seasonality = np.array(base_weekday_seasonality) * (1 + np.random.normal(0, 0.2, len(base_weekday_seasonality)))
-        weekday_seasonality = weekday_seasonality / weekday_seasonality.sum()
+        # Weekday seasonality with random fluctuations.
+        # The following while loop was introduced because, at times, an issue with negative values occurred.
+        while True:
+            # Generate weekday seasonality with random fluctuations and normalize it:
+            weekday_seasonality = np.array(base_weekday_seasonality) * (1 + np.random.normal(0, 0.2, len(base_weekday_seasonality)))
+            weekday_seasonality = weekday_seasonality / weekday_seasonality.sum()
+
+            # Check if all values are non-negative and exit loop if all values are valid:
+            if (weekday_seasonality >= 0).all():
+                break
+            else:
+                l.log_error("Negative values detected in weekday_seasonality. Regenerating...")
 
         # Month selection based on monthly seasonality:
         rand_month = np.random.rand()
@@ -79,19 +89,19 @@ def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_yea
         random_date_weekday = weekdays[random_date.weekday()]
 
         # Weekday adjustment with random shift:
-        if np.random.rand() < 0.7:
+        if np.random.rand() < 0.90:
             chosen_weekday = np.random.choice(range(7), p=weekday_seasonality)
             while random_date.weekday() != chosen_weekday:
                 shift = np.random.randint(1, 3) * (1 if random_date.weekday() < chosen_weekday else -1)
                 random_date += timedelta(days=shift)
 
         # Append drawn date to list:
-        if np.random.rand() < 0.5:
+        if np.random.rand() < 0.95:
             # Get the original weekday of random_date
             original_weekday = random_date.weekday()
 
             # Calculate random shift in days (between -30 and 30)
-            shift_days = np.random.randint(-45, 45)
+            shift_days = np.random.randint(-30, 30)
 
             # Apply the shift to random_date
             new_date = random_date + timedelta(days=shift_days)
