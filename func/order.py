@@ -11,9 +11,23 @@ import settings.main_settings as s
 fake = Faker('pl_PL')
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Functions:
+    # Variables:
 
+# List of weekdays:
 weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+# Payment methods definition with probabilities:
+payment_method_with_probabilities = s.payment_method_with_probabilities
+payment_method = list(payment_method_with_probabilities.keys())
+payment_method_probabilities = list(payment_method_with_probabilities.values())
+
+# Delivery methods definition with probabilities:
+delivery_method_with_probabilities = s.delivery_method_with_probabilities
+delivery_method = list(delivery_method_with_probabilities.keys())
+delivery_method_probabilities = list(delivery_method_with_probabilities.values())
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Functions:
 
 def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_year, base_monthly_seasonality, base_weekday_seasonality, annual_growth_rate):
     """
@@ -123,8 +137,8 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
         "product_id": [np.random.randint(params.get('product_id_min'), params.get('product_id_max')) for _ in range(num_rows)],
         "quantity": [np.random.choice([1, 2, 3, 4, 5], p=[0.75, 0.15, 0.05, 0.03, 0.02]) for _ in range(num_rows)],
         "customer_id": [np.random.randint(params.get('customer_id_min'), params.get('customer_id_max')) for _ in range(num_rows)],
-        "payment_method": [np.random.choice(["BLIK", "PayU", "Bank transfer", "COD"], p=[0.70, 0.15, 0.05, 0.10]) for _ in range(num_rows)],
-        "delivery_method": [np.random.choice(["InPost", "DHL", "DPD", "UPS", "FedEx"], p=[0.65, 0.10, 0.15, 0.06, 0.04]) for _ in range(num_rows)],
+        "payment_method": [np.random.choice(payment_method, p=payment_method_probabilities) for _ in range(num_rows)],
+        "delivery_method": [np.random.choice(delivery_method, p=delivery_method_probabilities) for _ in range(num_rows)],
     }
     data['order_date'] = pd.to_datetime(data['order_date'])
 

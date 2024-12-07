@@ -24,8 +24,6 @@ margin_ranges = s.margin_ranges
 
 # Colors definition with probabilities:
 colors_with_probabilities = s.colors_with_probabilities
-
-# List of colors & list of probabilities:
 colors = list(colors_with_probabilities.keys())
 probabilities = list(colors_with_probabilities.values())
 

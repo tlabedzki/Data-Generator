@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Added:
 - Modifications of basic settings related to the seasonality of generated orders.
 - Additional descriptions in the settings file that clearly explain the purpose of each setting.
+- Added the ability to define custom payment and delivery methods directly in the `main_settings.py` file.
 
 ### 0.0.2 - 2024-12-06
 Changed:

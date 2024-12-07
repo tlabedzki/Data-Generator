@@ -1,7 +1,9 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sales settings:
 
-# Below you can set the years for which you would like to generate data.
+# Below you can set the years for which you would like to generate data. The setting works in a "from-to" option,
+# meaning that if you set the start_year to 2010 and the end_year to 2020, the generated data will include orders
+# from the beginning of 2010 to the end of 2020.
 start_year = 2023
 end_year = 2024
 
@@ -90,4 +92,19 @@ colors_with_probabilities = {
     "white":    0.10,
     "pink":     0.11,
     "brown":    0.10,
+}
+
+payment_method_with_probabilities = {
+    "BLIK":         0.70,
+    "PayU":         0.15,
+    "Bank transfer":0.05,
+    "COD":          0.10,
+}
+
+delivery_method_with_probabilities = {
+    "InPost":       0.65,
+    "DHL":          0.10,
+    "DPD":          0.15,
+    "UPS":          0.06,
+    "FedEx":        0.04,
 }
