@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from faker import Faker
 
+import func.data as d
 import settings.main_settings as s
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -24,11 +25,30 @@ margin_ranges = s.margin_ranges
 
 # Colors definition with probabilities:
 colors_with_probabilities = s.colors_with_probabilities
-colors = list(colors_with_probabilities.keys())
-probabilities = list(colors_with_probabilities.values())
+colors, colors_probabilities = d.get_param_list_and_normalized_probabilities(colors_with_probabilities)
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
+
+def get_param_list_and_normalized_probabilities(param_dict):
+    """
+    Extract the parameter list and normalized probabilities from a dictionary.
+
+    Parameters:
+    param_dict (dict): The input dictionary containing parameters and probabilities.
+
+    Returns:
+    list: The extracted parameter list.
+    list: The normalized probabilities.
+    """
+    # Extract the parameter list and probabilities:
+    param_list = list(param_dict.keys())
+    probabilities = list(param_dict.values())
+
+    # Normalize the probabilities:
+    probabilities = probabilities / np.sum(probabilities)
+
+    return param_list, probabilities
 
 def generate_products(num_products):
     """
@@ -48,7 +68,7 @@ def generate_products(num_products):
         "currency": ["PLN"] * num_products,
         "category": [],
         "brand": [],
-        "color": [np.random.choice(colors, p=probabilities) for _ in range(num_products)],
+        "color": [np.random.choice(colors, p=colors_probabilities) for _ in range(num_products)],
     }
 
     # Second step - create parameters with additional dependencies, which is why they need to be created in this step

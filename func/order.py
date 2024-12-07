@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from faker import Faker
 from datetime import datetime, timedelta
+
+import func.data as d
 import func.log as l
 import settings.main_settings as s
 
@@ -19,13 +21,11 @@ weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", 
 
 # Payment methods definition with probabilities:
 payment_method_with_probabilities = s.payment_method_with_probabilities
-payment_method = list(payment_method_with_probabilities.keys())
-payment_method_probabilities = list(payment_method_with_probabilities.values())
+payment_method, payment_method_probabilities = d.get_param_list_and_normalized_probabilities(payment_method_with_probabilities)
 
 # Delivery methods definition with probabilities:
 delivery_method_with_probabilities = s.delivery_method_with_probabilities
-delivery_method = list(delivery_method_with_probabilities.keys())
-delivery_method_probabilities = list(delivery_method_with_probabilities.values())
+delivery_method, delivery_method_probabilities = d.get_param_list_and_normalized_probabilities(delivery_method_with_probabilities)
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:

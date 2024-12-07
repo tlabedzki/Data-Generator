@@ -10,7 +10,7 @@ end_year = 2024
 # Below you can set the seasonality for months and days of the week. Additionally, there is an option to set the
 # average year-over-year growth. If sales are expected to decrease, you can enter a negative value here.
 base_monthly_seasonality = [0.06, 0.07, 0.08, 0.08, 0.08, 0.06, 0.07, 0.08, 0.08, 0.10, 0.21, 0.16]
-base_weekday_seasonality = [0.28, 0.17, 0.03, 0.05, 0.07, 0.15, 0.25]
+base_weekday_seasonality = [0.24, 0.17, 0.03, 0.05, 0.07, 0.15, 0.23]
 annual_growth_rate = 0.20
 
 # Below you can set the number of rows for each type of data, such as customers, products, and order lines.
@@ -19,7 +19,7 @@ annual_growth_rate = 0.20
 # Have fun!
 customer_data_rows = 40000
 product_data_rows = 60000
-order_data_rows = 200000
+order_data_rows = 50000
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Product & category settings:
@@ -84,7 +84,7 @@ margin_ranges = {
 
 # Below, you can set the product colors along with their frequency of occurrence.
 colors_with_probabilities = {
-    "black":    0.35,
+    "black":    0.40,
     "red":      0.08,
     "blue":     0.08,
     "green":    0.12,
@@ -94,15 +94,17 @@ colors_with_probabilities = {
     "brown":    0.10,
 }
 
+# Below, you can set the product payment methods along with their frequency of occurrence.
 payment_method_with_probabilities = {
-    "BLIK":         0.70,
+    "BLIK":         0.75,
     "PayU":         0.15,
     "Bank transfer":0.05,
     "COD":          0.10,
 }
 
+# Below, you can set the delivery methods along with their frequency of occurrence.
 delivery_method_with_probabilities = {
-    "InPost":       0.65,
+    "InPost":       0.70,
     "DHL":          0.10,
     "DPD":          0.15,
     "UPS":          0.06,
