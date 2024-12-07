@@ -1,27 +1,29 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Date settings:
+    # Sales settings:
 
+# Below you can set the years for which you would like to generate data.
 start_year = 2023
 end_year = 2024
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Seasonality settings:
-
+# Below you can set the seasonality for months and days of the week. Additionally, there is an option to set the
+# average year-over-year growth. If sales are expected to decrease, you can enter a negative value here.
 base_monthly_seasonality = [0.06, 0.07, 0.08, 0.09, 0.08, 0.06, 0.07, 0.08, 0.08, 0.10, 0.21, 0.15]
-base_weekday_seasonality = [0.20, 0.15, 0.1, 0.1, 0.1, 0.15, 0.20]
+base_weekday_seasonality = [0.25, 0.20, 0.03, 0.05, 0.07, 0.15, 0.25]
 annual_growth_rate = 0.20
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Size of data settings:
-
+# Below you can set the number of rows for each type of data, such as customers, products, and order lines.
+# If you want to have more orders from returning customers in the data, the number of customers relative
+# to the number of order lines should be smaller. It’s worth testing different scenarios in this case.
+# Have fun!
 customer_data_rows = 40000
 product_data_rows = 60000
 order_data_rows = 100000
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Products & categories settings:
+    # Product & category settings:
 
-# List of brands for each category:
+# Below, I have prepared the basic mapping of categories and brands. You can modify them as needed,
+# while maintaining the structure below.
 categories_brands = {
     "Electronics": [
         "Samsung", "Apple", "Sony", "LG", "Philips", "Huawei", "Lenovo", "Dell", "HP", "Panasonic",
@@ -52,7 +54,9 @@ categories_brands = {
     ],
 }
 
-# Price ranges for each category:
+# Since each category may have its own pricing characteristics, below I have prepared a simple mapping that includes
+# category names and the purchase price range from value X to value Y, from which a product's value will be
+# randomly selected.
 price_ranges = {
     "Electronics":      (500, 8000),
     "Clothing":         (20, 300),
@@ -63,7 +67,9 @@ price_ranges = {
     "Automotive":       (100, 3000),
 }
 
-# Margin ranges for each category:
+# Categories also have their own margin characteristics, which can be seen especially when comparing electronics, and
+# clothing. Therefore, I decided that in this case, custom modifications can also be made so that the margin
+# differences vary depending on the category.
 margin_ranges = {
     "Electronics":      (0.00, 0.10),
     "Clothing":         (0.15, 0.60),
@@ -74,7 +80,7 @@ margin_ranges = {
     "Automotive":       (0.15, 0.35),
 }
 
-# Colors definition with probabilities:
+# Below, you can set the product colors along with their frequency of occurrence.
 colors_with_probabilities = {
     "black":    0.35,
     "red":      0.08,
