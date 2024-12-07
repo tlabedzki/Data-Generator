@@ -4,7 +4,6 @@ from faker import Faker
 from datetime import datetime, timedelta
 
 import func.data as d
-import func.log as l
 import settings.main_settings as s
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -80,7 +79,8 @@ def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_yea
             if (weekday_seasonality >= 0).all():
                 break
             else:
-                l.log_error("Negative values detected in weekday_seasonality. Regenerating...")
+                # l.log_error("Negative values detected in weekday_seasonality. Regenerating...")
+                pass
 
         # Month selection based on monthly seasonality:
         rand_month = np.random.rand()

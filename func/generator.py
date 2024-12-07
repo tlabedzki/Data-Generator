@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from func import customer as c, order as o, product as p, log as l
+from func import customer as c, order as o, product as p, log as l, format as f
 import settings.main_settings as s
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -71,9 +71,24 @@ def generate_full_sales_data():
     sorted_data = merged_data.sort_values('order_date', ascending=True)
     l.log_info('Data has been prepared.')
 
+    # Get characteristic of created data:
+    d_order_number = f.format_number(sorted_data['order_id'].nunique())
+    d_order_line_qty = f.format_number(len(sorted_data))
+    d_unique_products_sold = f.format_number(sorted_data['product_id'].nunique())
+    d_unique_customers = f.format_number(sorted_data['customer_id'].nunique())
+    d_revenue_gross_pln = f.format_number(sorted_data['revenue_gross'].sum() / 1000000)
+
+    field_width = 25
+    l.log_info(' -> Characteristic of created data:')
+    l.log_info(f'{"Number of orders:":<{field_width}} {d_order_number}')
+    l.log_info(f'{"Number of order lines:":<{field_width}} {d_order_line_qty}')
+    l.log_info(f'{"Unique products sold:":<{field_width}} {d_unique_products_sold}')
+    l.log_info(f'{"Unique customers:":<{field_width}} {d_unique_customers}')
+    l.log_info(f'{"Total revenue gross PLN:":<{field_width}} {d_revenue_gross_pln} M')
+
     # Export data:
     sorted_data.to_csv(sales_data_dir, sep=';', index=False)
-    l.log_success('File has been saved.')
+    l.log_success('File has been saved as CSV file.')
 
 def get_pl_postal_code_data():
     """
