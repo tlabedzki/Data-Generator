@@ -4,8 +4,8 @@ import func.generator as g
     # Run:
 
 """
-Generate full sales data by merging customer, product, and order data,
-then export the merged data to a CSV file.
+Generate full sales data by creating customer, product, and order data,
+and then export the generated data to a CSV file.
 
 This function performs the following steps:
 1. Logs the start of data preparation.
