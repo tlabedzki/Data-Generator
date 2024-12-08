@@ -80,7 +80,7 @@ def generate_full_sales_data():
     d_unique_customers = f.format_number(sorted_data['customer_id'].nunique())
     d_revenue_gross_pln = f.format_number(sorted_data['revenue_gross'].sum() / 1000000)
 
-    # Print some characteristic of created data to what exactly we have created:
+    # Print some characteristic of created data shows what exactly we have created:
     field_width = 25
     l.log_info(' -> Characteristic of created data:')
     l.log_info(f'{"Number of orders:":<{field_width}} {d_order_number}')
