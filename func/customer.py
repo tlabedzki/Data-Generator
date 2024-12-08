@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
 from faker import Faker
-from datetime import datetime, timedelta
 from pathlib import Path
-import unicodedata
+
+import func.data as d
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -- - - - - - - - - - #
     # Settings:
@@ -45,7 +45,7 @@ def generate_customers(num_customers, max_postal_code_id):
 
     # Generate last names and remove Polish accents
     last_names = [fake.last_name() for _ in range(num_customers)]
-    last_names_without_polish_letters = [remove_polish_accents(last_name) for last_name in last_names]
+    last_names_without_polish_letters = [d.remove_polish_accents(last_name) for last_name in last_names]
 
     # List of popular e-mail domains
     domains = np.random.choice(['gmailx.com', 'yahoox.com', 'outlookx.com'], size=num_customers, p=[0.5, 0.3, 0.2])
@@ -68,20 +68,6 @@ def generate_customers(num_customers, max_postal_code_id):
 
     # Return the generated customer data as a DataFrame
     return pd.DataFrame(data)
-
-def remove_polish_accents(text):
-    """
-    Remove Polish accents from the given text.
-
-    Parameters:
-    text (str): The input text containing Polish accents.
-
-    Returns:
-    str: The text with Polish accents removed.
-    """
-    # Get rid of Polish accents:
-    nfkd_form = unicodedata.normalize('NFKD', text)
-    return ''.join([c for c in nfkd_form if not unicodedata.combining(c)])
 
 def generate_customer_data(num_customers):
     """

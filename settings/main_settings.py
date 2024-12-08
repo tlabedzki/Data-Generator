@@ -10,7 +10,7 @@ end_year = 2024
 # Below you can set the seasonality for months and days of the week. Additionally, there is an option to set the
 # average year-over-year growth. If sales are expected to decrease, you can enter a negative value here.
 base_monthly_seasonality = [0.06, 0.07, 0.08, 0.08, 0.08, 0.06, 0.07, 0.08, 0.08, 0.10, 0.21, 0.16]
-base_weekday_seasonality = [0.24, 0.17, 0.03, 0.05, 0.07, 0.15, 0.23]
+base_weekday_seasonality = [0.23, 0.17, 0.05, 0.05, 0.07, 0.15, 0.22]
 annual_growth_rate = 0.20
 
 # Below you can set the number of rows for each type of data, such as customers, products, and order lines.

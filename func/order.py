@@ -33,7 +33,7 @@ order_line_numbers, order_line_numbers_probabilities = d.get_param_list_and_norm
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
 
-def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_year, base_monthly_seasonality, base_weekday_seasonality, annual_growth_rate):
+def generate_dates_with_seasonality_and_randomness(start_year, end_year, base_monthly_seasonality, base_weekday_seasonality, annual_growth_rate):
     """
     Generate a list of dates with seasonality and randomness.
 
@@ -57,8 +57,9 @@ def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_yea
     year_weights = np.array(year_weights) / sum(year_weights)
     year_cumulative = np.cumsum(year_weights)
 
+    date_was_drawn = False
     # Create dates in loop:
-    for _ in range(num_rows):
+    while date_was_drawn == False:
         # Year selection:
         rand_year = np.random.rand()
         year = years[np.searchsorted(year_cumulative, rand_year)]
@@ -79,7 +80,6 @@ def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_yea
             if (weekday_seasonality >= 0).all():
                 break
             else:
-                # l.log_error("Negative values detected in weekday_seasonality. Regenerating...")
                 pass
 
         # Month selection based on monthly seasonality:
@@ -117,7 +117,11 @@ def generate_dates_with_seasonality_and_randomness(num_rows, start_year, end_yea
                 new_date = random_date + timedelta(days=shift_days)
 
         # Append drawn date to list:
-        dates.append(random_date)
+        if random_date < datetime(start_year, 1, 1) or random_date > datetime(end_year, 12, 31):
+            continue
+        else:
+            dates.append(random_date)
+            date_was_drawn = True
 
     return dates
 
@@ -145,12 +149,6 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
 
     # Initialize list to store order data
     order_groups = []
-
-    # Estimate number of orders (assuming average 3 lines per order)
-    num_orders = int(num_rows / 3)
-
-    # Initialize order_id
-    order_id = 200001
     created_rows = 0
 
     while created_rows < num_rows:
@@ -158,17 +156,14 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
         order_line_number = np.random.choice(order_line_numbers, p=order_line_numbers_probabilities)
 
         # Generate shared attributes for the order
-        order_date = generate_dates_with_seasonality_and_randomness(
-            1, start_year, end_year, base_monthly_seasonality, base_weekday_seasonality, annual_growth_rate
-        )[0]
+        order_date = generate_dates_with_seasonality_and_randomness(start_year, end_year, base_monthly_seasonality, base_weekday_seasonality, annual_growth_rate)[0]
         customer_id = np.random.randint(params.get('customer_id_min'), params.get('customer_id_max'))
         payment_method_choice = np.random.choice(payment_method, p=payment_method_probabilities)
         delivery_method_choice = np.random.choice(delivery_method, p=delivery_method_probabilities)
 
-        # Generate lines for the current order
+        # Generate lines for the current order:
         for _ in range(order_line_number):
             order_groups.append({
-                "order_id": order_id,  # Assign the current order_id
                 "order_date": order_date,
                 "product_id": np.random.randint(params.get('product_id_min'), params.get('product_id_max')),
                 "quantity": np.random.choice([1, 2, 3, 4, 5], p=[0.75, 0.15, 0.05, 0.03, 0.02]),
@@ -178,18 +173,25 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
             })
 
         # Increment order_id for the next order
-        order_id += 1
         created_rows = len(order_groups)
 
-    # Convert to DataFrame
+    # Convert to DataFrame:
     data = pd.DataFrame(order_groups)
 
-    # Convert order_date to datetime
+    # Convert order_date to datetime:
     data['order_date'] = pd.to_datetime(data['order_date'])
 
-    # Filter data to show only selected years
-    # Sometimes there are days from previous and next years, because of randomness in generation:
-    data = data[(data['order_date'] >= f'{start_year}-01-01') & (data['order_date'] <= f'{end_year}-12-31')].reset_index(drop=True)
+    # Sort data by order_date to ensure chronological order:
+    data.sort_values(by="order_date", inplace=True)
+
+    # Create unique identifier for each order (group by shared attributes)
+    data['order_id'] = (
+        data.groupby(['order_date', 'customer_id', 'payment_method', 'delivery_method'])
+        .ngroup() + 100001
+    )
+
+    # Sort data after adding order_id:
+    data.sort_values('order_id', inplace=True)
 
     return data
 

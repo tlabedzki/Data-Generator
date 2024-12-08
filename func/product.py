@@ -42,7 +42,7 @@ def generate_products(num_products):
     """
     # First step - create a dictionary with product source:
     data = {
-        "product_id": range(100001, 100001 + num_products),
+        "product_id": range(200001, 200001 + num_products),
         "net_purchase_price": [],
         "sales_margin": [],
         "currency": ["PLN"] * num_products,

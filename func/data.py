@@ -1,4 +1,5 @@
 import numpy as np
+import unicodedata
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
@@ -41,3 +42,19 @@ def round_to_9(price):
         rounded_price = (rounded_price // 10) * 10 + 9
 
     return rounded_price
+
+
+
+def remove_polish_accents(text):
+    """
+    Remove Polish accents from the given text.
+
+    Parameters:
+    text (str): The input text containing Polish accents.
+
+    Returns:
+    str: The text with Polish accents removed.
+    """
+    # Get rid of Polish accents:
+    nfkd_form = unicodedata.normalize('NFKD', text)
+    return ''.join([c for c in nfkd_form if not unicodedata.combining(c)])
