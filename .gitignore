@@ -1,6 +1,10 @@
+# Standard python directories to hide:
 .idea
 __pycache__
 
+# Local export directory for the exported data (not needed for the github repo, but useful for local testing:
+export/
+
+# Temporary files needed to get postal codes in needed format:
 source/postal_code_original.csv
-export/sales_data.csv
 func/postal_code.py
