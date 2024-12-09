@@ -10,6 +10,10 @@ import settings.main_settings as s
 SOURCE_DIR = Path("source")
 EXPORT_DIR = Path("export")
 
+# Create export directory if not exist:
+if not EXPORT_DIR.exists():
+    EXPORT_DIR.mkdir()
+
 # Path to files:
 POSTAL_CODE_DATA = SOURCE_DIR / "pl_postal_code.csv"
 SALES_DATA = EXPORT_DIR / "sales_data.csv"

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 0.0.5 - 2024-12-09
+Added:
+- Added the ability to create export folder if it does not exist.
+
 ### 0.0.4 - 2024-12-07
 Added:
 - Added the ability to generate orders with multiple lines under a single order number, simulating the purchase of several products in one order.
