@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 import func.data as d
 import settings.main_settings as s
+import settings.market_settings as ms
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Settings:
@@ -19,16 +20,27 @@ fake = Faker('pl_PL')
 weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 # Payment methods definition with probabilities:
-payment_method_with_probabilities = s.payment_method_with_probabilities
+payment_method_with_probabilities = ms.payment_method_with_probabilities
 payment_method, payment_method_probabilities = d.get_param_list_and_normalized_probabilities(payment_method_with_probabilities)
 
+# Payment providers definition with probabilities:
+payment_provider_with_probabilities = ms.payment_provider_with_probabilities
+payment_provider, payment_provider_probabilities = d.get_param_list_and_normalized_probabilities(payment_provider_with_probabilities)
+
 # Delivery methods definition with probabilities:
-delivery_method_with_probabilities = s.delivery_method_with_probabilities
+delivery_method_with_probabilities = ms.delivery_method_with_probabilities
 delivery_method, delivery_method_probabilities = d.get_param_list_and_normalized_probabilities(delivery_method_with_probabilities)
 
 # Order line numbers with probabilities:
 order_line_numbers = s.order_line_number
 order_line_numbers, order_line_numbers_probabilities = d.get_param_list_and_normalized_probabilities(order_line_numbers)
+
+# Quantity per order line with probabilities:
+quantity_per_order_line = s.quantity_per_order_line
+quantity_per_order_line, quantity_per_order_line_probabilities = d.get_param_list_and_normalized_probabilities(quantity_per_order_line)
+
+# Discount type probabilities:
+discount_types, discount_type_probabilities = d.get_param_list_and_normalized_probabilities(ms.discount_type_probabilities)
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
@@ -150,6 +162,7 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
     # Initialize list to store order data
     order_groups = []
     created_rows = 0
+    product_categories, base_product_category_probabilities = get_product_category_selection(params)
 
     while created_rows < num_rows:
         # Randomly determine the number of lines for this order
@@ -159,17 +172,27 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
         order_date = generate_dates_with_seasonality_and_randomness(start_year, end_year, base_monthly_seasonality, base_weekday_seasonality, annual_growth_rate)[0]
         customer_id = np.random.randint(params.get('customer_id_min'), params.get('customer_id_max'))
         payment_method_choice = np.random.choice(payment_method, p=payment_method_probabilities)
+        payment_provider_choice = np.random.choice(payment_provider, p=payment_provider_probabilities)
         delivery_method_choice = np.random.choice(delivery_method, p=delivery_method_probabilities)
+
+        product_category_probabilities = get_seasonal_category_probabilities(
+            product_categories,
+            base_product_category_probabilities,
+            order_date,
+        )
 
         # Generate lines for the current order:
         for _ in range(order_line_number):
+            product_id, category = choose_product_id(params, order_date, product_categories, product_category_probabilities)
             order_groups.append({
                 "order_date": order_date,
-                "product_id": np.random.randint(params.get('product_id_min'), params.get('product_id_max')),
-                "quantity": np.random.choice([1, 2, 3, 4, 5], p=[0.75, 0.15, 0.05, 0.03, 0.02]),
+                "product_id": product_id,
+                "quantity": choose_quantity(category),
                 "customer_id": customer_id,
                 "payment_method": payment_method_choice,
+                "payment_provider": payment_provider_choice,
                 "delivery_method": delivery_method_choice,
+                "discount_rate": choose_discount_rate(category, order_date),
             })
 
         # Increment order_id for the next order
@@ -186,7 +209,7 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
 
     # Create unique identifier for each order (group by shared attributes)
     data['order_id'] = (
-        data.groupby(['order_date', 'customer_id', 'payment_method', 'delivery_method'])
+        data.groupby(['order_date', 'customer_id', 'payment_method', 'payment_provider', 'delivery_method'])
         .ngroup() + 100001
     )
 
@@ -194,6 +217,110 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
     data.sort_values('order_id', inplace=True)
 
     return data
+
+def get_product_category_selection(params):
+    """
+    Return category selection values when category-aware product selection is available.
+
+    Parameters:
+    params (dict): Order generation parameters.
+
+    Returns:
+    tuple: Category names and probabilities, or (None, None) when unavailable.
+    """
+    product_category_weights = params.get('product_category_weights')
+
+    if not product_category_weights:
+        return None, None
+
+    return d.get_param_list_and_normalized_probabilities(product_category_weights)
+
+def get_seasonal_category_probabilities(product_categories, base_probabilities, order_date):
+    """
+    Apply category monthly seasonality to base category probabilities.
+
+    Parameters:
+    product_categories (list): Category names.
+    base_probabilities (list): Base category probabilities.
+    order_date (datetime): Order date.
+
+    Returns:
+    np.array: Seasonally adjusted category probabilities.
+    """
+    if product_categories is None:
+        return None
+
+    month = order_date.month
+    seasonality = np.array([
+        ms.category_monthly_seasonality.get(category, {}).get(month, 1.0)
+        for category in product_categories
+    ])
+    probabilities = np.array(base_probabilities) * seasonality
+
+    return probabilities / probabilities.sum()
+
+def choose_product_id(params, order_date=None, product_categories=None, product_category_probabilities=None):
+    """
+    Choose a product ID for an order line.
+
+    Parameters:
+    params (dict): Order generation parameters.
+    product_categories (list, optional): Categories available for product selection.
+    product_category_probabilities (list, optional): Category selection probabilities.
+
+    Returns:
+    tuple: Selected product ID and category.
+    """
+    product_ids_by_category = params.get('product_ids_by_category')
+    product_weights_by_category = params.get('product_weights_by_category')
+
+    if product_ids_by_category and product_categories is not None:
+        category = np.random.choice(product_categories, p=product_category_probabilities)
+        product_ids = product_ids_by_category[category]
+        product_weights = product_weights_by_category[category]
+        product_probabilities = product_weights / product_weights.sum()
+        return np.random.choice(product_ids, p=product_probabilities), category
+
+    return np.random.randint(params.get('product_id_min'), params.get('product_id_max')), None
+
+def choose_quantity(category):
+    """
+    Choose order line quantity, using a category-specific profile when available.
+
+    Parameters:
+    category (str): Product category.
+
+    Returns:
+    int: Quantity.
+    """
+    if category in ms.category_quantity_profiles:
+        quantity_values, quantity_probabilities = d.get_param_list_and_normalized_probabilities(ms.category_quantity_profiles[category])
+        return np.random.choice(quantity_values, p=quantity_probabilities)
+
+    return np.random.choice(quantity_per_order_line, p=quantity_per_order_line_probabilities)
+
+def choose_discount_rate(category, order_date):
+    """
+    Choose a discount rate for an order line.
+
+    Parameters:
+    category (str): Product category.
+    order_date (datetime): Order date.
+
+    Returns:
+    float: Discount rate.
+    """
+    base_probability = ms.discount_probability_by_category.get(category, 0)
+    monthly_multiplier = ms.discount_monthly_multiplier.get(order_date.month, 1.0)
+    discount_probability = min(base_probability * monthly_multiplier, 0.95)
+
+    if np.random.rand() >= discount_probability:
+        return 0.0
+
+    discount_type = np.random.choice(discount_types, p=discount_type_probabilities)
+    min_discount, max_discount = ms.discount_rate_ranges[discount_type]
+
+    return round(np.random.uniform(min_discount, max_discount), 4)
 
 def generate_order_data(num_rows, params):
     """

@@ -5,6 +5,9 @@ __pycache__
 # Local export directory for the exported data (not needed for the github repo, but useful for local testing:
 export/*
 
+# Local Codex instructions:
+CODEX.local.md
+
 # Temporary files needed to get postal codes in needed format:
 source/postal_code_original.csv
 func/postal_code.py

@@ -17,7 +17,10 @@ def get_param_list_and_normalized_probabilities(param_dict):
     """
     # Extract the parameter list and probabilities:
     param_list = list(param_dict.keys())
-    probabilities = list(param_dict.values())
+    probabilities = np.array(list(param_dict.values()), dtype=float)
+
+    if probabilities.sum() <= 0:
+        raise ValueError("The sum of probabilities must be greater than 0.")
 
     # Normalize the probabilities:
     probabilities = probabilities / np.sum(probabilities)
