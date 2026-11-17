@@ -1,13 +1,18 @@
-# Standard python directories to hide:
-.idea
-__pycache__
+# Python and tooling:
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+.idea/
+.env
 
-# Local export directory for the exported data (not needed for the github repo, but useful for local testing:
+# Generated data (reproducible with main.py, not stored in the repo):
 export/*
 
-# Local Codex instructions:
+# Local assistant instructions:
 CODEX.local.md
 
-# Temporary files needed to get postal codes in needed format:
+# Temporary files used to prepare postal codes:
 source/postal_code_original.csv
 func/postal_code.py
