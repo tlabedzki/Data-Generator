@@ -5,6 +5,7 @@ module only draws them in the app style: teal for the data, one copper highlight
 import plotly.graph_objects as go
 
 from func import charts as ch
+from func import number_format as nf
 from ui import theme as t
 
 CONFIG = {"displayModeBar": False}
@@ -17,6 +18,7 @@ def _num(size, color):
 
 def _layout(fig, height, **extra):
     fig.update_layout(
+        separators=nf.PLOTLY_SEPARATORS,
         height=height, margin={"l": 8, "r": 8, "t": 12, "b": 8}, paper_bgcolor=t.PAGE, plot_bgcolor=t.PAGE,
         font={"family": t.SANS_STACK, "size": 13, "color": t.TEXT}, showlegend=False,
         hoverlabel={"bgcolor": t.PAGE, "bordercolor": t.LINE, "font": {"family": t.SANS_STACK, "color": t.INK, "size": 13}},
@@ -66,7 +68,7 @@ def weekday_profile(sales, configured_weights):
     _target_marks(fig, data["weekday"], data["configured"], horizontal=False, size=30)
     label_y = data[["share", "configured"]].max(axis=1)
     fig.add_scatter(x=data["weekday"], y=label_y + float(label_y.max()) * 0.025, mode="text",
-                    text=[f"{v:.0%}" for v in data["share"]],
+                    text=[nf.percent(v, 0) for v in data["share"]],
                     textposition="top center", hoverinfo="skip",
                     textfont=_num(13, [t.INK if top else t.MUTED for top in data["is_top"]]))
     fig.update_xaxes(showgrid=False, ticks="", tickfont={"color": t.TEXT}, fixedrange=True, ticklabelstandoff=6)
@@ -84,7 +86,8 @@ def category_mix(sales, language="en"):
                 hovertemplate="%{y}<br><b>%{x:.1%}</b> of revenue<br>target %{customdata[0]:.1%}<extra></extra>")
     _target_marks(fig, data["target"], data["category"], horizontal=True, size=16)
     label_x = data[["share", "target"]].max(axis=1)
-    fig.add_scatter(y=data["category"], x=label_x, mode="text", text=[f"  {v:.1%}" for v in data["share"]],
+    fig.add_scatter(y=data["category"], x=label_x, mode="text",
+                    text=[f"  {nf.percent(v, 1)}" for v in data["share"]],
                     textposition="middle right", hoverinfo="skip",
                     textfont=_num(12, [t.INK if top else t.MUTED for top in data["is_top"]]))
     fig.update_yaxes(showgrid=False, ticks="", tickfont={"color": t.INK}, fixedrange=True, automargin=True,

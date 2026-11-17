@@ -6,6 +6,7 @@ Each chart title states the conclusion; the subtitle says what is measured.
 """
 import pandas as pd
 
+import func.number_format as nf
 import settings.localization as loc
 import settings.market_settings as ms
 
@@ -44,10 +45,7 @@ def yearly_growth(sales):
 
 
 def compact_number(value):
-    for limit, suffix in ((1e9, "B"), (1e6, "M"), (1e3, "k")):
-        if abs(value) >= limit:
-            return f"{value / limit:.1f}{suffix}"
-    return f"{value:,.0f}"
+    return nf.compact(value)
 
 
 # ---------------------------------------------------------------------------------------------------------------- #
@@ -98,7 +96,7 @@ def monthly_revenue_text(sales):
     growth = yearly_growth(sales)
     if growth is not None:
         direction = "grow" if growth >= 0 else "shrink"
-        title = f"Sales {direction} {abs(growth):.0%} a year, peaking in {peak_month}"
+        title = f"Sales {direction} {nf.percent(abs(growth), 0)} a year, peaking in {peak_month}"
     else:
         title = f"Sales peak in {peak_month}"
     return title, [f"Gross revenue by month in PLN, {data['month'].min():%b %Y} to {data['month'].max():%b %Y}"]
@@ -109,8 +107,9 @@ def weekday_text(sales, configured_weights):
     data = weekday_data(sales, configured_weights)
     top = data.loc[data["is_top"]].iloc[0]
     low = data.loc[data["share"].idxmin()]
-    title = f"{top['day_name']} brings {top['share']:.0%} of orders"
-    return title, [f"Share of orders by weekday; {low['day_name']} is the quietest with {low['share']:.0%}.",
+    title = f"{top['day_name']} brings {nf.percent(top['share'], 0)} of orders"
+    return title, [f"Share of orders by weekday; {low['day_name']} is the quietest with "
+                   f"{nf.percent(low['share'], 0)}.",
                    "Thin marks show the configured weights."]
 
 
@@ -119,6 +118,6 @@ def category_text(sales, language="en"):
     data = category_data(sales, language)
     top = data.iloc[0]
     gap = (data["share"] - data["target"]).abs().max()
-    title = f"{top['category']} earns {top['share']:.0%} of revenue"
+    title = f"{top['category']} earns {nf.percent(top['share'], 0)} of revenue"
     return title, ["Share of gross revenue by category.",
-                   f"Thin marks show the target mix (largest gap {gap * 100:.1f} pp)."]
+                   f"Thin marks show the target mix (largest gap {nf.number(gap * 100, 1)} pp)."]

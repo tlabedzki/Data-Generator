@@ -13,6 +13,7 @@ from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 
 from func import charts as ch
 from func import export, service
+from func import number_format as nf
 from ui import figures, runs
 from ui import theme as t
 
@@ -45,7 +46,7 @@ def placeholder(text):
 
 
 def number_input(input_id, label, value, limits, step, **props):
-    props = {"thousandSeparator": ",", **props}
+    props = {"thousandSeparator": nf.THOUSANDS, **props}
     return dmc.NumberInput(id=input_id, label=label, value=value, min=limits[0], max=limits[1], step=step,
                            allowDecimal=False, size="md", hideControls=True,
                            inputWrapperOrder=["label", "input", "description"], **props)
@@ -62,11 +63,11 @@ def parameters():
             dmc.Text("Relative weights. They are normalized and get some random noise, like real demand.",
                      className="dg-caption", mb="sm"),
             dmc.SimpleGrid([dmc.NumberInput(id={"type": "w-month", "index": i}, label=m, value=v, min=0, step=0.05,
-                                            decimalScale=2, size="sm", hideControls=True)
+                                            decimalScale=2, decimalSeparator=nf.DECIMAL, size="sm", hideControls=True)
                             for i, (m, v) in enumerate(zip(MONTHS, defaults.monthly_seasonality))],
                            cols={"base": 4, "sm": 6, "md": 12}, spacing="xs"),
             dmc.SimpleGrid([dmc.NumberInput(id={"type": "w-day", "index": i}, label=d, value=v, min=0, step=0.05,
-                                            decimalScale=2, size="sm", hideControls=True)
+                                            decimalScale=2, decimalSeparator=nf.DECIMAL, size="sm", hideControls=True)
                             for i, (d, v) in enumerate(zip(WEEKDAYS, defaults.weekday_seasonality))],
                            cols={"base": 4, "sm": 7}, spacing="xs", mt="md", maw=620),
         ]),
@@ -143,7 +144,7 @@ def page():
 # Result views
 
 def compact_pln(value):
-    return f"{ch.compact_number(value)} PLN"
+    return f"{nf.compact(value)} PLN"
 
 
 def stat(label, value, note=None):
@@ -154,14 +155,15 @@ def stat(label, value, note=None):
 def preview_view(run):
     numbers = ch.headline_numbers(run.datasets)
     stats = html.Div([
-        stat("orders", f"{numbers['orders']:,}", f"{numbers['order_lines']:,} lines"),
+        stat("orders", nf.number(numbers["orders"], 0), f"{nf.number(numbers['order_lines'], 0)} lines"),
         stat("gross revenue", compact_pln(numbers["revenue"])),
-        stat("average order", f"{numbers['average_order_value']:,.0f} PLN"),
-        stat("customers", f"{numbers['customers']:,}"),
-        stat("discounted lines", f"{numbers['discounted_line_share']:.0%}"),
+        stat("average order", f"{nf.number(numbers['average_order_value'], 0)} PLN"),
+        stat("customers", nf.number(numbers["customers"], 0)),
+        stat("discounted lines", nf.percent(numbers["discounted_line_share"], 0)),
     ], className="dg-stats")
-    meta = (f"{numbers['first_date']:%d %b %Y} to {numbers['last_date']:%d %b %Y} · {numbers['products']:,} products · "
-            f"seed {run.params.seed} · generated in {run.seconds:.1f} s")
+    meta = (f"{numbers['first_date']:%d %b %Y} to {numbers['last_date']:%d %b %Y} · "
+            f"{nf.number(numbers['products'], 0)} products · seed {run.params.seed} · "
+            f"generated in {nf.number(run.seconds, 1)} s")
     return [
         stats,
         dmc.Text(meta, className="dg-caption", mt="sm"),
@@ -172,23 +174,26 @@ def preview_view(run):
 
 
 def format_cell(value):
+    """Dates as ISO, decimals with a decimal comma; whole numbers (IDs, quantities) without grouping."""
     if hasattr(value, "strftime"):
         return value.strftime("%Y-%m-%d")
     if isinstance(value, float):
-        return f"{value:,.2f}"
+        return nf.number(value, 2)
     return str(value)
 
 
 def table_view(data):
     head = data.head(PREVIEW_ROWS)
     table = dmc.Table(
-        data={"head": list(head.columns), "body": [[format_cell(v) for v in row] for row in head.itertuples(index=False)]},
+        data={"head": list(head.columns), "body": [[format_cell(v) for v in row]
+                                              for row in head.itertuples(index=False)]},
         stickyHeader=True, highlightOnHover=True, verticalSpacing=6, horizontalSpacing="md", fz=13,
         className="dg-table",
     )
     return [
         dmc.ScrollArea(table, h=380, type="auto", offsetScrollbars=True, className="dg-table-scroll", mt="md"),
-        dmc.Text(f"First {len(head):,} of {len(data):,} rows and {data.shape[1]} columns. "
+        dmc.Text(f"First {nf.number(len(head), 0)} of {nf.number(len(data), 0)} rows and "
+                 f"{data.shape[1]} columns. "
                  "Download the files for the full table.", className="dg-caption", mt="sm"),
     ]
 
@@ -218,7 +223,7 @@ def charts_view(run):
 
 def size_label(content):
     size = len(content)
-    return f"{size / 1e6:.1f} MB" if size >= 1e6 else f"{size / 1e3:.0f} KB"
+    return f"{nf.number(size / 1e6, 1)} MB" if size >= 1e6 else f"{nf.number(size / 1e3, 0)} KB"
 
 
 def download_view():
@@ -238,7 +243,7 @@ def file_list(run, file_format):
     files = runs.exports_for(run, file_format)
     rows = [html.Div([
         html.Div([html.Div(DATASET_LABELS[name], className="dg-file-name"),
-                  html.Div(f"{export.file_name(name, file_format)} · {len(run.datasets[name]):,} rows",
+                  html.Div(f"{export.file_name(name, file_format)} · {nf.number(len(run.datasets[name]), 0)} rows",
                            className="dg-caption")]),
         html.Div(size_label(files["tables"][name]), className="dg-file-size"),
         dmc.Button("Download", id={"type": "dl-table", "name": name}, variant="subtle", color="petrol", size="sm"),
@@ -304,9 +309,9 @@ def poll_run(_, run_id):
     if run.error:
         return 0, f"Generation failed: {run.error}", no_update, True, False, visible
     if run.done:
-        return 100, f"Done in {run.seconds:.1f} s.", run_id, True, False, visible
+        return 100, f"Done in {nf.number(run.seconds, 1)} s.", run_id, True, False, visible
     stage = STAGE_LABELS.get(run.stage, "Starting")
-    return run.fraction * 100, f"{stage}… {run.fraction:.0%}", no_update, False, True, visible
+    return run.fraction * 100, f"{stage}… {nf.percent(run.fraction, 0)}", no_update, False, True, visible
 
 
 @app.callback(
