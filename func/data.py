@@ -64,3 +64,19 @@ def remove_polish_accents(text):
     # Get rid of other Polish accents:
     nfkd_form = unicodedata.normalize('NFKD', text)
     return ''.join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+def report_progress(progress, done, total, steps=50):
+    """
+    Call a progress callback roughly `steps` times over a loop, without touching the random state.
+
+    Parameters:
+    progress (callable or None): Callback taking the completed fraction (0-1).
+    done (int): Completed items.
+    total (int): All items.
+    steps (int): Number of updates over the whole loop.
+    """
+    if progress is None or total <= 0:
+        return
+    step = max(total // steps, 1)
+    if done % step == 0 or done >= total:
+        progress(min(done / total, 1.0))

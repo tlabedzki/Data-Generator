@@ -120,7 +120,7 @@ def generate_dates_with_seasonality_and_randomness(start_year, end_year, base_mo
 
     return dates
 
-def generate_ecommerce_data_with_seasonality(num_rows, params):
+def generate_ecommerce_data_with_seasonality(num_rows, params, progress=None):
     """
     Generate e-commerce data with seasonality and group orders with shared attributes.
 
@@ -131,6 +131,7 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
         - 'product_id_max' (int): The maximum product ID.
         - 'customer_id_min' (int): The minimum customer ID.
         - 'customer_id_max' (int): The maximum customer ID.
+    progress (callable, optional): Called with the completed fraction (0-1) while orders are generated.
 
     Returns:
     pd.DataFrame: A DataFrame containing the generated e-commerce data with seasonality.
@@ -184,6 +185,7 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
         # Move to the next order:
         order_number += 1
         created_rows = len(order_groups)
+        d.report_progress(progress, created_rows, num_rows)
 
     # Convert to DataFrame:
     data = pd.DataFrame(order_groups)
@@ -307,7 +309,7 @@ def choose_discount_rate(category, order_date):
 
     return round(np.random.uniform(min_discount, max_discount), 4)
 
-def generate_order_data(num_rows, params):
+def generate_order_data(num_rows, params, progress=None):
     """
     Generate order data with seasonality.
 
@@ -323,6 +325,6 @@ def generate_order_data(num_rows, params):
     pd.DataFrame: A DataFrame containing the generated order data with seasonality.
     """
     # Generate source:
-    order_data = generate_ecommerce_data_with_seasonality(num_rows, params)
+    order_data = generate_ecommerce_data_with_seasonality(num_rows, params, progress)
 
     return order_data

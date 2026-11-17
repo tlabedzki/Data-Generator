@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from faker import Faker
+import func.data as d
 from func import assembler as a, customer as c, order as o, product as p, log as l, format as f, save as sv, localization as loc
 import settings.main_settings as s
 import settings.market_settings as ms
@@ -37,13 +38,20 @@ def generate_full_sales_data():
     EXPORT_DIR.mkdir(exist_ok=True)
     sv.save_generated_outputs(generated_data, saving_paths)
 
-def run_generation_pipeline():
+# Share of total run time per stage, used to turn stage progress into overall progress:
+STAGE_SHARES = {"customer_data": 0.06, "product_data": 0.26, "order_data": 0.63, "sales_data": 0.05}
+
+def run_generation_pipeline(progress=None):
     """
     Generate datasets selected in the settings file.
+
+    Parameters:
+    progress (callable, optional): Called as progress(fraction, stage_name) while data is generated.
 
     Returns:
     dict: Dataset names mapped to generated DataFrames.
     """
+    stage_progress = make_stage_progress(progress)
     set_random_state()
     l.log_info("Rozpoczynam przygotowanie danych.")
 
@@ -56,20 +64,22 @@ def run_generation_pipeline():
 
     if should_generate_source("customer_data", selected_files):
         customer_data = c.generate_customer_data(s.customer_data_rows)
+        d.report_progress(stage_progress("customer_data"), 1, 1)
         if "customer_data" in selected_files:
             localized_customer_data = loc.localize_dataset(customer_data)
             generated_data["customer_data"] = localized_customer_data
             log_customer_data_characteristics(localized_customer_data)
 
     if should_generate_source("product_data", selected_files):
-        product_data = p.generate_product_data(s.product_data_rows)
+        product_data = p.generate_product_data(s.product_data_rows, stage_progress("product_data"))
         if "product_data" in selected_files:
             localized_product_data = loc.localize_dataset(product_data)
             generated_data["product_data"] = localized_product_data
             log_product_data_characteristics(localized_product_data)
 
     if should_generate_source("order_data", selected_files):
-        order_data = o.generate_order_data(s.order_data_rows, get_order_generation_params(customer_data, product_data))
+        order_params = get_order_generation_params(customer_data, product_data)
+        order_data = o.generate_order_data(s.order_data_rows, order_params, stage_progress("order_data"))
         if "order_data" in selected_files:
             localized_order_data = loc.localize_dataset(order_data)
             generated_data["order_data"] = localized_order_data
@@ -81,9 +91,31 @@ def run_generation_pipeline():
         generated_data["sales_data"] = localized_sales_data
         log_sales_data_characteristics(localized_sales_data)
 
+    d.report_progress(stage_progress("sales_data"), 1, 1)
     l.log_info('Dane zostały przygotowane.')
 
     return generated_data
+
+def make_stage_progress(progress):
+    """
+    Build a factory of per-stage callbacks that report overall progress.
+
+    Parameters:
+    progress (callable or None): Overall callback taking (fraction, stage_name).
+
+    Returns:
+    callable: stage_name -> callback taking the stage fraction (0-1), or None when progress is None.
+    """
+    stage_names = list(STAGE_SHARES)
+
+    def for_stage(stage_name):
+        if progress is None:
+            return None
+        start = sum(STAGE_SHARES[name] for name in stage_names[:stage_names.index(stage_name)])
+        share = STAGE_SHARES[stage_name]
+        return lambda fraction: progress(min(start + share * fraction, 1.0), stage_name)
+
+    return for_stage
 
 def get_selected_files():
     """

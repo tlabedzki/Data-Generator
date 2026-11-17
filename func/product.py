@@ -32,7 +32,7 @@ colors, colors_probabilities = d.get_param_list_and_normalized_probabilities(col
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
 
-def generate_products(num_products):
+def generate_products(num_products, progress=None):
     """
     Generate a DataFrame containing product data.
 
@@ -60,7 +60,8 @@ def generate_products(num_products):
     }
 
     # Second step - create parameters with additional dependencies, which is why they need to be created in this step
-    for _ in range(num_products):
+    for product_index in range(num_products):
+        d.report_progress(progress, product_index + 1, num_products)
         # Category & brand selection:
         category = np.random.choice(categories, p=categories_probabilities)
         product_type, product_definition = choose_product_type(category)
@@ -178,7 +179,7 @@ def generate_product_popularity():
     """
     return round(np.random.lognormal(mean=0, sigma=ms.product_popularity_sigma), 6)
 
-def generate_product_data(num_products):
+def generate_product_data(num_products, progress=None):
     """
     Generate product data.
 
@@ -189,6 +190,6 @@ def generate_product_data(num_products):
     pd.DataFrame: A DataFrame containing the generated product data.
     """
     # Generate source:
-    product_data = generate_products(num_products)
+    product_data = generate_products(num_products, progress)
 
     return product_data

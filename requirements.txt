@@ -5,3 +5,5 @@ Faker~=33.1.0
 pyarrow~=18.1.0
 matplotlib~=3.10.9
 itables~=2.7.3
+streamlit~=1.67.0
+altair~=6.3.0
