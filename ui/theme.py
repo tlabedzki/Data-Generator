@@ -20,17 +20,15 @@ MUTED = "#808b90"          # captions, axis labels
 LINE = "#e5e9ea"           # hairlines and the chart grid
 WASH = "#f5f7f7"           # table header, hover
 
-SANS = "Instrument Sans"            # running text and interface
-HEAD = "Bricolage Grotesque"        # page title and step titles (user choice «2c», build 2 variant C)
-NUM = "Inter"                       # numbers: tables, stats, chart axes and labels, inputs (tabular figures)
-SANS_STACK = f"'{SANS}', 'Segoe UI', system-ui, sans-serif"
-HEAD_STACK = f"'{HEAD}', {SANS_STACK}"
-NUM_STACK = f"'{NUM}', {SANS_STACK}"
+# One typeface for the whole app (user choice «4a»): Inter for text, headings (bold) and numbers (tabular figures).
+FONT = "Inter"
+SANS_STACK = f"'{FONT}', 'Segoe UI', system-ui, sans-serif"
+NUM_STACK = SANS_STACK
 
 MANTINE_THEME = {
     "fontFamily": SANS_STACK,
     "fontFamilyMonospace": "ui-monospace, 'Cascadia Mono', Consolas, monospace",
-    "headings": {"fontFamily": HEAD_STACK, "fontWeight": "600"},
+    "headings": {"fontFamily": SANS_STACK, "fontWeight": "700"},
     "primaryColor": "petrol",
     "primaryShade": 7,
     "colors": {"petrol": TEAL, "copper": COPPER},

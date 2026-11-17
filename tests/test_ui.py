@@ -92,7 +92,7 @@ def test_download_zip_and_single_table():
 
 
 def test_fonts_are_bundled_locally():
-    """Text, heading and number faces each have @font-face rules whose files exist, with an OFL licence each."""
+    """The app typeface has @font-face rules whose files exist, with its OFL licence."""
     import re
     from pathlib import Path
 
@@ -100,8 +100,8 @@ def test_fonts_are_bundled_locally():
 
     assets = Path(ui_app.__file__).parent / "assets"
     css = (assets / "fonts.css").read_text(encoding="utf-8")
-    assert set(re.findall(r"font-family: '([^']+)'", css)) == {theme.SANS, theme.HEAD, theme.NUM}
+    assert set(re.findall(r"font-family: '([^']+)'", css)) == {theme.FONT}
     for url in re.findall(r"url\('([^']+)'\)", css):
         assert (assets / url).is_file(), url
-    assert len(list((assets / "fonts").glob("OFL-*.txt"))) == 3
-    assert len(list((assets / "fonts").glob("*.woff2"))) == 6
+    assert len(list((assets / "fonts").glob("OFL-*.txt"))) == 1
+    assert len(list((assets / "fonts").glob("*.woff2"))) == 2

@@ -2,11 +2,11 @@
 :root {
   --dg-teal: #006e79; --dg-teal-soft: #ebf8fa; --dg-copper: #c7692c;
   --dg-ink: #14232a; --dg-text: #4a585e; --dg-muted: #808b90; --dg-line: #e5e9ea; --dg-wash: #f5f7f7;
-  --dg-sans: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
-  /* Headings: Bricolage Grotesque; numbers: Inter with tabular figures (user choice «2c»). */
-  --dg-head: 'Bricolage Grotesque', var(--dg-sans); --dg-head-weight: 600; --dg-head-stretch: 100%;
-  --dg-head-tracking: -0.04em; --dg-head-scale: 0.84; --dg-head-em: normal;
-  --dg-num: 'Inter', var(--dg-sans); --dg-num-features: 'tnum' 1, 'cv11' 1; --dg-num-scale: 1;
+  --dg-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  /* One typeface (user choice «4a»): Inter for text, bold headings and tabular numbers. */
+  --dg-head: var(--dg-sans); --dg-head-weight: 700; --dg-head-stretch: 100%;
+  --dg-head-tracking: -0.035em; --dg-head-scale: 0.8; --dg-head-em: normal;
+  --dg-num: var(--dg-sans); --dg-num-features: 'tnum' 1, 'cv11' 1; --dg-num-scale: 1;
 }
 html, body { background: #ffffff; margin: 0; }
 body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing: antialiased; }

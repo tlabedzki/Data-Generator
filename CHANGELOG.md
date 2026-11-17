@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Unreleased
 Changed:
+- The app uses one typeface, Inter (SIL OFL, bundled locally), for text, bold headings and tabular numbers, instead of Bricolage Grotesque headings and Instrument Sans text. README charts and the app screenshot are redrawn.
 - Numbers on screen use Polish notation in both data languages: a no-break space between thousands and a decimal comma (1 234,56; 6,6M; 33,4%), in headline numbers, table previews, chart titles, labels, axes, tooltips and input fields. Downloaded files keep the machine format.
 
 ### 1.0.0 - 2026-11-17
