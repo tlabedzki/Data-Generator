@@ -50,10 +50,11 @@ in [docs/settings.md](docs/settings.md).
 python -m ui.app
 ```
 
-The app opens at http://127.0.0.1:8050 and reads from top to bottom in four steps. Set the size, years, growth,
-seasonality weights, language and seed, then click **Generate data**. The page moves on to the headline numbers and a
-preview of each table, then the charts, then the downloads. The default 5,000 customers, 5,000 products and 10,000
-order lines take about 4 seconds; the largest allowed run (100,000 order lines) takes about half a minute and shows a
+The app opens at http://127.0.0.1:8050 and reads from top to bottom in four steps. Pick a size (Small, Medium or
+Large, each with its generation time) or type your own numbers, set the years and the annual growth and click
+**Generate data**. Language, seed and seasonality weights sit under **Advanced**. The page moves on to the headline
+numbers and a preview of each table, then the charts, then the downloads. Medium (5,000 customers, 5,000 products and
+10,000 order lines) takes about 4 seconds; Large (the command-line volumes) takes about half a minute and shows a
 progress bar. The same seed and parameters always give the same data.
 
 ![The app shows headline numbers, a table preview and the monthly revenue chart](docs/img/app.png)
@@ -112,10 +113,10 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-74 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
+91 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
 with a seed, monthly and weekday seasonality, year-over-year growth, postal code weighting, localization, the
-settings validators, app parameters, exports, chart data, the app's charts and downloads and a request to the running
-app. They take about 10 seconds on small volumes.
+settings validators, app parameters and size presets, exports, the on-screen number format, chart data, the app's
+charts and downloads and a request to the running app. They take about 10 seconds on small volumes.
 
 ## License
 

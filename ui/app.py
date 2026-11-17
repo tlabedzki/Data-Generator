@@ -52,7 +52,7 @@ def number_input(input_id, label, value, limits, step, **props):
                            inputWrapperOrder=["label", "input", "description"], **props)
 
 
-# Size presets of the new Parameters layout (?layout=new). Times measured on a laptop with the default seed;
+# Size presets of the Parameters section. Times measured on a laptop with the default seed;
 # medium is the app default and large is the command-line default.
 PRESETS = {
     "small": {"label": "Small", "customers": 1_000, "products": 1_000, "order_lines": 2_000, "time": "about 1 s"},
@@ -70,7 +70,7 @@ def preset_for(customers, products, order_lines):
 
 
 def parameter_fields():
-    """All parameter inputs, shared by both layouts (same ids, so the generate callback serves both)."""
+    """All parameter inputs."""
     defaults = service.GenerationParams()
     limits = service.LIMITS
     years = (limits["start_year"][0], limits["end_year"][1])
@@ -120,18 +120,6 @@ def generate_row():
     ]
 
 
-def parameters():
-    """Original layout: one grid of nine fields and collapsible seasonality weights."""
-    f = parameter_fields()
-    weights = dmc.Accordion(dmc.AccordionItem([
-        dmc.AccordionControl("Seasonality weights"), dmc.AccordionPanel(f["weights"]),
-    ], value="weights"), variant="default", className="dg-accordion", chevronPosition="left")
-    grid = dmc.SimpleGrid([f[name] for name in ("customers", "products", "order_lines", "start_year", "end_year",
-                                                "growth", "language", "seed", "new_seed")],
-                          cols={"base": 1, "sm": 3}, spacing="xl", verticalSpacing="lg")
-    return [grid, html.Div(weights, className="dg-weights"), *generate_row()]
-
-
 def preset_card(name):
     if name == "custom":
         body = [html.Span("Custom", className="dg-preset-name"), html.Span("your own sizes", className="dg-preset-time")]
@@ -151,8 +139,8 @@ def group(title, children):
                     className="dg-group")
 
 
-def parameters_new():
-    """Layout 5a: size presets, then Size and Period groups, then everything else under a collapsed Advanced."""
+def parameters():
+    """Size presets, then Size and Period groups, then everything else under a collapsed Advanced section."""
     f = parameter_fields()
     advanced = dmc.Accordion(dmc.AccordionItem([
         dmc.AccordionControl("Advanced"),
@@ -174,7 +162,6 @@ def parameters_new():
 
 def page():
     return dmc.MantineProvider(theme=t.MANTINE_THEME, children=html.Div([
-        dcc.Location(id="url"),
         dcc.Store(id="run-id"),
         dcc.Store(id="result-id"),
         dcc.Interval(id="poll", interval=300, disabled=True),
@@ -191,7 +178,7 @@ def page():
                 html.P("Customers, products, orders and sales lines with seasonality, growth and discounts. "
                        "100% fictional, reproducible with a seed, ready as CSV or Parquet.", className="dg-lead"),
             ], className="dg-hero"),
-            section(1, "Parameters", "Set the size and the period, then generate. Defaults take a few seconds.",
+            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds language, seed and seasonality.",
                     parameters(), "parameters"),
             section(2, "Preview", "Key numbers and the first rows of each table.",
                     placeholder("Generate data to see the preview."), "preview"),
@@ -329,14 +316,6 @@ app = Dash(__name__, title="Data Generator", assets_folder=os.path.join(os.path.
 app.layout = page
 
 
-@app.callback(Output("parameters-body", "children"), Input("url", "search"), prevent_initial_call=True)
-def choose_layout(search):
-    """?layout=new shows the Parameters layout 5a; the original layout stays the default."""
-    if "layout=new" in (search or ""):
-        return parameters_new()
-    return no_update
-
-
 @app.callback(
     Output("customers", "value", allow_duplicate=True), Output("products", "value", allow_duplicate=True),
     Output("order-lines", "value", allow_duplicate=True),
@@ -373,7 +352,7 @@ def mark_preset(customers, products, order_lines, ids):
 )
 def start_run(clicks, customers, products, order_lines, start_year, end_year, growth, monthly, weekday, language, seed,
               new_seed):
-    if not clicks:  # the button was (re)rendered, e.g. by the layout switch, not clicked
+    if not clicks:  # rendered, not clicked
         return no_update, no_update, no_update, no_update, no_update
     if new_seed:
         seed = random.SystemRandom().randrange(0, 1_000_000)

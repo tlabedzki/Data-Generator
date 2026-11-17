@@ -4,8 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### Unreleased
+### 1.1.0 - unreleased
+Added:
+- Size presets in the app: Small, Medium (the default) and Large set customers, products and order lines and show the generation time measured on a laptop; any manual change shows Custom.
+
 Changed:
+- Parameters are grouped into Size and Period; language, seed and seasonality weights moved to a collapsed Advanced section.
 - The app uses one typeface, Inter (SIL OFL, bundled locally), for text, bold headings and tabular numbers, instead of Bricolage Grotesque headings and Instrument Sans text. README charts and the app screenshot are redrawn.
 - Numbers on screen use Polish notation in both data languages: a no-break space between thousands and a decimal comma (1 234,56; 6,6M; 33,4%), in headline numbers, table previews, chart titles, labels, axes, tooltips and input fields. Downloaded files keep the machine format.
 
