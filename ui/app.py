@@ -52,14 +52,48 @@ def number_input(input_id, label, value, limits, step, **props):
                            inputWrapperOrder=["label", "input", "description"], **props)
 
 
-def parameters():
+# Size presets of the new Parameters layout (?layout=new). Times measured on a laptop with the default seed;
+# medium is the app default and large is the command-line default.
+PRESETS = {
+    "small": {"label": "Small", "customers": 1_000, "products": 1_000, "order_lines": 2_000, "time": "about 1 s"},
+    "medium": {"label": "Medium", "customers": 5_000, "products": 5_000, "order_lines": 10_000, "time": "about 4 s"},
+    "large": {"label": "Large", "customers": 40_000, "products": 50_000, "order_lines": 80_000, "time": "about 30 s"},
+}
+
+
+def preset_for(customers, products, order_lines):
+    """Name of the preset with exactly these sizes, or "custom"."""
+    for name, preset in PRESETS.items():
+        if (customers, products, order_lines) == (preset["customers"], preset["products"], preset["order_lines"]):
+            return name
+    return "custom"
+
+
+def parameter_fields():
+    """All parameter inputs, shared by both layouts (same ids, so the generate callback serves both)."""
     defaults = service.GenerationParams()
     limits = service.LIMITS
     years = (limits["start_year"][0], limits["end_year"][1])
     growth = (int(limits["annual_growth_rate"][0] * 100), int(limits["annual_growth_rate"][1] * 100))
-    weights = dmc.Accordion(dmc.AccordionItem([
-        dmc.AccordionControl("Seasonality weights"),
-        dmc.AccordionPanel([
+    return {
+        "customers": number_input("customers", "Customers", defaults.customers, limits["customers"], 1_000),
+        "products": number_input("products", "Products", defaults.products, limits["products"], 1_000),
+        "order_lines": number_input("order-lines", "Order lines", defaults.order_lines, limits["order_lines"], 5_000,
+                                    description="1 to 5 lines per order"),
+        "start_year": number_input("start-year", "From year", defaults.start_year, years, 1, thousandSeparator=""),
+        "end_year": number_input("end-year", "To year", defaults.end_year, years, 1, thousandSeparator="",
+                                 description=f"up to {limits['years_span']} years"),
+        "growth": number_input("growth", "Annual growth", int(defaults.annual_growth_rate * 100), growth, 5,
+                               suffix=" %"),
+        "language": dmc.Stack([
+            dmc.Text("Language of values", className="dg-label"),
+            dmc.SegmentedControl(id="language", value=defaults.language, size="md", fullWidth=True,
+                                 data=[{"value": k, "label": v} for k, v in service.LANGUAGES.items()])], gap=4),
+        "seed": number_input("seed", "Seed", defaults.seed, limits["seed"], 1, thousandSeparator="",
+                             description="same seed, same data"),
+        "new_seed": dmc.Stack(dmc.Switch(id="new-seed", label="New random seed on every run", size="md",
+                                         color="petrol"), justify="center", h="100%", pt=18),
+        "weights": [
             dmc.Text("Relative weights. They are normalized and get some random noise, like real demand.",
                      className="dg-caption", mb="sm"),
             dmc.SimpleGrid([dmc.NumberInput(id={"type": "w-month", "index": i}, label=m, value=v, min=0, step=0.05,
@@ -70,31 +104,12 @@ def parameters():
                                             decimalScale=2, decimalSeparator=nf.DECIMAL, size="sm", hideControls=True)
                             for i, (d, v) in enumerate(zip(WEEKDAYS, defaults.weekday_seasonality))],
                            cols={"base": 4, "sm": 7}, spacing="xs", mt="md", maw=620),
-        ]),
-    ], value="weights"), variant="default", className="dg-accordion", chevronPosition="left")
+        ],
+    }
 
-    grid = dmc.SimpleGrid([
-        number_input("customers", "Customers", defaults.customers, limits["customers"], 1_000),
-        number_input("products", "Products", defaults.products, limits["products"], 1_000),
-        number_input("order-lines", "Order lines", defaults.order_lines, limits["order_lines"], 5_000,
-                     description="1 to 5 lines per order"),
-        number_input("start-year", "From year", defaults.start_year, years, 1, thousandSeparator=""),
-        number_input("end-year", "To year", defaults.end_year, years, 1, thousandSeparator="",
-                     description=f"up to {limits['years_span']} years"),
-        number_input("growth", "Annual growth", int(defaults.annual_growth_rate * 100), growth, 5, suffix=" %"),
-        dmc.Stack([dmc.Text("Language of values", className="dg-label"),
-                   dmc.SegmentedControl(id="language", value=defaults.language, size="md", fullWidth=True,
-                                        data=[{"value": k, "label": v} for k, v in service.LANGUAGES.items()])],
-                  gap=4),
-        number_input("seed", "Seed", defaults.seed, limits["seed"], 1, thousandSeparator="",
-                     description="same seed, same data"),
-        dmc.Stack(dmc.Switch(id="new-seed", label="New random seed on every run", size="md", color="petrol"),
-                  justify="center", h="100%", pt=18),
-    ], cols={"base": 1, "sm": 3}, spacing="xl", verticalSpacing="lg")
 
+def generate_row():
     return [
-        grid,
-        html.Div(weights, className="dg-weights"),
         dmc.Group([
             dmc.Button("Generate data", id="generate", size="lg", radius="sm", color="petrol", className="dg-generate"),
             html.Div([dmc.Progress(id="progress", value=0, size=3, color="petrol", radius="xl", className="dg-progress"),
@@ -105,8 +120,61 @@ def parameters():
     ]
 
 
+def parameters():
+    """Original layout: one grid of nine fields and collapsible seasonality weights."""
+    f = parameter_fields()
+    weights = dmc.Accordion(dmc.AccordionItem([
+        dmc.AccordionControl("Seasonality weights"), dmc.AccordionPanel(f["weights"]),
+    ], value="weights"), variant="default", className="dg-accordion", chevronPosition="left")
+    grid = dmc.SimpleGrid([f[name] for name in ("customers", "products", "order_lines", "start_year", "end_year",
+                                                "growth", "language", "seed", "new_seed")],
+                          cols={"base": 1, "sm": 3}, spacing="xl", verticalSpacing="lg")
+    return [grid, html.Div(weights, className="dg-weights"), *generate_row()]
+
+
+def preset_card(name):
+    if name == "custom":
+        body = [html.Span("Custom", className="dg-preset-name"), html.Span("your own sizes", className="dg-preset-time")]
+    else:
+        preset = PRESETS[name]
+        body = [html.Span(preset["label"], className="dg-preset-name"),
+                html.Span(preset["time"], className="dg-preset-time"),
+                html.Span(f"{nf.number(preset['customers'])} customers · {nf.number(preset['order_lines'])} lines",
+                          className="dg-preset-detail")]
+    return html.Button(body, id={"type": "preset", "name": name}, n_clicks=0, disabled=name == "custom",
+                       className="dg-preset is-active" if name == "medium" else "dg-preset")
+
+
+def group(title, children):
+    return html.Div([html.H3(title, className="dg-group-title"),
+                     dmc.SimpleGrid(children, cols={"base": 1, "sm": 3}, spacing="xl", verticalSpacing="lg")],
+                    className="dg-group")
+
+
+def parameters_new():
+    """Layout 5a: size presets, then Size and Period groups, then everything else under a collapsed Advanced."""
+    f = parameter_fields()
+    advanced = dmc.Accordion(dmc.AccordionItem([
+        dmc.AccordionControl("Advanced"),
+        dmc.AccordionPanel([
+            dmc.SimpleGrid([f["language"], f["seed"], f["new_seed"]], cols={"base": 1, "sm": 3}, spacing="xl",
+                           verticalSpacing="lg"),
+            html.H4("Seasonality weights", className="dg-subgroup-title"),
+            *f["weights"],
+        ]),
+    ], value="advanced"), variant="default", className="dg-accordion", chevronPosition="left")
+    return [
+        html.Div([preset_card(name) for name in (*PRESETS, "custom")], className="dg-presets"),
+        group("Size", [f["customers"], f["products"], f["order_lines"]]),
+        group("Period", [f["start_year"], f["end_year"], f["growth"]]),
+        html.Div(advanced, className="dg-weights"),
+        *generate_row(),
+    ]
+
+
 def page():
     return dmc.MantineProvider(theme=t.MANTINE_THEME, children=html.Div([
+        dcc.Location(id="url"),
         dcc.Store(id="run-id"),
         dcc.Store(id="result-id"),
         dcc.Interval(id="poll", interval=300, disabled=True),
@@ -261,6 +329,38 @@ app = Dash(__name__, title="Data Generator", assets_folder=os.path.join(os.path.
 app.layout = page
 
 
+@app.callback(Output("parameters-body", "children"), Input("url", "search"), prevent_initial_call=True)
+def choose_layout(search):
+    """?layout=new shows the Parameters layout 5a; the original layout stays the default."""
+    if "layout=new" in (search or ""):
+        return parameters_new()
+    return no_update
+
+
+@app.callback(
+    Output("customers", "value", allow_duplicate=True), Output("products", "value", allow_duplicate=True),
+    Output("order-lines", "value", allow_duplicate=True),
+    Input({"type": "preset", "name": ALL}, "n_clicks"), prevent_initial_call=True,
+)
+def apply_preset(clicks):
+    """A click on Small, Medium or Large fills in the three sizes."""
+    if not ctx.triggered_id or not any(clicks) or ctx.triggered_id["name"] not in PRESETS:
+        return no_update, no_update, no_update
+    preset = PRESETS[ctx.triggered_id["name"]]
+    return preset["customers"], preset["products"], preset["order_lines"]
+
+
+@app.callback(
+    Output({"type": "preset", "name": ALL}, "className"),
+    Input("customers", "value"), Input("products", "value"), Input("order-lines", "value"),
+    State({"type": "preset", "name": ALL}, "id"),
+)
+def mark_preset(customers, products, order_lines, ids):
+    """Highlight the preset that matches the sizes; any other combination shows Custom."""
+    active = preset_for(customers, products, order_lines)
+    return ["dg-preset is-active" if item["name"] == active else "dg-preset" for item in ids]
+
+
 @app.callback(
     Output("run-id", "data"), Output("poll", "disabled"), Output("errors", "children"), Output("seed", "value"),
     Output("generate", "loading"),
@@ -271,8 +371,10 @@ app.layout = page
     State("language", "value"), State("seed", "value"), State("new-seed", "checked"),
     prevent_initial_call=True,
 )
-def start_run(_, customers, products, order_lines, start_year, end_year, growth, monthly, weekday, language, seed,
+def start_run(clicks, customers, products, order_lines, start_year, end_year, growth, monthly, weekday, language, seed,
               new_seed):
+    if not clicks:  # the button was (re)rendered, e.g. by the layout switch, not clicked
+        return no_update, no_update, no_update, no_update, no_update
     if new_seed:
         seed = random.SystemRandom().randrange(0, 1_000_000)
     try:
