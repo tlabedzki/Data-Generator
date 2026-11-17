@@ -22,8 +22,8 @@ settings files, so you can change the market and get a new dataset in about 35 s
 - Steers the revenue mix by category, adds category seasonality (toys in December, sports in summer), multi-line
   orders, quantity profiles and discounts that get deeper in November and December.
 - Writes display values in English or Polish (`data_language`) and gives identical output for the same seed.
-- Comes with a Streamlit app: set the parameters, look at the tables and charts, then download CSV, Parquet or a
-  ZIP with all tables.
+- Comes with a web app (Dash with Mantine): set the parameters, look at the tables and charts, then download CSV,
+  Parquet or a ZIP with all tables.
 
 ## Quickstart
 
@@ -47,15 +47,16 @@ in [docs/settings.md](docs/settings.md).
 ### App
 
 ```bash
-streamlit run app.py --server.address 127.0.0.1
+python -m ui.app
 ```
 
-The app opens at http://127.0.0.1:8501. Set the size, years, growth, seasonality weights, language and seed in the
-sidebar and click **Generate data**. The default 5,000 customers, 5,000 products and 10,000 order lines take about
-4 seconds; the largest allowed run (100,000 order lines) takes about half a minute and shows a progress bar. The same
-seed and parameters always give the same data.
+The app opens at http://127.0.0.1:8050 and reads from top to bottom in four steps. Set the size, years, growth,
+seasonality weights, language and seed, then click **Generate data**. The page moves on to the headline numbers and a
+preview of each table, then the charts, then the downloads. The default 5,000 customers, 5,000 products and 10,000
+order lines take about 4 seconds; the largest allowed run (100,000 order lines) takes about half a minute and shows a
+progress bar. The same seed and parameters always give the same data.
 
-![The app shows headline numbers, the monthly revenue chart and the weekday and category charts](docs/img/app.png)
+![The app shows headline numbers, a table preview and the monthly revenue chart](docs/img/app.png)
 
 ## Data
 
@@ -78,7 +79,8 @@ stan 16.09.2026. The site allows downloading, processing and publishing its file
 
 ## Results
 
-The charts come from the default settings. The app draws the same charts from whatever you generate; `python scripts/make_charts.py` rebuilds these images (it needs `requirements-dev.txt`).
+The charts come from the default settings. The app draws the same charts from whatever you generate; `python scripts/make_charts.py` rebuilds these images
+with headless Chrome or Edge.
 
 ![Monday brings 24% of orders, close to the configured weekday weights](docs/img/weekday-profile.png)
 
@@ -93,7 +95,7 @@ expensive categories do not take over revenue just because their unit prices are
 
 ```
 main.py              command-line entry point
-app.py               Streamlit app
+ui/                  web app (Dash with Mantine): layout, charts, theme, fonts
 func/                generation steps, plus service.py (app parameters), charts.py and export.py
 settings/            all parameters: volumes, seasonality, market, product catalog, translations
 source/              postal codes with localities and address counts
@@ -110,10 +112,10 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-66 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
+74 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
 with a seed, monthly and weekday seasonality, year-over-year growth, postal code weighting, localization, the
-settings validators, app parameters, exports, chart data and a full run of the app. They take about 12 seconds on
-small volumes.
+settings validators, app parameters, exports, chart data, the app's charts and downloads and a request to the running
+app. They take about 10 seconds on small volumes.
 
 ## License
 

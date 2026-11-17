@@ -1,5 +1,5 @@
 """
-A thin service layer between user interfaces (the Streamlit app) and the generator.
+A thin service layer between user interfaces (the web app in ui/) and the generator.
 
 The generator reads its parameters from the `settings` modules. `generate()` overrides the user-facing settings for
 one run, calls the existing pipeline and restores the previous values afterwards. A lock keeps concurrent app

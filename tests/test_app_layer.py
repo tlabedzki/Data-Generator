@@ -1,7 +1,5 @@
 import io
-import json
 import zipfile
-from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -157,15 +155,6 @@ def test_polish_category_targets_are_translated():
     assert "Clothing" not in set(categories["category"])
 
 
-def test_charts_build_valid_specs(generated):
-    params, datasets = generated
-    sales = datasets["sales_data"]
-    for chart in (ch.monthly_revenue_chart(sales), ch.weekday_chart(sales, params.weekday_seasonality),
-                  ch.category_chart(sales), ch.monthly_revenue_chart(sales, width="container", titled=False)):
-        spec = json.loads(chart.to_json())
-        assert spec["$schema"].startswith("https://vega.github.io/schema/vega-lite/")
-
-
 def test_chart_titles_state_the_conclusion(generated):
     params, datasets = generated
     sales = datasets["sales_data"]
@@ -173,24 +162,3 @@ def test_chart_titles_state_the_conclusion(generated):
     top = ch.category_data(sales).iloc[0]
     assert title.startswith(top["category"])
     assert "a year" in ch.monthly_revenue_text(sales)[0]
-
-
-# App ------------------------------------------------------------------------------------------------------------ #
-
-def test_app_runs_and_shows_results():
-    from streamlit.testing.v1 import AppTest
-
-    app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=120)
-    app.run()
-    assert not app.exception
-    assert [metric.label for metric in app.metric][:2] == ["Orders", "Gross revenue"]
-    assert [tab.label for tab in app.tabs] == ["Charts", "Tables", "Download"]
-
-    app.sidebar.number_input[0].set_value(300)
-    app.sidebar.number_input[1].set_value(300)
-    app.sidebar.number_input[2].set_value(500)
-    app.sidebar.button[0].click()
-    app.run()
-    assert not app.exception
-    customers_metric = next(metric for metric in app.metric if metric.label == "Customers")
-    assert customers_metric.value == "300"

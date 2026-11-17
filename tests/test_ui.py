@@ -62,6 +62,13 @@ def test_layout_builds():
     assert ui_app.page() is not None
 
 
+def test_server_serves_page_and_layout():
+    client = ui_app.app.server.test_client()
+    assert client.get("/").status_code == 200
+    layout = client.get("/_dash-layout")
+    assert layout.status_code == 200 and b"Generate data" in layout.data
+
+
 def _download(trigger, run_id, file_format="csv"):
     """Call the download callback the way Dash does after a click on `trigger`."""
     from contextvars import copy_context

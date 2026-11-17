@@ -119,3 +119,4 @@ body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing
   .dg-generate { width: 100%; }
   .dg-progress-wrap { max-width: none; }
 }
+@media (max-width: 760px) { .dg-h1 br { display: none; } }
