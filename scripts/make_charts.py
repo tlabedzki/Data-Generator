@@ -85,7 +85,7 @@ def monthly_revenue_chart(sales):
                f"Generated gross revenue by month, {s.start_year}–{s.end_year}, default settings (seed 42, "
                f"annual_growth_rate = {s.annual_growth_rate:.0%} on order volume)")
     fig.subplots_adjust(top=0.82, left=0.08, right=0.97, bottom=0.08)
-    fig.savefig(IMG_DIR / "monthly_revenue.png", facecolor=SURFACE)
+    fig.savefig(IMG_DIR / "monthly-revenue.png", facecolor=SURFACE)
     plt.close(fig)
 
 
@@ -107,7 +107,7 @@ def weekday_chart(sales):
     add_titles(fig, "Orders cluster on Sunday and Monday, as configured",
                "Share of generated orders by weekday vs base_weekday_seasonality (noise is added on purpose)")
     fig.subplots_adjust(top=0.80, left=0.08, right=0.97, bottom=0.08)
-    fig.savefig(IMG_DIR / "weekday_profile.png", facecolor=SURFACE)
+    fig.savefig(IMG_DIR / "weekday-profile.png", facecolor=SURFACE)
     plt.close(fig)
 
 
@@ -132,7 +132,7 @@ def category_mix_chart(sales):
     add_titles(fig, "Category revenue lands close to the configured mix",
                "Generated share of gross revenue vs category_revenue_target_weights")
     fig.subplots_adjust(top=0.86, left=0.22, right=0.97, bottom=0.06)
-    fig.savefig(IMG_DIR / "category_mix.png", facecolor=SURFACE)
+    fig.savefig(IMG_DIR / "category-mix.png", facecolor=SURFACE)
     plt.close(fig)
 
 

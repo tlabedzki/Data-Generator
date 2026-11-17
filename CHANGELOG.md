@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.0.0 - 2026-11-17
+Added:
+- Added a pytest suite (32 tests): table shapes and ranges, unique IDs and e-mails, joins, seed reproducibility, monthly and weekday seasonality, year-over-year growth, localization and settings validators.
+- Added `scripts/make_charts.py` and README charts in `docs/img/` (monthly revenue, weekday profile, category mix).
+- Added MIT `LICENSE` and `requirements-dev.txt`.
+
+Changed:
+- Generated e-mails use the reserved domains `example.com`, `example.org` and `example.net` and are always unique.
+- Every generated order keeps its own `order_id`; before, two orders of one customer with the same date, payment and delivery were merged.
+- Random customer and product draws include the last ID.
+- Source and export paths are resolved from the repository root, so the generator runs from any working directory.
+- Rewrote `README.md` (now UTF-8) with results, quickstart, data sources and tests.
+
+Removed:
+- Removed an unused date shift block in order date generation and the old `png/sales_plot.png`.
+
 ### 0.0.6 - 2026-05-12
 Added:
 - Added selectable generation modes for generating individual datasets or generating source datasets without assembling them.
