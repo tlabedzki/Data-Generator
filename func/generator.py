@@ -9,17 +9,13 @@ import settings.market_settings as ms
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Paths:
 
-# Path to directories:
-SOURCE_DIR = Path("source")
-EXPORT_DIR = Path("export")
-
-# Create export directory if not exist:
-if not EXPORT_DIR.exists():
-    EXPORT_DIR.mkdir()
+# Path to directories (relative to the repository root, so the generator works from any working directory):
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+SOURCE_DIR = PROJECT_DIR / "source"
+EXPORT_DIR = PROJECT_DIR / "export"
 
 # Source files paths:
 POSTAL_CODE_DATA = SOURCE_DIR / "pl_postal_code.csv"
-SALES_DATA = EXPORT_DIR / "sales_data.csv"
 
 # Export files paths:
 saving_paths = {
@@ -34,24 +30,11 @@ saving_paths = {
 
 def generate_full_sales_data():
     """
-    Generate full sales data by merging customer, product, and order data,
-    then export the merged data to a CSV file.
-
-    This function performs the following steps:
-    1. Logs the start of data preparation.
-    2. Generates customer data.
-    3. Retrieves the minimum and maximum customer IDs.
-    4. Generates product data.
-    5. Retrieves the minimum and maximum product IDs.
-    6. Generates order data using customer and product ID ranges.
-    7. Merges order data with product and customer data.
-    8. Adds a calculated column for gross revenue.
-    9. Sorts the merged data by order date.
-    10. Logs the completion of data preparation.
-    11. Exports the sorted data to a CSV file.
-    12. Logs the success of the file save operation.
+    Generate the datasets selected in settings and save them to the export directory
+    in the configured format (parquet or csv).
     """
     generated_data = run_generation_pipeline()
+    EXPORT_DIR.mkdir(exist_ok=True)
     sv.save_generated_outputs(generated_data, saving_paths)
 
 def run_generation_pipeline():

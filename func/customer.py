@@ -14,7 +14,7 @@ fake = Faker('pl_PL')
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Paths:
 
-SOURCE_DATA = Path("source")
+SOURCE_DATA = Path(__file__).resolve().parents[1] / "source"
 POSTAL_CODE_DATA = SOURCE_DATA / "pl_postal_code.csv"
 
 code_df = pd.read_csv(POSTAL_CODE_DATA, sep=";")
@@ -22,13 +22,47 @@ code_df = pd.read_csv(POSTAL_CODE_DATA, sep=";")
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
 
-def generate_customers(num_customers, max_postal_code_id):
+# Reserved example domains (RFC 2606), so generated addresses can never belong to a real mailbox:
+EMAIL_DOMAINS_WITH_PROBABILITIES = {"example.com": 0.5, "example.org": 0.3, "example.net": 0.2}
+
+def make_unique_emails(emails):
+    """
+    Make e-mail addresses unique by adding a number to repeated local parts (jan.kowalski2@example.com).
+
+    Parameters:
+    emails (list): E-mail addresses, possibly with duplicates.
+
+    Returns:
+    list: Unique e-mail addresses in the same order.
+    """
+    used = set(emails)
+    seen = set()
+    unique_emails = []
+
+    for email in emails:
+        if email not in seen:
+            seen.add(email)
+            unique_emails.append(email)
+            continue
+
+        local_part, domain = email.split("@", 1)
+        suffix = 2
+        while f"{local_part}{suffix}@{domain}" in used:
+            suffix += 1
+        candidate = f"{local_part}{suffix}@{domain}"
+        used.add(candidate)
+        seen.add(candidate)
+        unique_emails.append(candidate)
+
+    return unique_emails
+
+def generate_customers(num_customers, postal_code_ids):
     """
     Generate a DataFrame containing customer data.
 
     Parameters:
     num_customers (int): The number of customers to generate.
-    max_postal_code_id (int): The maximum postal code ID to use for generating postal codes.
+    postal_code_ids (array-like): Postal code IDs to draw customer addresses from.
 
     Returns:
     pd.DataFrame: A DataFrame containing the generated customer data.
@@ -47,16 +81,21 @@ def generate_customers(num_customers, max_postal_code_id):
     last_names = [fake.last_name() for _ in range(num_customers)]
     last_names_without_polish_letters = [d.remove_polish_accents(last_name) for last_name in last_names]
 
-    # List of popular e-mail domains
-    domains = np.random.choice(['gmailx.com', 'yahoox.com', 'outlookx.com'], size=num_customers, p=[0.5, 0.3, 0.2])
+    # Draw e-mail domains:
+    domain_names, domain_probabilities = d.get_param_list_and_normalized_probabilities(EMAIL_DOMAINS_WITH_PROBABILITIES)
+    domains = np.random.choice(domain_names, size=num_customers, p=domain_probabilities)
 
-    # Generate e-mails based on first and last names with random domains
-    emails = [f"{first_names[i].lower()}.{last_names_without_polish_letters[i].lower()}@{domains[i]}" for i in range(num_customers)]
+    # Generate unique e-mails based on first and last names with random domains:
+    first_names_without_polish_letters = [d.remove_polish_accents(first_name) for first_name in first_names]
+    emails = make_unique_emails([
+        f"{first_names_without_polish_letters[i].lower()}.{last_names_without_polish_letters[i].lower()}@{domains[i]}".replace(" ", "")
+        for i in range(num_customers)
+    ])
 
     # Create customer data dictionary
     data = {
         "customer_id": range(100001, 100001 + num_customers),
-        "postal_code_id": np.random.randint(1, max_postal_code_id + 1, size=num_customers),
+        "postal_code_id": np.random.choice(np.asarray(postal_code_ids), size=num_customers),
         "age": np.random.randint(18, 66, size=num_customers),
         "gender": genders,
         "first_name": first_names,
@@ -79,11 +118,8 @@ def generate_customer_data(num_customers):
     Returns:
     pd.DataFrame: A DataFrame containing the generated customer data merged with postal code data.
     """
-    # Params:
-    max_postal_code_id = 43783
-
     # Generate source:
-    customer_data = generate_customers(num_customers, max_postal_code_id)
+    customer_data = generate_customers(num_customers, code_df['id'].to_numpy())
 
     # Merge source:
     customer_data = pd.merge(customer_data, code_df, how='left', left_on='postal_code_id', right_on='id').drop(columns=['id', 'postal_code_id'])

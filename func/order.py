@@ -112,23 +112,6 @@ def generate_dates_with_seasonality_and_randomness(start_year, end_year, base_mo
                 random_date += timedelta(days=shift)
 
         # Append drawn date to list:
-        if np.random.rand() < 0.95:
-            # Get the original weekday of random_date
-            original_weekday = random_date.weekday()
-
-            # Calculate random shift in days (between -30 and 30)
-            shift_days = np.random.randint(-30, 30)
-
-            # Apply the shift to random_date
-            new_date = random_date + timedelta(days=shift_days)
-
-            # Check if the new date's weekday is the same as the original
-            while new_date.weekday() != original_weekday:
-                # If not, recalculate the shift to maintain the same weekday
-                shift_days = np.random.randint(-1, 1)
-                new_date = random_date + timedelta(days=shift_days)
-
-        # Append drawn date to list:
         if random_date < datetime(start_year, 1, 1) or random_date > datetime(end_year, 12, 31):
             continue
         else:
@@ -164,13 +147,15 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
     created_rows = 0
     product_categories, base_product_category_probabilities = get_product_category_selection(params)
 
+    order_number = 0
+
     while created_rows < num_rows:
         # Randomly determine the number of lines for this order
         order_line_number = np.random.choice(order_line_numbers, p=order_line_numbers_probabilities)
 
         # Generate shared attributes for the order
         order_date = generate_dates_with_seasonality_and_randomness(start_year, end_year, base_monthly_seasonality, base_weekday_seasonality, annual_growth_rate)[0]
-        customer_id = np.random.randint(params.get('customer_id_min'), params.get('customer_id_max'))
+        customer_id = np.random.randint(params.get('customer_id_min'), params.get('customer_id_max') + 1)
         payment_method_choice = np.random.choice(payment_method, p=payment_method_probabilities)
         payment_provider_choice = np.random.choice(payment_provider, p=payment_provider_probabilities)
         delivery_method_choice = np.random.choice(delivery_method, p=delivery_method_probabilities)
@@ -185,6 +170,7 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
         for _ in range(order_line_number):
             product_id, category = choose_product_id(params, order_date, product_categories, product_category_probabilities)
             order_groups.append({
+                "order_number": order_number,
                 "order_date": order_date,
                 "product_id": product_id,
                 "quantity": choose_quantity(category),
@@ -195,7 +181,8 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
                 "discount_rate": choose_discount_rate(category, order_date),
             })
 
-        # Increment order_id for the next order
+        # Move to the next order:
+        order_number += 1
         created_rows = len(order_groups)
 
     # Convert to DataFrame:
@@ -205,16 +192,14 @@ def generate_ecommerce_data_with_seasonality(num_rows, params):
     data['order_date'] = pd.to_datetime(data['order_date'])
 
     # Sort data by order_date to ensure chronological order:
-    data.sort_values(by="order_date", inplace=True)
+    data.sort_values(by=["order_date", "order_number"], kind="stable", inplace=True)
 
-    # Create unique identifier for each order (group by shared attributes)
-    data['order_id'] = (
-        data.groupby(['order_date', 'customer_id', 'payment_method', 'payment_provider', 'delivery_method'])
-        .ngroup() + 100001
-    )
-
-    # Sort data after adding order_id:
-    data.sort_values('order_id', inplace=True)
+    # Number orders chronologically. Every generated order keeps its own ID, even when the same customer
+    # places two orders on the same day with the same payment and delivery:
+    new_order = data['order_number'].ne(data['order_number'].shift())
+    data['order_id'] = new_order.cumsum() + 100000
+    data.drop(columns=['order_number'], inplace=True)
+    data.reset_index(drop=True, inplace=True)
 
     return data
 
@@ -281,7 +266,7 @@ def choose_product_id(params, order_date=None, product_categories=None, product_
         product_probabilities = product_weights / product_weights.sum()
         return np.random.choice(product_ids, p=product_probabilities), category
 
-    return np.random.randint(params.get('product_id_min'), params.get('product_id_max')), None
+    return np.random.randint(params.get('product_id_min'), params.get('product_id_max') + 1), None
 
 def choose_quantity(category):
     """

@@ -58,6 +58,9 @@ def remove_polish_accents(text):
     Returns:
     str: The text with Polish accents removed.
     """
-    # Get rid of Polish accents:
+    # "ł" has no Unicode decomposition, so it is replaced explicitly:
+    text = text.replace('ł', 'l').replace('Ł', 'L')
+
+    # Get rid of other Polish accents:
     nfkd_form = unicodedata.normalize('NFKD', text)
     return ''.join([c for c in nfkd_form if not unicodedata.combining(c)])
