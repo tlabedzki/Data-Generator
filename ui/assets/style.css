@@ -3,13 +3,11 @@
   --dg-teal: #006e79; --dg-teal-soft: #ebf8fa; --dg-copper: #c7692c;
   --dg-ink: #14232a; --dg-text: #4a585e; --dg-muted: #808b90; --dg-line: #e5e9ea; --dg-wash: #f5f7f7;
   --dg-sans: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
-  --dg-serif: 'Instrument Serif', Georgia, serif;
-  /* Heading and number faces; ui/theme.font_vars() overrides them per font pair on .dg-page. */
-  --dg-head: var(--dg-serif); --dg-head-weight: 400; --dg-head-stretch: 100%; --dg-head-tracking: -0.015em;
-  --dg-head-scale: 1; --dg-head-em: italic;
-  --dg-num: var(--dg-sans); --dg-num-features: 'tnum' 1; --dg-num-scale: 1;
+  /* Headings: Bricolage Grotesque; numbers: Inter with tabular figures (user choice «2c»). */
+  --dg-head: 'Bricolage Grotesque', var(--dg-sans); --dg-head-weight: 600; --dg-head-stretch: 100%;
+  --dg-head-tracking: -0.04em; --dg-head-scale: 0.84; --dg-head-em: normal;
+  --dg-num: 'Inter', var(--dg-sans); --dg-num-features: 'tnum' 1, 'cv11' 1; --dg-num-scale: 1;
 }
-.dg-num { font-family: var(--dg-num); font-feature-settings: var(--dg-num-features); }
 html, body { background: #ffffff; margin: 0; }
 body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing: antialiased; }
 .dg-page { min-height: 100vh; background: #ffffff; }

@@ -3,11 +3,7 @@ Dash + Mantine app for the Data Generator: one path from top to bottom, paramete
 
 Run locally (from the repository root):
     python -m ui.app            # http://127.0.0.1:8050
-
-Font pairs for comparison (headings + numbers, see ui/theme.FONT_PAIRS): add ?fonts=a|b|c|d to the address or set
-DG_FONTS; the default is the build 1 pair.
 """
-import json
 import os
 import random
 
@@ -108,17 +104,8 @@ def parameters():
     ]
 
 
-def active_fonts():
-    """Font pair key from DG_FONTS; ?fonts= in the address overrides it in the browser (see pick_fonts)."""
-    key = os.environ.get("DG_FONTS") or t.DEFAULT_FONTS
-    return key if key in t.FONT_PAIRS else t.DEFAULT_FONTS
-
-
 def page():
-    fonts = active_fonts()
     return dmc.MantineProvider(theme=t.MANTINE_THEME, children=html.Div([
-        dcc.Location(id="url"),
-        dcc.Store(id="fonts", data=fonts),
         dcc.Store(id="run-id"),
         dcc.Store(id="result-id"),
         dcc.Interval(id="poll", interval=300, disabled=True),
@@ -149,7 +136,7 @@ def page():
                 html.A(REPO_URL.removeprefix("https://"), href=REPO_URL, target="_blank", className="dg-link"),
             ], className="dg-footer"),
         ], className="dg-wrap")),
-    ], id="page", className="dg-page", style=t.font_vars(t.font_pair(fonts))))
+    ], className="dg-page"))
 
 
 # ---------------------------------------------------------------------------------------------------------------- #
@@ -216,15 +203,15 @@ def chart_block(text, figure, extra_class=""):
     ], className=f"dg-chart {extra_class}")
 
 
-def charts_view(run, fonts=None):
+def charts_view(run):
     sales = run.datasets["sales_data"]
     weights = run.params.weekday_seasonality
     language = run.params.language
     return [
-        chart_block(ch.monthly_revenue_text(sales), figures.monthly_revenue(sales, fonts), "dg-chart-hero"),
+        chart_block(ch.monthly_revenue_text(sales), figures.monthly_revenue(sales), "dg-chart-hero"),
         html.Div([
-            chart_block(ch.weekday_text(sales, weights), figures.weekday_profile(sales, weights, fonts)),
-            chart_block(ch.category_text(sales, language), figures.category_mix(sales, language, fonts)),
+            chart_block(ch.weekday_text(sales, weights), figures.weekday_profile(sales, weights)),
+            chart_block(ch.category_text(sales, language), figures.category_mix(sales, language)),
         ], className="dg-chart-pair"),
     ]
 
@@ -324,24 +311,13 @@ def poll_run(_, run_id):
 
 @app.callback(
     Output("preview-body", "children"), Output("charts-body", "children"), Output("download-section-body", "children"),
-    Input("result-id", "data"), State("fonts", "data"), prevent_initial_call=True,
+    Input("result-id", "data"), prevent_initial_call=True,
 )
-def show_result(run_id, fonts):
+def show_result(run_id):
     run = runs.get(run_id)
     if run is None or run.datasets is None:
         return no_update, no_update, no_update
-    return preview_view(run), charts_view(run, fonts), download_view()
-
-
-app.clientside_callback(
-    """function (search, current) {
-        var pairs = %s;
-        var key = new URLSearchParams(search || "").get("fonts");
-        if (!key || !pairs[key]) { return [window.dash_clientside.no_update, window.dash_clientside.no_update]; }
-        return [pairs[key], key];
-    }""" % json.dumps({key: t.font_vars(pair) for key, pair in t.FONT_PAIRS.items()}),
-    Output("page", "style"), Output("fonts", "data"), Input("url", "search"), State("fonts", "data"),
-)
+    return preview_view(run), charts_view(run), download_view()
 
 
 app.clientside_callback(

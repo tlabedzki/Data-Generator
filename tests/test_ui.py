@@ -84,8 +84,8 @@ def test_download_zip_and_single_table():
     assert table["filename"] == "sales_data.parquet"
 
 
-def test_every_font_pair_is_bundled_locally():
-    """Each heading and number face has an @font-face rule whose files exist next to an OFL licence."""
+def test_fonts_are_bundled_locally():
+    """Text, heading and number faces each have @font-face rules whose files exist, with an OFL licence each."""
     import re
     from pathlib import Path
 
@@ -93,11 +93,8 @@ def test_every_font_pair_is_bundled_locally():
 
     assets = Path(ui_app.__file__).parent / "assets"
     css = (assets / "fonts.css").read_text(encoding="utf-8")
-    declared = set(re.findall(r"font-family: '([^']+)'", css))
-    for pair in theme.FONT_PAIRS.values():
-        assert {pair.head, pair.num} <= declared
+    assert set(re.findall(r"font-family: '([^']+)'", css)) == {theme.SANS, theme.HEAD, theme.NUM}
     for url in re.findall(r"url\('([^']+)'\)", css):
         assert (assets / url).is_file(), url
-    assert len(list((assets / "fonts").glob("OFL-*.txt"))) >= 10
-    assert theme.font_pair("nope") is theme.FONT_PAIRS[theme.DEFAULT_FONTS]
-    assert theme.font_vars(theme.FONT_PAIRS["b"])["--dg-num"].startswith("'DM Mono'")
+    assert len(list((assets / "fonts").glob("OFL-*.txt"))) == 3
+    assert len(list((assets / "fonts").glob("*.woff2"))) == 6
