@@ -138,6 +138,7 @@ def category_mix_chart(sales):
 
 def main():
     IMG_DIR.mkdir(parents=True, exist_ok=True)
+    s.random_state = 42
     s.data_language = "en"
     s.generated_files = ["sales_data"]
     sales = g.run_generation_pipeline()["sales_data"]

@@ -10,7 +10,7 @@ joined sales lines with seasonality, year-over-year growth, discounts and a conf
 Practicing analytics on real shop data is rarely possible: it is private, and public sets are small or too clean.
 This generator produces a Polish e-commerce dataset that behaves like a real shop: November spikes, Sunday and Monday
 peaks, a long tail of products and discounts that cluster around Black Friday. Every rule lives in plain Python
-settings files, so you can change the market and get a new dataset in about 30 seconds.
+settings files, so you can change the market and get a new dataset in about 35 seconds.
 
 ## What it does
 
@@ -51,7 +51,8 @@ familiar. Products, prices, margins, popularity and market shares are fictional 
 companies.
 
 Customer addresses take a real postal code and city pair from `source/pl_postal_code.csv` (22,090 Polish postal
-codes, 3,183 localities). Source: SOURCE_TBD.
+codes, 3,183 localities). The file has one row per street segment, so codes that cover more streets are drawn
+more often, which roughly follows where people live. Source: SOURCE_TBD.
 
 ## Results
 
@@ -74,7 +75,7 @@ func/                generation steps: customers, products, orders, sales, local
 settings/            all parameters: volumes, seasonality, market, product catalog, translations
 source/              postal codes with cities
 scripts/             chart rendering for this README
-notebooks/           exploratory analysis of a generated dataset
+notebooks/           exploratory analysis (outputs cleared; run main.py first)
 docs/                settings guide and README images
 tests/               pytest suite
 ```
