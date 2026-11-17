@@ -35,7 +35,7 @@ python main.py
 ```
 
 The default run (seed 42) writes four Parquet files to `export/`: 40,000 customers, 50,000 products and 80,000 order
-lines in 55,126 orders from 2023 and 2024. Volumes, years, seasonality, language and output format are set in
+lines in 55,123 orders from 2023 and 2024. Volumes, years, seasonality, language and output format are set in
 `settings/main_settings.py`. The market itself (categories, brands, prices, margins, discounts, payments and
 deliveries) is defined in `settings/market_settings.py` and `settings/product_catalog.py`. Every option is described
 in [docs/settings.md](docs/settings.md).
@@ -50,9 +50,14 @@ Brand names (for example Samsung, Apple, H&M and Reserved) are used only as labe
 familiar. Products, prices, margins, popularity and market shares are fictional and say nothing about these
 companies.
 
-Customer addresses take a real postal code and city pair from `source/pl_postal_code.csv` (22,090 Polish postal
-codes, 3,183 localities). The file has one row per street segment, so codes that cover more streets are drawn
-more often, which roughly follows where people live. Source: SOURCE_TBD.
+Customer addresses take a real postal code and its main locality from `source/pl_postal_code.csv` (20,553 Polish
+postal codes, 3,413 localities). Each code is drawn with a weight equal to its number of addresses. Addresses count
+buildings rather than residents, so cities with large apartment blocks get fewer customers than their population
+would suggest: Warsaw has about 1.5% of customers.
+
+Source: [ZnajdzKod.pl](https://znajdzkod.pl/baza-kodow-pocztowych/) na podstawie PRG (GUGiK) i TERYT (GUS),
+stan 16.09.2026. The site allows downloading, processing and publishing its files with this attribution.
+`scripts/build_postal_codes.py` rebuilds the file from `kody-pocztowe.csv`.
 
 ## Results
 
@@ -73,8 +78,8 @@ expensive categories do not take over revenue just because their unit prices are
 main.py              entry point
 func/                generation steps: customers, products, orders, sales, localization, saving
 settings/            all parameters: volumes, seasonality, market, product catalog, translations
-source/              postal codes with cities
-scripts/             chart rendering for this README
+source/              postal codes with localities and address counts
+scripts/             postal code import and chart rendering for this README
 notebooks/           exploratory analysis (outputs cleared; run main.py first)
 docs/                settings guide and README images
 tests/               pytest suite
@@ -87,8 +92,9 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-32 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
-with a seed, monthly and weekday seasonality, year-over-year growth, localization and the settings validators.
+37 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
+with a seed, monthly and weekday seasonality, year-over-year growth, postal code weighting, localization and the
+settings validators.
 They run in a few seconds on small volumes.
 
 ## License

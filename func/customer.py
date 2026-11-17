@@ -17,7 +17,7 @@ fake = Faker('pl_PL')
 SOURCE_DATA = Path(__file__).resolve().parents[1] / "source"
 POSTAL_CODE_DATA = SOURCE_DATA / "pl_postal_code.csv"
 
-code_df = pd.read_csv(POSTAL_CODE_DATA, sep=";")
+code_df = pd.read_csv(POSTAL_CODE_DATA, sep=";", dtype={"postal_code": str})
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
@@ -56,13 +56,14 @@ def make_unique_emails(emails):
 
     return unique_emails
 
-def generate_customers(num_customers, postal_code_ids):
+def generate_customers(num_customers, postal_code_ids, postal_code_weights=None):
     """
     Generate a DataFrame containing customer data.
 
     Parameters:
     num_customers (int): The number of customers to generate.
     postal_code_ids (array-like): Postal code IDs to draw customer addresses from.
+    postal_code_weights (array-like, optional): Draw weights for postal_code_ids (e.g. number of addresses).
 
     Returns:
     pd.DataFrame: A DataFrame containing the generated customer data.
@@ -95,7 +96,7 @@ def generate_customers(num_customers, postal_code_ids):
     # Create customer data dictionary
     data = {
         "customer_id": range(100001, 100001 + num_customers),
-        "postal_code_id": np.random.choice(np.asarray(postal_code_ids), size=num_customers),
+        "postal_code_id": draw_postal_code_ids(num_customers, postal_code_ids, postal_code_weights),
         "age": np.random.randint(18, 66, size=num_customers),
         "gender": genders,
         "first_name": first_names,
@@ -108,6 +109,25 @@ def generate_customers(num_customers, postal_code_ids):
     # Return the generated customer data as a DataFrame
     return pd.DataFrame(data)
 
+def draw_postal_code_ids(num_customers, postal_code_ids, postal_code_weights=None):
+    """
+    Draw a postal code ID for every customer, weighted when weights are given.
+
+    Parameters:
+    num_customers (int): The number of customers.
+    postal_code_ids (array-like): Postal code IDs.
+    postal_code_weights (array-like, optional): Non-negative weights, one per ID.
+
+    Returns:
+    np.array: Drawn postal code IDs.
+    """
+    probabilities = None
+    if postal_code_weights is not None:
+        weights = np.asarray(postal_code_weights, dtype=float)
+        probabilities = weights / weights.sum()
+
+    return np.random.choice(np.asarray(postal_code_ids), size=num_customers, p=probabilities)
+
 def generate_customer_data(num_customers):
     """
     Generate customer data and merge it with postal code data.
@@ -119,9 +139,11 @@ def generate_customer_data(num_customers):
     pd.DataFrame: A DataFrame containing the generated customer data merged with postal code data.
     """
     # Generate source:
-    customer_data = generate_customers(num_customers, code_df['id'].to_numpy())
+    # Postal codes are weighted by their number of addresses, so busy areas get more customers:
+    customer_data = generate_customers(num_customers, code_df['id'].to_numpy(), code_df['address_count'].to_numpy())
 
     # Merge source:
-    customer_data = pd.merge(customer_data, code_df, how='left', left_on='postal_code_id', right_on='id').drop(columns=['id', 'postal_code_id'])
+    postal_codes = code_df[['id', 'postal_code', 'city']]
+    customer_data = pd.merge(customer_data, postal_codes, how='left', left_on='postal_code_id', right_on='id').drop(columns=['id', 'postal_code_id'])
 
     return customer_data

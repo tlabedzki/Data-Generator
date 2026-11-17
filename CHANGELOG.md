@@ -6,14 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### 1.0.0 - 2026-11-17
 Added:
-- Added a pytest suite (32 tests): table shapes and ranges, unique IDs and e-mails, joins, seed reproducibility, monthly and weekday seasonality, year-over-year growth, localization and settings validators.
+- Added a pytest suite (37 tests): table shapes and ranges, unique IDs and e-mails, joins, seed reproducibility, monthly and weekday seasonality, year-over-year growth, localization and settings validators.
 - Added `scripts/make_charts.py` and README charts in `docs/img/` (monthly revenue, weekday profile, category mix).
 - Added MIT `LICENSE` and `requirements-dev.txt`.
+- Added `scripts/build_postal_codes.py`, which builds `source/pl_postal_code.csv` from ZnajdzKod.pl (PRG GUGiK and TERYT GUS, as of 2026-09-16).
 
 Changed:
 - Generated e-mails use the reserved domains `example.com`, `example.org` and `example.net` and are always unique.
 - Every generated order keeps its own `order_id`; before, two orders of one customer with the same date, payment and delivery were merged.
 - Random customer and product draws include the last ID.
+- Replaced the postal code file with 20,553 codes from ZnajdzKod.pl; customers get postal codes weighted by their number of addresses.
 - Source and export paths are resolved from the repository root, so the generator runs from any working directory.
 - Rewrote `README.md` (now UTF-8) with results, quickstart, data sources and tests.
 
