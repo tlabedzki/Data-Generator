@@ -10,6 +10,12 @@ from ui import theme as t
 CONFIG = {"displayModeBar": False}
 
 
+def _num(fonts, size, color):
+    """Font of numbers on a chart (axis ticks, value labels) from the active font pair."""
+    pair = t.font_pair(fonts)
+    return {"family": f"'{pair.num}', {t.SANS_STACK}", "size": round(size * pair.num_scale, 1), "color": color}
+
+
 def _layout(fig, height, **extra):
     fig.update_layout(
         height=height, margin={"l": 8, "r": 8, "t": 12, "b": 8}, paper_bgcolor=t.PAGE, plot_bgcolor=t.PAGE,
@@ -20,7 +26,7 @@ def _layout(fig, height, **extra):
     return fig
 
 
-def monthly_revenue(sales):
+def monthly_revenue(sales, fonts=None):
     """Hero chart: gross revenue by month, teal line on a faint area, the peak month in copper."""
     data = ch.monthly_revenue_data(sales)
     peak = data.loc[data["is_peak"]].iloc[0]
@@ -34,11 +40,11 @@ def monthly_revenue(sales):
                     marker={"color": t.ACCENT, "size": 11, "line": {"color": t.PAGE, "width": 2.5}})
     fig.add_annotation(x=peak["month"], y=peak["revenue"], xanchor="right", xshift=-12, yshift=2, showarrow=False,
                        text=f"<b>{peak['month']:%b %Y}</b>  {ch.compact_number(peak['revenue'])} PLN",
-                       font={"color": t.INK, "size": 13})
+                       font=_num(fonts, 13, t.INK))
     fig.update_xaxes(showgrid=False, showline=False, ticks="", tickformat="%b %Y", dtick="M6",
-                     tickfont={"color": t.MUTED}, fixedrange=True)
+                     tickfont=_num(fonts, 13, t.MUTED), fixedrange=True)
     fig.update_yaxes(gridcolor=t.LINE, zeroline=False, showline=False, ticks="", tickformat="~s", nticks=5,
-                     tickfont={"color": t.MUTED}, ticklabelposition="inside top", fixedrange=True,
+                     tickfont=_num(fonts, 13, t.MUTED), ticklabelposition="inside top", fixedrange=True,
                      range=[0, float(data["revenue"].max()) * 1.14])
     return _layout(fig, 340, hovermode="x")
 
@@ -50,7 +56,7 @@ def _target_marks(fig, x, y, horizontal, size):
                     marker={"symbol": symbol, "size": size, "line": {"color": t.INK, "width": 2}})
 
 
-def weekday_profile(sales, configured_weights):
+def weekday_profile(sales, configured_weights, fonts=None):
     """Order share by weekday: mist bars, the strongest day in copper, configured weights as ink marks."""
     data = ch.weekday_data(sales, configured_weights)
     colors = [t.ACCENT if top else t.MIST for top in data["is_top"]]
@@ -60,15 +66,16 @@ def weekday_profile(sales, configured_weights):
                               "<extra></extra>")
     _target_marks(fig, data["weekday"], data["configured"], horizontal=False, size=30)
     label_y = data[["share", "configured"]].max(axis=1)
-    fig.add_scatter(x=data["weekday"], y=label_y + float(label_y.max()) * 0.025, mode="text", text=[f"{v:.0%}" for v in data["share"]],
+    fig.add_scatter(x=data["weekday"], y=label_y + float(label_y.max()) * 0.025, mode="text",
+                    text=[f"{v:.0%}" for v in data["share"]],
                     textposition="top center", hoverinfo="skip",
-                    textfont={"color": [t.INK if top else t.MUTED for top in data["is_top"]], "size": 13})
+                    textfont=_num(fonts, 13, [t.INK if top else t.MUTED for top in data["is_top"]]))
     fig.update_xaxes(showgrid=False, ticks="", tickfont={"color": t.TEXT}, fixedrange=True, ticklabelstandoff=6)
     fig.update_yaxes(visible=False, range=[0, float(label_y.max()) * 1.2], fixedrange=True)
     return _layout(fig, 300)
 
 
-def category_mix(sales, language="en"):
+def category_mix(sales, language="en", fonts=None):
     """Revenue share by category: mist bars, the leading category in copper, target mix as ink marks."""
     data = ch.category_data(sales, language).iloc[::-1]
     colors = [t.ACCENT if top else t.MIST for top in data["is_top"]]
@@ -80,7 +87,7 @@ def category_mix(sales, language="en"):
     label_x = data[["share", "target"]].max(axis=1)
     fig.add_scatter(y=data["category"], x=label_x, mode="text", text=[f"  {v:.1%}" for v in data["share"]],
                     textposition="middle right", hoverinfo="skip",
-                    textfont={"color": [t.INK if top else t.MUTED for top in data["is_top"]], "size": 12})
+                    textfont=_num(fonts, 12, [t.INK if top else t.MUTED for top in data["is_top"]]))
     fig.update_yaxes(showgrid=False, ticks="", tickfont={"color": t.INK}, fixedrange=True, automargin=True,
                      ticklabelstandoff=10)
     fig.update_xaxes(visible=False, range=[0, float(label_x.max()) * 1.3], fixedrange=True)
