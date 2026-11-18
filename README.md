@@ -225,7 +225,7 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-200 pytest tests (about 40 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
+200 pytest tests (about 45 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
 and churn, prices, order status, returns and ratings, marketing, experiments, dirty data, exports and the app's
 callbacks and figures on small samples.
 `ruff check .` lints the code and CI runs both on every push; `python scripts/check_realism.py` checks the realism
