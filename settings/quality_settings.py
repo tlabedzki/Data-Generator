@@ -46,12 +46,20 @@ data_quality_issues = [
 # fraudulent order lines also carry is_fraud = True.
 inject_anomalies = True
 
-# Fraud rings: a stolen account places a burst of expensive orders within a few days, paid by card and shipped to an
-# address far from the customer's own.
+# Fraud rings: a stolen account places a burst of orders within a few days. Most are expensive, paid by card and sent
+# to one of the ring's drop addresses, but no single sign is always there: some parcels go to a locker near the
+# customer's home, some orders are paid with BLIK or a deferred payment, and half of the rings start with a cheap
+# test order. Detection rules catch most rings, not all of them.
 fraud_order_share = 0.004
 fraud_orders_per_account = (3, 8)
 fraud_burst_days = 3
 fraud_category_weights = {"Electronics": 0.75, "Jewelry & Accessories": 0.25}
+fraud_drop_addresses = (1, 3)  # postal codes a ring ships to (min, max)
+fraud_home_area_share = 0.2  # orders sent to a parcel locker in the customer's own postal code
+fraud_payment_methods = {"Card": 0.75, "BLIK": 0.15, "Deferred payment": 0.10}
+fraud_test_order_share = 0.5  # rings whose first order is a cheap test of the account
+fraud_delivery_methods = {"InPost courier": 0.35, "DPD": 0.35, "InPost parcel locker": 0.30}
+fraud_channels = {"direct": 0.5, "organic_search": 0.3, "paid_search": 0.2}
 
 # Shop outages: on these days the shop is down; most orders of the day come back on the next two days.
 shop_outages_per_year = 1
@@ -60,3 +68,6 @@ outage_recovery_days = 2
 
 # Share of legitimate orders shipped to another address than the customer's (gifts, work address).
 other_shipping_address_share = 0.06
+# Share of those orders that go to the customer's second address (work, family), the same one each time; the rest are
+# gifts to random addresses.
+second_address_share = 0.7

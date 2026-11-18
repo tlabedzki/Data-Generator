@@ -26,9 +26,28 @@ def test_fraud_orders_are_labelled_and_unusual(data):
     assert sales["is_fraud"].sum() == rings["affected_rows"].sum()
     assert len(fraud) == pytest.approx(qs.fraud_order_share * len(orders), abs=qs.fraud_orders_per_account[1])
     assert fraud["value"].mean() >= 3 * orders.loc[~orders["fraud"], "value"].mean()
-    assert (fraud["ship"] != fraud["home"]).mean() >= 0.9
+    # Most fraud ships away from home, but a share goes to a locker in the customer's own postal code:
+    assert 0.6 <= (fraud["ship"] != fraud["home"]).mean() < 1
     legit = orders[~orders["fraud"]]
     assert (legit["ship"] != legit["home"]).mean() == pytest.approx(qs.other_shipping_address_share, abs=0.02)
+
+
+def test_no_single_fraud_signal_is_certain(data):
+    sales = data["sales_data"]
+    orders = sales.groupby("order_id").agg(fraud=("is_fraud", "first"), payment=("payment_method", "first"),
+                                           channel=("channel", "first"))
+    fraud = orders[orders["fraud"]]
+    assert 0.5 < (fraud["payment"] == "Card").mean() < 1
+    assert fraud["channel"].nunique() > 1
+
+
+def test_honest_customers_reuse_a_second_address(data):
+    sales = data["sales_data"]
+    orders = sales.groupby("order_id").agg(customer_id=("customer_id", "first"), fraud=("is_fraud", "first"),
+                                           home=("postal_code", "first"), ship=("shipping_postal_code", "first"))
+    away = orders[~orders["fraud"] & (orders["ship"] != orders["home"])]
+    repeats = away.groupby(["customer_id", "ship"]).size()
+    assert (repeats >= 2).any()
 
 
 def test_outage_day_has_almost_no_orders(data):
@@ -36,6 +55,12 @@ def test_outage_day_has_almost_no_orders(data):
     per_day = orders.groupby("order_date").size()
     for day in data["anomaly_data"].query("anomaly_type == 'shop_outage'")["start_date"]:
         assert per_day.get(day, 0) <= 0.1 * per_day.median() + 1
+
+
+def test_no_fraud_order_on_an_outage_day(data):
+    outages = data["anomaly_data"].query("anomaly_type == 'shop_outage'")["start_date"]
+    fraud_days = data["order_data"].loc[data["order_data"]["is_fraud"], "order_date"]
+    assert not fraud_days.isin(outages).any()
 
 
 def test_orders_are_numbered_after_anomalies(data):

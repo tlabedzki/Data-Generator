@@ -57,10 +57,10 @@ test, cohort retention with RFM, fraud) and then checks each answer against the 
 | order_date | order_id | category | product_name | quantity | revenue_gross | city |
 |---|---|---|---|---|---|---|
 | 2023-01-01 | 100001 | Clothing | T-Shirt H&M Basic Cotton | 1 | 179.00 | Iława |
-| 2023-11-11 | 118450 | Clothing | Sneakers Nike Court Legacy | 1 | 299.00 | Zielona Góra |
-| 2024-06-27 | 136914 | Sports | Running Shoes Adidas Duramo SL | 1 | 299.00 | Rogoźno |
+| 2023-11-11 | 118441 | Clothing | Dress Reserved Elegant Floral | 1 | 523.02 | Gdańsk |
+| 2024-06-28 | 136911 | Health | Vitamin Supplement Olimp Labs Gold Vita-Min | 2 | 282.30 | Pobiedziska |
 
-Three of the 80,330 rows of `sales_data` (53 columns: each order line joined with its customer and product) from the
+Three of the 80,326 rows of `sales_data` (53 columns: each order line joined with its customer and product) from the
 default run with English values.
 
 <!-- /generated:sample -->
@@ -75,17 +75,17 @@ data, redraws the charts in light and dark versions and rewrites the numbers in 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/monthly-revenue-dark.png">
-  <img alt="Sales grow 22% a year, peaking in November" src="docs/img/monthly-revenue.png">
+  <img alt="Sales grow 23% a year, peaking in November" src="docs/img/monthly-revenue.png">
 </picture>
 
-Revenue grows 22% a year and peaks at 5.3M PLN in November 2024, the Black Friday month.
+Revenue grows 23% a year and peaks at 5.2M PLN in November 2024, the Black Friday month.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/weekday-profile-dark.png">
   <img alt="Saturday is the quietest day, with 12% of orders" src="docs/img/weekday-profile.png">
 </picture>
 
-Every weekday lands within 1.7 percentage points of its configured weight: special days such as Black Friday and the
+Every weekday lands within 1.6 percentage points of its configured weight: special days such as Black Friday and the
 weekly e-mail campaigns on Tuesdays or Thursdays move it, as they would in a real shop.
 
 <picture>
@@ -107,10 +107,10 @@ Beyond the charts, 52 of 52 realism criteria pass on the same run. The table sho
 | Revenue from the top 10% of customers | **68%** |
 | Cohort retention after 1 and 12 months | **11.4% / 5.6%** |
 | Lift of laptop and wireless mouse in one basket (orders) | **16.3 (60 orders)** |
-| Return rate, Clothing against Electronics | **27.3% / 5.9%** |
-| Social orders on social campaign days against other days | **2.91x** |
-| A/B test with a true +10% lift: measured lift and 95% CI | **+4.9% [-1.4%, +11.6%]** |
-| Labelled fraud orders: value against other orders (orders) | **15.0x (221 fraud orders)** |
+| Return rate, Clothing against Electronics | **27.0% / 5.7%** |
+| Social orders on social campaign days against other days | **2.85x** |
+| A/B test with a true +10% lift: measured lift and 95% CI | **+11.3% [+4.6%, +18.4%]** |
+| Labelled fraud orders: value against other orders (orders) | **13.9x (221 fraud orders)** |
 
 <!-- /generated:results -->
 
@@ -146,7 +146,7 @@ stop it.
 
 <!-- generated:cli -->
 
-`python main.py` writes 40,000 customers, 50,000 products and 80,330 order lines (55,568 orders in 2023 and 2024) with
+`python main.py` writes 40,000 customers, 50,000 products and 80,326 order lines (55,568 orders in 2023 and 2024) with
 seed 42 and Polish values, and saves 13 tables as Parquet files in `export/`.
 
 <!-- /generated:cli -->

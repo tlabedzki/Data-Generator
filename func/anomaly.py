@@ -33,7 +33,8 @@ def draw_postal_codes(generator, size):
 
 def add_shipping_postal_codes(order_data, customer_data, generator):
     """
-    Ship every order to the customer's postal code, except a small share sent elsewhere (gifts, work address).
+    Ship every order to the customer's postal code, except a small share sent elsewhere: most of those go to the
+    customer's second address (work, family), the same one each time, and the rest are gifts to random addresses.
 
     Parameters:
     order_data (pd.DataFrame): Order lines.
@@ -46,7 +47,12 @@ def add_shipping_postal_codes(order_data, customer_data, generator):
     home = order_data["customer_id"].map(customer_data.set_index("customer_id")["postal_code"])
     order_ids = order_data["order_id"].unique()
     other = order_ids[generator.random(len(order_ids)) < qs.other_shipping_address_share]
-    other_codes = pd.Series(draw_postal_codes(generator, len(other)), index=other)
+    customers = customer_data["customer_id"].to_numpy()
+    second = pd.Series(draw_postal_codes(generator, len(customers)), index=customers)
+    owner = order_data.drop_duplicates("order_id").set_index("order_id")["customer_id"]
+    codes = np.where(generator.random(len(other)) < qs.second_address_share,
+                     owner.reindex(other).map(second).to_numpy(), draw_postal_codes(generator, len(other)))
+    other_codes = pd.Series(codes, index=other)
     shipping = order_data["order_id"].map(other_codes)
     order_data["shipping_postal_code"] = shipping.fillna(home).to_numpy()
     return order_data
@@ -114,6 +120,22 @@ def apply_shop_outages(order_data, generator, product_data=None):
     return order_data, records
 
 
+def test_order_product(product_data, generator, day):
+    """A cheap product on sale on the day: the small order that tests a stolen account first."""
+    pool = product_data
+    if "launch_date" in pool:
+        on_sale = (pool["launch_date"] <= day) & ~(pool["discontinued_date"] <= day + pd.Timedelta(days=7))
+        pool = pool[on_sale] if on_sale.any() else pool
+    pool = pool[pool["sales_price_gross"] <= pool["sales_price_gross"].median()]
+    return pool["product_id"].iloc[int(generator.integers(len(pool)))]
+
+
+def draw_one(probabilities, generator):
+    values = list(probabilities)
+    weights = np.array(list(probabilities.values()), dtype=float)
+    return values[int(generator.choice(len(values), p=weights / weights.sum()))]
+
+
 def fraud_products(product_data, generator, size, day=None):
     """Pick expensive products from the fraud categories (on sale on the day when given), weighted by price."""
     categories = list(qs.fraud_category_weights)
@@ -151,7 +173,10 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
     low, high = qs.fraud_orders_per_account
     first_day, last_day = pd.Timestamp(s.start_year, 1, 1), pd.Timestamp(s.end_year, 12, 31)
     days = pd.date_range(first_day, last_day - pd.Timedelta(days=qs.fraud_burst_days), freq="D")
-    days = days[~days.isin(list(blocked_days))]
+    # A ring's orders fall within fraud_burst_days of its start, so no start may put an order on a blocked day:
+    blocked = {pd.Timestamp(day) - pd.Timedelta(days=back) for day in blocked_days
+               for back in range(qs.fraud_burst_days)}
+    days = days[~days.isin(list(blocked))]
     next_order_id = int(order_data["order_id"].max()) + 1
     rows, records = [], []
     created = 0
@@ -163,14 +188,23 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
             accounts = customer_data[customer_data["signup_date"] <= start]
             accounts = customer_data if accounts.empty else accounts
         customer = accounts.iloc[int(generator.integers(len(accounts)))]
-        drop_code = draw_postal_codes(generator, 1)[0]
+        drop_codes = draw_postal_codes(generator, int(generator.integers(qs.fraud_drop_addresses[0],
+                                                                         qs.fraud_drop_addresses[1] + 1)))
         provider = generator.choice(["Stripe", "PayU", "Przelewy24"])
         line_counts = generator.integers(1, 3, size=orders)
+        test_first = generator.random() < qs.fraud_test_order_share
+        if test_first:
+            line_counts[0] = 1
         products = fraud_products(product_data, generator, int(line_counts.sum()), start)
+        if test_first:
+            products[0] = test_order_product(product_data, generator, start)
         offsets = np.sort(generator.integers(0, qs.fraud_burst_days, size=orders))
         product_index = 0
         for order_offset, lines in zip(offsets, line_counts, strict=True):
-            delivery = generator.choice(["InPost courier", "DPD"])
+            delivery = draw_one(qs.fraud_delivery_methods, generator)
+            payment = draw_one(qs.fraud_payment_methods, generator)
+            ship_to = (customer["postal_code"] if generator.random() < qs.fraud_home_area_share
+                       else drop_codes[int(generator.integers(len(drop_codes)))])
             for _ in range(lines):
                 rows.append({
                     "order_date": start + pd.Timedelta(days=int(order_offset)),
@@ -178,11 +212,11 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
                     "product_id": products[product_index],
                     "quantity": int(generator.integers(1, 3)),
                     "customer_id": customer["customer_id"],
-                    "payment_method": "Card",
+                    "payment_method": payment,
                     "payment_provider": provider,
                     "delivery_method": delivery,
                     "discount_rate": 0.0,
-                    "shipping_postal_code": drop_code,
+                    "shipping_postal_code": ship_to,
                     "is_fraud": True,
                 })
                 product_index += 1
@@ -194,8 +228,8 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
             "table_name": "order_data",
             "affected_rows": int(line_counts.sum()),
             "customer_id": int(customer["customer_id"]),
-            "description": f"Stolen account: {orders} card orders of expensive goods shipped to {drop_code} "
-                           f"instead of {customer['postal_code']}.",
+            "description": f"Stolen account: {orders} orders{' after a cheap test order' if test_first else ''}, "
+                           f"shipped to {', '.join(drop_codes)} (home {customer['postal_code']}).",
         })
         created += orders
 

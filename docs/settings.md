@@ -145,14 +145,22 @@ Anomalies are part of the shop's behaviour and are on by default (`inject_anomal
 | `fraud_order_share` | `0.004` | share of orders placed from stolen accounts |
 | `fraud_orders_per_account` | `(3, 8)` | orders in one burst |
 | `fraud_burst_days` | `3` | days over which a burst is spread |
-| `fraud_category_weights` | Electronics 0.75, Jewelry 0.25 | what fraudsters buy (expensive products, paid by card, no discount) |
+| `fraud_category_weights` | Electronics 0.75, Jewelry 0.25 | what fraudsters buy (expensive products, no discount) |
+| `fraud_drop_addresses` | `(1, 3)` | postal codes one ring ships to |
+| `fraud_home_area_share` | `0.2` | ring orders sent to a parcel locker in the customer's own postal code |
+| `fraud_payment_methods` | Card 0.75, BLIK 0.15, Deferred payment 0.10 | how ring orders are paid |
+| `fraud_test_order_share` | `0.5` | rings whose first order is a cheap test of the account |
+| `fraud_delivery_methods`, `fraud_channels` | | delivery and traffic channel of ring orders |
 | `shop_outages_per_year` | `1` | days when the shop is down (January-October) |
 | `outage_kept_order_share` | `0.05` | orders that still go through on the outage day |
 | `outage_recovery_days` | `2` | the other orders come back within this many days |
 | `other_shipping_address_share` | `0.06` | legitimate orders shipped to another postal code (gifts, work) |
+| `second_address_share` | `0.7` | of those, orders sent to the customer's second address (the same one each time) |
 
-`order_data.shipping_postal_code` is the delivery postal code. Fraud orders ship to a postal code far from the
-customer's own, which makes them detectable together with the burst and the order value.
+`order_data.shipping_postal_code` is the delivery postal code. Most fraud orders ship away from the customer's own
+postal code, come in a burst, are expensive and are paid by card, but none of these signs is always there, and honest
+customers also ship again and again to a second address. Detection rules therefore trade precision for recall; the
+worked example in `notebooks/` scores a few of them against `is_fraud`. No ring places an order on a shop outage day.
 
 ## Volumes
 
@@ -356,7 +364,7 @@ is the answer for media mix models.
 `first_order_channels`. Repeat orders follow `repeat_order_channels`. On a campaign day a share
 `lift / (1 + lift)` of orders comes through the campaign; other orders of its channel on its days are credited to it
 too (last click). `voucher_share` of a campaign's orders carry its `voucher_code`. Devices follow `device_shares`
-weighted by `device_conversion_multipliers`. Fraud orders are `direct`.
+weighted by `device_conversion_multipliers`. Fraud orders follow `fraud_channels` and carry no campaign or voucher.
 
 **Sessions** (`session_data`). Every order has one converting session (`order_id`, also `order_data.session_id`)
 that starts a few minutes before the order. Around it there are sessions without an order from the same channel and

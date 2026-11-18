@@ -84,7 +84,7 @@ def apply_conversion_effect(is_b: np.ndarray, converted: np.ndarray, strata: np.
         ratio = n_a / n_b
         share, losing = -lift * ratio / (ratio + 1 + lift), is_b
     candidates = np.flatnonzero(losing & converted)
-    donors = candidates[generator.random(len(candidates)) < share]
+    donors = np.sort(generator.choice(candidates, size=int(round(share * len(candidates))), replace=False))
     receivers = np.flatnonzero(~losing & ~converted)
     donors, receivers = pair_within(strata, donors, receivers, generator)
     is_b[donors], is_b[receivers] = is_b[receivers], is_b[donors]

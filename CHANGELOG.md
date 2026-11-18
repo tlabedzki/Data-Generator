@@ -4,32 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### Unreleased
+### 1.3.0 - unreleased
 Added:
 - `notebooks/worked_example.ipynb`, saved with its outputs: three questions answered from the raw tables and then checked against the truth columns (an A/B test with a sample ratio check, cohort retention and RFM against `customer_segment`, fraud rules scored with precision and recall against `is_fraud`). `scripts/make_notebook.py` writes and runs it; two runs give the same file.
-
 - `docs/columns.md`: every column of every table with its type, an example, its meaning and whether it holds the truth; `docs/realism.md`: all realism criteria with their values; `docs/data-model.md`: the table diagram. `scripts/make_charts.py` writes the first two from the default run.
+- `pyproject.toml` with ruff, and a lint step in CI.
 
 Changed:
-- README: shorter (about 6,700 px on github.com instead of 8,000). The table diagram, the full list of realism criteria and the column details moved to `docs/`; the postal code numbers and the largest city's share of customers are generated like the other numbers.
-- README demo: the animation opens on the result, the shop's key numbers and the revenue chart, then the month weights and the parameters; with reduced motion it shows the revenue chart.
+- A/B tests: variants are now assigned at random before any outcome is known, by complete randomization within strata (day, channel and device for sessions; the day of the first session for customers). The effect is applied afterwards, so A and B have the same traffic mix and the sample ratio test passes clearly when no mismatch is planted (p above 0.9 on the default run; `scripts/check_realism.py` now asks for p > 0.05). Before, converting sessions went to B more often than the others, which skewed the channel and device mix of B. Measured lifts are as noisy as in a real test, and their 95% intervals hold the true effect about 95 times in 100. `checkout_redesign` runs 9 weeks, about the length needed to detect +10% with 80% power.
+- Fraud rings are harder to catch: one to three drop addresses per ring, part of the parcels sent to a locker in the customer's own postal code, BLIK and deferred payments next to cards, a cheap test order at the start of half of the rings and several traffic channels. Honest customers ship again and again to a second address of their own. Simple rules now trade precision for recall instead of separating fraud perfectly.
+- Default weekday weights are 12-16% (Saturday the quietest) instead of 5-23%. With this, the A/B and the fraud changes, seed 42 gives different data than in 1.2.0.
+- Customers and products draw from their own random streams like every other step, instead of NumPy's global random state.
+- The command line logs in English through Python's `logging`; the web app, tests and scripts stay silent. Error messages are in English.
+- Code: dead code from the first version removed, modules imported by name instead of one-letter aliases, type hints on the public API (`func/service.py`, `run_generation_pipeline`, exports, experiments).
+- README: shorter (about 6,700 px on github.com instead of 8,000). The table diagram, the full list of realism criteria and the column details moved to `docs/`; the postal code numbers and the largest city's share of customers are generated like the other numbers. Weekday chart: in a flat week the title names the quietest day.
+- README demo: an animated SVG instead of a GIF, built by `scripts/make_demo_svg.py` from screenshots of the app (about 300 KB instead of 1.2 MB, sharp at full width, with a dark-theme frame). It opens on the result, the shop's key numbers and the revenue chart, then the month weights with November dragged up and the parameters; with reduced motion it shows the revenue chart. `scripts/make_demo_gif.py` and `docs/img/app-demo.gif` are removed.
+- README: the table of analyses has its own section, What you can analyse, right after Why. Each row starts with the business question it answers, then the method and tables and the column or setting with the true answer. A new row covers seasonality and forecasting.
 
 Removed:
 - The exploratory notebook `generated_data_analysis.ipynb` (in Polish, without outputs) and its `itables` dependency.
 
-### 1.3.0 - unreleased
-Changed:
-- A/B tests: variants are now assigned at random before any outcome is known, by complete randomization within strata (day, channel and device for sessions; the day of the first session for customers). The effect is applied afterwards, so A and B have the same traffic mix and the sample ratio test passes clearly when no mismatch is planted (p about 0.9; `scripts/check_realism.py` now asks for p > 0.05). Before, converting sessions went to B more often than the others, which skewed the channel and device mix of B. `checkout_redesign` runs 9 weeks, about the length needed to detect +10% with 80% power. The measured lifts are now as noisy as in a real test.
-- Default weekday weights are 12-16% (Saturday the quietest) instead of 5-23%. With this and the A/B change, seed 42 gives different data than in 1.2.0.
-- Customers and products draw from their own random streams like every other step, instead of NumPy's global random state.
-- The command line logs in English through Python's `logging`; the web app, tests and scripts stay silent. Error messages are in English.
-- Code: dead code from the first version removed, modules imported by name instead of one-letter aliases, type hints on the public API (`func/service.py`, `run_generation_pipeline`, exports, experiments), `pyproject.toml` with ruff and a lint step in CI.
-- Weekday chart: in a flat week the title names the quietest day.
-- README: the demo at the top is an animated SVG instead of a GIF: three screenshots of the app in a browser frame, smooth CSS motion, a drawn cursor and the November point dragged up as a vector. It is about 300 KB instead of 1.2 MB, sharp at full width, has a dark-theme frame and stands still with reduced motion. `scripts/make_demo_svg.py` takes the screenshots and builds it; `scripts/make_demo_gif.py` and `docs/img/app-demo.gif` are removed.
-- README: the table of analyses moved to its own section, What you can analyse, right after Why. Each row starts with the business question it answers, then the method and tables and the column or setting with the true answer. A new row covers seasonality and forecasting against the growth, month weights and special days in `settings/`.
-
 Fixed:
 - Two product types listed a brand twice (Philips desk lamps, Fellowes office chairs), so one of its series was silently dropped from the catalog.
+- A fraud ring could place orders on a shop outage day; only its first day was kept clear of outages.
 
 ### 1.2.0 - 2026-11-18
 Added:

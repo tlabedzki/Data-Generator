@@ -67,7 +67,8 @@ def check_e(data):
     ratio = fraud["value"].mean() / legit["value"].mean()
     check("E", "fraud order value / other orders", f"{ratio:.1f}x ({len(fraud)} fraud orders)", ratio >= 3)
     elsewhere = (fraud["ship"] != fraud["home"]).mean()
-    check("E", "fraud orders shipped to another postal code", f"{elsewhere:.0%}", elsewhere >= 0.9)
+    check("E", "fraud orders shipped to another postal code (some go to a locker near home)", f"{elsewhere:.0%}",
+          0.6 <= elsewhere < 1)
     per_day = data["order_data"].drop_duplicates("order_id").groupby("order_date").size()
     for day in data["anomaly_data"].query("anomaly_type == 'shop_outage'")["start_date"]:
         share = per_day.get(day, 0) / per_day.median()

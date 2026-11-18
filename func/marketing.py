@@ -9,6 +9,7 @@ import func.data as d
 import settings.commerce_settings as cs
 import settings.main_settings as s
 import settings.marketing_settings as mk
+import settings.quality_settings as qs
 
 CAMPAIGN_COLUMNS = ["campaign_id", "campaign_name", "channel", "start_date", "end_date", "total_cost", "voucher_code",
                     "true_daily_lift"]
@@ -183,7 +184,7 @@ def add_marketing_columns(order_data, customer_data, calendar, campaigns, own_ef
         voucher[np.flatnonzero(has)[use]] = codes[use]
 
     fraud = orders["is_fraud"].to_numpy() if "is_fraud" in orders else np.zeros(count, bool)
-    channel = np.where(fraud, "direct", channel)
+    channel = np.where(fraud, draw_from(qs.fraud_channels, generator, count), channel)
     campaign_id = np.where(fraud, 0, campaign_id)
     voucher = np.where(fraud, None, voucher)
 

@@ -52,7 +52,7 @@ One row is a product. 50,000 rows in the default run.
 
 ## order_data
 
-One row is an order line. 80,330 rows in the default run.
+One row is an order line. 80,326 rows in the default run.
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
@@ -79,7 +79,7 @@ One row is an order line. 80,330 rows in the default run.
 
 ## sales_data
 
-One row is an order line joined with its product and customer. 80,330 rows in the default run.
+One row is an order line joined with its product and customer. 80,326 rows in the default run.
 
 All 50 columns of `order_data`, `product_data` and `customer_data` (joined on `product_id` and `customer_id`), plus:
 
@@ -120,19 +120,19 @@ One row is the shipment of an order. 55,568 rows in the default run.
 
 ## return_data
 
-One row is a returned order line. 9,505 rows in the default run.
+One row is a returned order line. 9,424 rows in the default run.
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
 | `return_id` | int | 1 | return key |  |
-| `order_id` | int | 100039 | order key; one order has 1-5 lines |  |
-| `order_line_id` | int | 1000064 | order line key |  |
-| `product_id` | int | 211159 | product key (from 200001) |  |
-| `customer_id` | int | 130598 | customer key (from 100001) |  |
-| `return_date` | datetime | 2023-01-05 | day the return was registered |  |
+| `order_id` | int | 100016 | order key; one order has 1-5 lines |  |
+| `order_line_id` | int | 1000024 | order line key |  |
+| `product_id` | int | 222443 | product key (from 200001) |  |
+| `customer_id` | int | 128565 | customer key (from 100001) |  |
+| `return_date` | datetime | 2023-01-06 | day the return was registered |  |
 | `returned_quantity` | int | 1 | units returned |  |
-| `return_reason` | text | wrong_size | for example wrong_size, changed_mind or defective |  |
-| `refund_amount` | float | 179 | money refunded, PLN |  |
+| `return_reason` | text | defective | for example wrong_size, changed_mind or defective |  |
+| `refund_amount` | float | 349 | money refunded, PLN |  |
 | `return_status` | text | refunded | refunded or rejected |  |
 
 ## campaign_data
@@ -152,15 +152,15 @@ One row is a marketing campaign. 191 rows in the default run.
 
 ## session_data
 
-One row is a web session. 689,335 rows in the default run.
+One row is a web session. 690,245 rows in the default run.
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
 | `session_id` | int | 1 | session key; in order_data, the session that converted |  |
-| `session_start` | datetime | 2023-01-01 00:33 | session start time |  |
-| `customer_id` | int (nullable) | 104611 | logged-in customer; empty for anonymous visits |  |
-| `channel` | text | email | traffic channel |  |
-| `device` | text | mobile | mobile, desktop or tablet |  |
+| `session_start` | datetime | 2023-01-01 00:57 | session start time |  |
+| `customer_id` | int (nullable) | 105040 | logged-in customer; empty for anonymous visits |  |
+| `channel` | text | direct | traffic channel |  |
+| `device` | text | desktop | mobile, desktop or tablet |  |
 | `campaign_id` | int (nullable) | 1 | campaign credited with the order or session; empty without one |  |
 | `pages_viewed` | int | 1 | pages viewed in the session |  |
 | `added_to_cart` | bool | False | the session added a product to the cart |  |
@@ -185,30 +185,30 @@ One row is an A/B experiment. 4 rows in the default run.
 
 ## experiment_assignment_data
 
-One row is a unit (session or customer) in an experiment. 98,641 rows in the default run.
+One row is a unit (session or customer) in an experiment. 98,546 rows in the default run.
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
 | `experiment_id` | int | 1 | experiment key |  |
 | `unit` | text | session | session or customer |  |
-| `unit_id` | int | 59649 | session_id or customer_id, depending on unit |  |
+| `unit_id` | int | 60213 | session_id or customer_id, depending on unit |  |
 | `variant` | text | A | A (control) or B (change) |  |
-| `assigned_at` | datetime | 2023-03-30 00:10 | first time the unit was seen in the experiment |  |
+| `assigned_at` | datetime | 2023-03-30 00:16 | first time the unit was seen in the experiment |  |
 
 ## anomaly_data
 
-One row is a labelled anomaly: fraud ring, shop outage or return spike. 42 rows in the default run.
+One row is a labelled anomaly: fraud ring, shop outage or return spike. 41 rows in the default run.
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
 | `anomaly_id` | int | 1 | anomaly key |  |
 | `anomaly_type` | text | fraud_ring | fraud_ring, shop_outage or return_spike | yes |
-| `start_date` | datetime | 2023-01-25 | first day |  |
-| `end_date` | datetime | 2023-01-27 | last day |  |
+| `start_date` | datetime | 2023-03-04 | first day |  |
+| `end_date` | datetime | 2023-03-06 | last day |  |
 | `table_name` | text | order_data | table the rows belong to |  |
-| `affected_rows` | int | 6 | rows of that table affected |  |
-| `customer_id` | int (nullable) | 102506 | account used by the fraud ring; empty for other anomalies |  |
-| `description` | text | Stolen account: 5 card orders of expensi | what happened, in one sentence |  |
+| `affected_rows` | int | 10 | rows of that table affected |  |
+| `customer_id` | int (nullable) | 126183 | account used by the fraud ring; empty for other anomalies |  |
+| `description` | text | Stolen account: 7 orders after a cheap t | what happened, in one sentence |  |
 
 ## quality_issue_data
 

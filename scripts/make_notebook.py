@@ -108,10 +108,10 @@ ratio, and the p-value comes from a two-proportion z-test."""),
             "p_value": math.erfc(abs(z) / math.sqrt(2))}
 
 
-pd.Series(conversion_test(visits)).round(4)"""),
-    ("md", """B converts better, but the 95% interval still includes zero, so at the usual 5% level this test cannot
-tell the redesign from no change. That is not proof that it does nothing: an interval from about -1% to +12% also
-fits a real gain of several percent. The same steps on every experiment, with the truth next to them:"""),
+pd.Series(conversion_test(visits)).map("{:.4f}".format).to_frame("checkout_redesign")"""),
+    ("md", """B converts better and the 95% interval stays above zero, so the redesign raised conversion. The interval
+is wide, though: the data fits a gain from a few percent to well over ten, which is what nine weeks of traffic can
+tell. The same steps on every experiment, with the truth next to them:"""),
     ("code", """rows = []
 for name, row in experiments.iterrows():
     units = units_of(name)
@@ -152,13 +152,16 @@ ax.set_title(f"{held} of {len(conversion)} intervals hold the true conversion li
 ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2, frameon=False, fontsize=9)
 ax.grid(axis="x", color="#eef1f2")
 fig.tight_layout()"""),
-    ("md", """**Against the truth.** Every confidence interval contains `true_effect`. Two lessons sit in the table:
+    ("md", """**Against the truth.** Every confidence interval contains `true_effect`, as about 95 in 100 of them
+should. Three lessons sit in the table:
 
 - `free_shipping_banner` fails the SRM check (B got about 46% of the sessions instead of 50%) and
-  `has_sample_ratio_mismatch` confirms it was planted. Its lift must not be reported, however plausible it looks.
-- `checkout_redesign` has a true lift of +10% and still misses significance on this seed. The test was sized for
-  about 80% power, so roughly one seed in five ends like this. `search_ranking_aa` is an A/A test: no effect, and the
-  interval sits around zero as it should."""),
+  `has_sample_ratio_mismatch` confirms it was planted. Its lift looks like a win, and it must not be reported: once
+  the split is broken, nothing guarantees that A and B differ only by the banner.
+- `search_ranking_aa` is an A/A test with no effect. Its estimate lands several percent from zero and the interval
+  still holds zero: that is the size of the noise in a four-week test.
+- `recommendation_widget` measures units per order line for customers rather than conversion per session, and
+  the true +0.12 units sits inside its interval too."""),
     ("md", """## 2. Which customers come back?
 
 A cohort is the month of a customer's first order. Retention in month *k* is the share of a cohort that orders again
@@ -264,13 +267,12 @@ scores = pd.DataFrame({
            "recall": (rule & is_fraud).sum() / is_fraud.sum()}
     for name, rule in rules.items()}).T
 scores.round(3)"""),
-    ("md", """Three flags give a review list of a few hundred orders that holds almost every fraud order. Adding the
-burst flag makes the list nearly pure but misses the first order of each ring, which has no earlier order to form
-a burst. `anomaly_data` lists every ring with its dates and the address it shipped to.
-
-One caveat: in this data a fraud ring ships all its orders to one new postal code, and honest orders to another
-address almost never repeat it, so "several orders to the same new address" separates fraud perfectly here. Real
-data is noisier (offices, family, parcel lockers), so treat this question as the easy level of fraud detection."""),
+    ("md", """No rule catches every ring, because no sign is always there. Rings also send parcels to a locker in the
+customer's own postal code, pay with BLIK or a deferred payment and often start with a cheap test order, while
+honest customers keep shipping to a second address of their own. The rules trade one error for the other: all four
+flags give an almost clean list that misses about half of the fraud, and three of four flags catch most of it at
+the cost of reviewing honest orders too. `anomaly_data` lists every ring with its dates and addresses, which helps
+to see which orders a rule missed and why."""),
 ]
 
 
