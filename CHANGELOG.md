@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### Unreleased
+Added:
+- `notebooks/worked_example.ipynb`, saved with its outputs: three questions answered from the raw tables and then checked against the truth columns (an A/B test with a sample ratio check, cohort retention and RFM against `customer_segment`, fraud rules scored with precision and recall against `is_fraud`). `scripts/make_notebook.py` writes and runs it; two runs give the same file.
+
+Removed:
+- The exploratory notebook `generated_data_analysis.ipynb` (in Polish, without outputs) and its `itables` dependency.
+
 ### 1.3.0 - unreleased
 Changed:
 - A/B tests: variants are now assigned at random before any outcome is known, by complete randomization within strata (day, channel and device for sessions; the day of the first session for customers). The effect is applied afterwards, so A and B have the same traffic mix and the sample ratio test passes clearly when no mismatch is planted (p about 0.9; `scripts/check_realism.py` now asks for p > 0.05). Before, converting sessions went to B more often than the others, which skewed the channel and device mix of B. `checkout_redesign` runs 9 weeks, about the length needed to detect +10% with 80% power. The measured lifts are now as noisy as in a real test.

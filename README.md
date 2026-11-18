@@ -37,7 +37,8 @@ Each row starts with a question a shop asks; the last column says where the true
 | Which orders are fraud, and when did the shop go down? | Fraud and anomaly detection on `order_data`, `anomaly_data` | `is_fraud`, `anomaly_data` |
 | Can you trust the data before you analyse it? | Data cleaning (missing values, typos, formats, outliers, duplicates) on every table at `data_quality_level` low, medium or high | `quality_issue_data` (clean values) |
 
-Section 12 of the notebook in `notebooks/` covers seasonality and section 18 walks through the advanced tables.
+The [worked example](notebooks/worked_example.ipynb) answers three of these questions from the raw tables (the A/B
+test, cohort retention with RFM, fraud) and then checks each answer against the truth.
 
 ## What it does
 
@@ -335,8 +336,8 @@ func/                generation steps: customers, products, prices, orders, beha
                      experiments, anomalies and data quality, plus the app service, charts and exports
 settings/            all parameters: volumes, calendar, behaviour, basket, commerce, marketing, experiments, quality
 source/              postal codes with localities and address counts
-scripts/             realism criteria, README charts and numbers, animated demo builder, postal code import
-notebooks/           exploratory analysis (outputs cleared; run main.py first)
+scripts/             realism criteria, README charts and numbers, animated demo, notebook, postal code import
+notebooks/           worked example with outputs (scripts/make_notebook.py rebuilds it)
 docs/                settings guide and README images
 tests/               pytest suite
 ```
