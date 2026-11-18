@@ -1,8 +1,9 @@
 # Generator Settings Guide
 
-This project has two main settings files:
+The settings live in the `settings/` package:
 
 - `settings/main_settings.py` controls the generation process.
+- `settings/quality_settings.py` controls dirty data (data quality issues) and labelled anomalies.
 - `settings/market_settings.py` controls market behavior, products, categories, brands, prices, margins, payments, deliveries, discounts, and sales mix.
 - `settings/category_hierarchy.py` controls second-level categories.
 - `settings/product_catalog.py` controls product types, product names, type-level prices, type-level margins, series, and models.
@@ -55,15 +56,21 @@ and model names such as `Galaxy`, `ThinkPad`, `Air Max`, or `Spider-Man` are int
 Use `generated_files` in `settings/main_settings.py`.
 
 ```python
-generated_files = ["customer_data", "product_data", "order_data", "sales_data"]
+generated_files = ["customer_data", "product_data", "order_data", "sales_data", "anomaly_data", "quality_issue_data"]
 ```
 
 Available values:
 
-- `customer_data`
-- `product_data`
-- `order_data`
-- `sales_data`
+| File | One row is | Notes |
+|---|---|---|
+| `customer_data` | a customer account | |
+| `product_data` | a product | |
+| `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line |
+| `sales_data` | an order line joined with its product and customer | revenue columns added |
+| `anomaly_data` | a labelled anomaly (fraud ring, shop outage) | the truth for anomaly detection |
+| `quality_issue_data` | one injected data quality issue | empty when `data_quality_level = "none"` |
+
+Source tables needed by a selected file are always generated, but only the selected files are saved.
 
 Examples:
 
@@ -72,6 +79,62 @@ generated_files = ["customer_data"]
 generated_files = ["customer_data", "product_data", "order_data"]
 generated_files = ["sales_data"]
 ```
+
+## Random Streams
+
+Every step added after the first version (anomalies, dirty data and the later behaviour models) draws from its own
+random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for example the dirty
+data level, does not change the random numbers of the other steps.
+
+## Data Quality Issues (Dirty Data)
+
+Use `data_quality_level` in `settings/quality_settings.py`. In the app it is **Advanced → Dirty data**.
+
+```python
+data_quality_level = "none"   # "none", "low", "medium" or "high"
+```
+
+`data_quality_rates` gives the base share of rows affected by one issue type at each level (1%, 3% and 8% by
+default). `data_quality_issues` lists the issue types as `(table, column, issue type, multiplier)`; the share of rows
+with an issue is `rate × multiplier`.
+
+| Issue type | What happens | Columns by default |
+|---|---|---|
+| `missing` | the value is removed (empty cell) | phone, e-mail, city, age, product colour, payment provider |
+| `typo` | city in lower or upper case, without Polish letters, with swapped letters or extra spaces | city |
+| `format` | the same value written differently: `600-100-200`, `0048600100200`, `00123`, e-mail in capitals or with spaces | phone, postal code, e-mail |
+| `outlier` | an impossible value: age 0 or 150, quantity 50-500, purchase price entered in grosze (×100) | age, quantity, net purchase price |
+| `duplicate_customer` | the same person gets a second account with a new ID and a slightly different e-mail; about half of their repeat orders move to it | customers |
+| `duplicate_row` | an order line is saved twice with the same `order_line_id` | order lines |
+
+Issues are injected into the source tables before the sales lines are joined, so `sales_data` is dirty in the same
+way. Every issue has a row in `quality_issue_data`:
+
+| Column | Meaning |
+|---|---|
+| `table_name`, `key_column`, `key_value` | where the issue is (for example `customer_data`, `customer_id`, `100123`) |
+| `column_name`, `issue_type` | what is wrong |
+| `dirty_value`, `clean_value` | the value in the file and the correct one (for a duplicate customer: new and original ID) |
+
+## Anomalies
+
+Anomalies are part of the shop's behaviour and are on by default (`inject_anomalies = True` in
+`settings/quality_settings.py`). Each one has a row in `anomaly_data`; fraudulent order lines also have
+`is_fraud = True` in `order_data` and `sales_data`.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `fraud_order_share` | `0.004` | share of orders placed from stolen accounts |
+| `fraud_orders_per_account` | `(3, 8)` | orders in one burst |
+| `fraud_burst_days` | `3` | days over which a burst is spread |
+| `fraud_category_weights` | Electronics 0.75, Jewelry 0.25 | what fraudsters buy (expensive products, paid by card, no discount) |
+| `shop_outages_per_year` | `1` | days when the shop is down (January-October) |
+| `outage_kept_order_share` | `0.05` | orders that still go through on the outage day |
+| `outage_recovery_days` | `2` | the other orders come back within this many days |
+| `other_shipping_address_share` | `0.06` | legitimate orders shipped to another postal code (gifts, work) |
+
+`order_data.shipping_postal_code` is the delivery postal code. Fraud orders ship to a postal code far from the
+customer's own, which makes them detectable together with the burst and the order value.
 
 ## Volumes
 

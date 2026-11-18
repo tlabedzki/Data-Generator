@@ -55,7 +55,7 @@ def test_result_views_render(run):
     assert ui_app.preview_view(result) and ui_app.charts_view(result)
     assert ui_app.table_view(result.datasets["sales_data"])
     zip_button, rows = ui_app.file_list(result, "parquet")
-    assert "ZIP" in zip_button.children and len(rows.children) == 4
+    assert "ZIP" in zip_button.children and len(rows.children) == len(service.DATASET_NAMES)
 
 
 def test_layout_builds():

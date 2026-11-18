@@ -9,6 +9,8 @@ dataset_display_names = {
     "product_data": "dane produktów",
     "order_data": "dane zamówień",
     "sales_data": "dane sprzedaży",
+    "anomaly_data": "anomalie",
+    "quality_issue_data": "błędy jakości danych",
 }
 
 def save_file_as_chosen_format(data, data_name, saving_path):

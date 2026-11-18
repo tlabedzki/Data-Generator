@@ -4,6 +4,7 @@ from pathlib import Path
 from faker import Faker
 import func.data as d
 from func import assembler as a, customer as c, order as o, product as p, log as l, format as f, save as sv, localization as loc
+from func import anomaly as an, quality as q
 import settings.main_settings as s
 import settings.market_settings as ms
 
@@ -18,13 +19,10 @@ EXPORT_DIR = PROJECT_DIR / "export"
 # Source files paths:
 POSTAL_CODE_DATA = SOURCE_DIR / "pl_postal_code.csv"
 
-# Export files paths:
-saving_paths = {
-    "customer_data": EXPORT_DIR / f"customer_data.{s.saving_format}",
-    "product_data": EXPORT_DIR / f"product_data.{s.saving_format}",
-    "order_data": EXPORT_DIR / f"order_data.{s.saving_format}",
-    "sales_data": EXPORT_DIR / f"sales_data.{s.saving_format}",
-}
+# Export files paths. Source tables first, then the joined sales lines, then the extra tables:
+DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "anomaly_data", "quality_issue_data"]
+SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
+saving_paths = {name: EXPORT_DIR / f"{name}.{s.saving_format}" for name in DATASET_NAMES}
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
@@ -45,56 +43,84 @@ def run_generation_pipeline(progress=None):
     """
     Generate datasets selected in the settings file.
 
+    Source tables (customers, products, order lines) are generated whenever a selected table needs them. Anomalies
+    and data quality issues are added to the source tables before the sales lines are joined.
+
     Parameters:
     progress (callable, optional): Called as progress(fraction, stage_name) while data is generated.
 
     Returns:
-    dict: Dataset names mapped to generated DataFrames.
+    dict: Dataset names mapped to generated DataFrames, in the order of DATASET_NAMES.
     """
     stage_progress = make_stage_progress(progress)
     set_random_state()
     l.log_info("Rozpoczynam przygotowanie danych.")
 
     selected_files = get_selected_files()
-    generated_data = {}
+    needed = required_sources(selected_files)
+    tables = {"customer_data": None, "product_data": None, "order_data": None}
+    extra = {}
 
-    customer_data = None
-    product_data = None
-    order_data = None
-
-    if should_generate_source("customer_data", selected_files):
-        customer_data = c.generate_customer_data(s.customer_data_rows)
+    if "customer_data" in needed:
+        tables["customer_data"] = c.generate_customer_data(s.customer_data_rows)
         d.report_progress(stage_progress("customer_data"), 1, 1)
-        if "customer_data" in selected_files:
-            localized_customer_data = loc.localize_dataset(customer_data)
-            generated_data["customer_data"] = localized_customer_data
-            log_customer_data_characteristics(localized_customer_data)
 
-    if should_generate_source("product_data", selected_files):
-        product_data = p.generate_product_data(s.product_data_rows, stage_progress("product_data"))
-        if "product_data" in selected_files:
-            localized_product_data = loc.localize_dataset(product_data)
-            generated_data["product_data"] = localized_product_data
-            log_product_data_characteristics(localized_product_data)
+    if "product_data" in needed:
+        tables["product_data"] = p.generate_product_data(s.product_data_rows, stage_progress("product_data"))
 
-    if should_generate_source("order_data", selected_files):
-        order_params = get_order_generation_params(customer_data, product_data)
+    if "order_data" in needed:
+        order_params = get_order_generation_params(tables["customer_data"], tables["product_data"])
         order_data = o.generate_order_data(s.order_data_rows, order_params, stage_progress("order_data"))
-        if "order_data" in selected_files:
-            localized_order_data = loc.localize_dataset(order_data)
-            generated_data["order_data"] = localized_order_data
-            log_order_data_characteristics(localized_order_data)
+        tables["order_data"], extra["anomaly_data"] = an.inject_anomalies(
+            order_data, tables["customer_data"], tables["product_data"])
+
+    tables, extra["quality_issue_data"] = q.inject_quality_issues(tables)
 
     if "sales_data" in selected_files:
-        sales_data = a.build_sales_data(order_data, product_data, customer_data)
-        localized_sales_data = loc.localize_dataset(sales_data)
-        generated_data["sales_data"] = localized_sales_data
-        log_sales_data_characteristics(localized_sales_data)
+        extra["sales_data"] = a.build_sales_data(tables["order_data"], tables["product_data"], tables["customer_data"])
+
+    generated_data = {}
+    for name in DATASET_NAMES:
+        if name not in selected_files:
+            continue
+        frame = tables.get(name) if name in SOURCE_DATASETS else extra.get(name)
+        generated_data[name] = loc.localize_dataset(frame)
+        log_characteristics(name, generated_data[name])
 
     d.report_progress(stage_progress("sales_data"), 1, 1)
     l.log_info('Dane zostały przygotowane.')
 
     return generated_data
+
+def required_sources(selected_files):
+    """
+    Return the source tables needed for the selected outputs.
+
+    Parameters:
+    selected_files (list): Selected dataset names.
+
+    Returns:
+    set: Source dataset names to generate.
+    """
+    needs_orders = bool(set(selected_files) & {"order_data", "sales_data", "anomaly_data"})
+    if needs_orders:
+        return set(SOURCE_DATASETS)
+    return {name for name in selected_files if name in SOURCE_DATASETS} | (
+        {"customer_data", "product_data"} if "quality_issue_data" in selected_files else set())
+
+def log_characteristics(name, data):
+    """Log a short summary of one generated table."""
+    loggers = {
+        "customer_data": log_customer_data_characteristics,
+        "product_data": log_product_data_characteristics,
+        "order_data": log_order_data_characteristics,
+        "sales_data": log_sales_data_characteristics,
+    }
+    if name in loggers:
+        loggers[name](data)
+    else:
+        l.log_section(f'Podsumowanie: {name}')
+        l.log_metric('Liczba wierszy', f.format_number(len(data)))
 
 def make_stage_progress(progress):
     """
@@ -146,23 +172,6 @@ def set_random_state():
         p.fake.seed_instance(s.random_state)
         o.fake.seed_instance(s.random_state)
         l.log_info(f'Ustawiono ziarno losowości random_state={s.random_state}.')
-
-def should_generate_source(data_name, selected_files):
-    """
-    Check if a source dataset is required for selected outputs.
-
-    Parameters:
-    data_name (str): Source dataset name.
-    selected_files (list): Selected dataset names.
-
-    Returns:
-    bool: True when the source dataset should be generated.
-    """
-    source_files = {"customer_data", "product_data", "order_data"}
-    if data_name not in source_files:
-        raise ValueError(f"Nieobsługiwana nazwa pliku źródłowego: {data_name}")
-
-    return data_name in selected_files or "sales_data" in selected_files
 
 def get_order_generation_params(customer_data=None, product_data=None):
     """

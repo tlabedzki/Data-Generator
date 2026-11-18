@@ -1,5 +1,6 @@
 import pandas as pd
 
+import func.generator as g
 import settings.main_settings as s
 import settings.product_catalog as pc
 
@@ -14,7 +15,7 @@ ORDER_COLUMNS = {
 
 
 def test_all_datasets_are_generated(small_data):
-    assert set(small_data) == {"customer_data", "product_data", "order_data", "sales_data"}
+    assert list(small_data) == g.DATASET_NAMES
 
 
 def test_customer_data(small_data):

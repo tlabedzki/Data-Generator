@@ -9,13 +9,17 @@ if str(PROJECT_DIR) not in sys.path:
 
 import func.generator as g  # noqa: E402
 import settings.main_settings as s  # noqa: E402
+import settings.quality_settings as qs  # noqa: E402
 
-ALL_FILES = ["customer_data", "product_data", "order_data", "sales_data"]
+ALL_FILES = list(g.DATASET_NAMES)
 
 
-def generate(customers=300, products=400, order_lines=1200, language="en", seed=42):
-    """Run the full pipeline on a small volume with temporarily overridden settings."""
+def generate(customers=300, products=400, order_lines=1200, language="en", seed=42, quality_level="none", **extra):
+    """Run the full pipeline on a small volume with temporarily overridden settings (extra: main settings)."""
     with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(qs, "data_quality_level", quality_level)
+        for name, value in extra.items():
+            mp.setattr(s, name, value)
         mp.setattr(s, "customer_data_rows", customers)
         mp.setattr(s, "product_data_rows", products)
         mp.setattr(s, "order_data_rows", order_lines)
