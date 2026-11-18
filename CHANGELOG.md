@@ -4,14 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### Unreleased
+### 1.2.0 - 2026-11-18
 Added:
-- README charts in a dark variant for GitHub's dark theme (`<picture>`), a diagram of the four tables and how they join, and a table that checks the default run against the settings that drive it.
-- `scripts/readme_numbers.py`: `scripts/make_charts.py` now also rewrites every number and table in the README from the same run, between `<!-- generated:... -->` markers.
-- `scripts/make_demo_gif.py` records the README demo GIF; it starts and stops the app itself.
+- Nine new tables, 13 in all: `price_history`, `shipment_data`, `return_data`, `campaign_data`, `session_data`, `experiment_data`, `experiment_assignment_data`, `anomaly_data` and `quality_issue_data`. Every table is saved by default.
+- Customer behaviour: signup cohorts, segments (`customer_segment`), churn, demographic habits, preferred categories, price tiers, replenishment and products bought together.
+- Commerce: special days (Black Friday, Cyber Monday, 11.11, Valentine's Day, Mother's Day, St Nicholas Day, Christmas, Easter), product launch and discontinuation, price history, order time of day, discounts that sell more units, shipping with costs and late deliveries, and returns with reasons.
+- Marketing and traffic: channels, campaigns with vouchers and a true daily lift, devices and about 690,000 web sessions with a funnel to the order.
+- A/B experiments with a known true effect, a planted sample ratio mismatch and an A/A test.
+- Dirty data levels (none, low, medium, high) with every injected issue and its clean value in `quality_issue_data`, and labelled anomalies (fraud rings with `is_fraud`, shop outages, a return spike); the app sets the level under Advanced.
+- `scripts/check_realism.py`: 52 realism criteria on the default run; the README lists all of them with the measured values.
+- README: a table of analyses to practise with the answer to check against, a diagram of all 13 tables, charts in a dark variant for GitHub's dark theme (`<picture>`) and a Quickstart from `git clone` to a running app.
+- `scripts/readme_numbers.py`: `scripts/make_charts.py` also rewrites every number and table in the README from the same run, between `<!-- generated:... -->` markers. `scripts/make_demo_gif.py` records the demo GIF and starts and stops the app itself.
+- Notebook section 18 on the advanced tables.
 
 Changed:
-- README Quickstart goes from `git clone` to a running app: virtual environment for Windows and macOS or Linux, a Python version check, the PowerShell execution policy note, what the app shows and how to stop it.
+- A vectorized order engine with independent random streams per step: Large takes about 5 seconds instead of 33 and `python main.py` about 7 seconds instead of 35. The same seed gives different data than in 1.1.0.
+- The app downloads every table, as CSV by default (Parquet as an option).
+
+Fixed:
+- The same seed now gives identical data in every Python process: two loops drew random numbers in the order of a set of strings, which changes with `PYTHONHASHSEED`.
 
 ### 1.1.0 - 2026-11-18
 Added:
