@@ -263,7 +263,7 @@ erDiagram
     }
     sales_data {
         int order_line_id
-        float revenue_gross "plus every column of the order, customer and product"
+        float revenue_gross "plus all joined columns"
     }
     price_history {
         int product_id FK
@@ -295,18 +295,10 @@ erDiagram
         int experiment_id FK
         int unit_id "session or customer"
     }
-    anomaly_data {
-        int anomaly_id PK
-        string table_name
-    }
-    quality_issue_data {
-        int issue_id PK
-        string clean_value "truth"
-    }
 ```
 
-Each row of `order_data` is one order line. `anomaly_data` and `quality_issue_data` point at rows of the other tables
-by table name and key. The columns marked "truth" hold what an analysis should find; the
+Each row of `order_data` is one order line. The two remaining tables, `anomaly_data` and `quality_issue_data`, point
+at rows of the others by table name and key. The columns marked "truth" hold what an analysis should find; the
 [output files table](docs/settings.md#output-files) says what one row of each table is.
 
 Brand, payment and delivery names (for example Samsung, H&M, PayU, BLIK and InPost) are used only as labels to make
