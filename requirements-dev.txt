@@ -1,2 +1,5 @@
 -r requirements.txt
 pytest~=8.3
+# README images: scripts/make_demo_gif.py drives headless Chrome or Edge
+websockets~=17.4
+pillow~=13.0

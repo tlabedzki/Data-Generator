@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### Unreleased
+Added:
+- README charts in a dark variant for GitHub's dark theme (`<picture>`), a diagram of the four tables and how they join, and a table that checks the default run against the settings that drive it.
+- `scripts/readme_numbers.py`: `scripts/make_charts.py` now also rewrites every number and table in the README from the same run, between `<!-- generated:... -->` markers.
+- `scripts/make_demo_gif.py` records the README demo GIF; it starts and stops the app itself.
+
+Changed:
+- README Quickstart goes from `git clone` to a running app: virtual environment for Windows and macOS or Linux, a Python version check, the PowerShell execution policy note, what the app shows and how to stop it.
+
 ### 1.1.0 - 2026-11-18
 Added:
 - GitHub Actions workflow running the pytest suite on every push to main and on pull requests, with a Tests badge in the README.

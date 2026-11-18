@@ -1,12 +1,14 @@
 """
-Render the README charts from a fresh run of the generator with the default settings (seed 42).
+Render the README charts and numbers from a fresh run of the generator with the default settings (seed 42).
 
 Usage (from the repository root):
     python scripts/make_charts.py
 
 The charts are the app's own Plotly figures (ui/figures.py) with the app's fonts and titles, so the README shows
 exactly what the app draws. Numbers use English notation (5.1M, 55,123) like the README text; the app itself writes
-them in Polish notation. Each chart becomes a small HTML page that headless Chrome or Edge saves as PNG to docs/img/.
+them in Polish notation. Each chart becomes a small HTML page that headless Chrome or Edge saves as PNG to docs/img/,
+once in the app's light colors and once as `<name>-dark.png` for GitHub's dark theme. The numbers and tables in
+README.md come from scripts/readme_numbers.py and replace the text between its `<!-- generated:... -->` markers.
 Set CHROME to the browser executable if it is not found automatically.
 """
 import html
@@ -15,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -25,6 +28,8 @@ import func.number_format as nf  # noqa: E402
 import settings.main_settings as s  # noqa: E402
 from func import service  # noqa: E402
 from ui import figures  # noqa: E402
+from ui import theme as t  # noqa: E402
+import readme_numbers  # noqa: E402  (scripts/ is on sys.path when this file runs)
 
 IMG_DIR = PROJECT_DIR / "docs" / "img"
 ASSETS = PROJECT_DIR / "ui" / "assets"
@@ -36,6 +41,24 @@ BROWSERS = [
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "google-chrome", "chromium", "chromium-browser",
 ]
+# Dark variant: GitHub's dark page with lighter steps of the same teal and copper ramps.
+DARK = {"PAGE": "#0d1117", "INK": "#e6edf3", "TEXT": "#b1bac4", "MUTED": "#8b949e", "LINE": "#262c34",
+        "PRIMARY": t.TEAL[4], "ACCENT": t.COPPER[4], "MIST": "#34535a", "AREA": "rgba(89, 170, 180, 0.12)"}
+DARK_CSS = (f"html, body {{ background: {DARK['PAGE']}; }} "
+            f":root {{ --dg-ink: {DARK['INK']}; --dg-text: {DARK['TEXT']}; --dg-muted: {DARK['MUTED']}; }}")
+
+
+@contextmanager
+def theme(colors):
+    """Temporarily swap the app colors that ui/figures.py reads."""
+    saved = {name: getattr(t, name) for name in colors}
+    for name, value in colors.items():
+        setattr(t, name, value)
+    try:
+        yield
+    finally:
+        for name, value in saved.items():
+            setattr(t, name, value)
 
 
 def default_params():
@@ -58,7 +81,7 @@ def find_browser():
     sys.exit("Chrome, Chromium or Edge not found. Set CHROME to the browser executable.")
 
 
-def chart_page(text, figure):
+def chart_page(text, figure, extra_css=""):
     """HTML page with the chart title, subtitle and figure in the app style and fonts."""
     title, subtitle = text
     fonts = (ASSETS / "fonts.css").read_text(encoding="utf-8")
@@ -67,7 +90,8 @@ def chart_page(text, figure):
     figure.update_layout(width=WIDTH - 48)
     body = figure.to_html(full_html=False, include_plotlyjs=True, config={"staticPlot": True})
     return (f"<!doctype html><html><head><meta charset='utf-8'><style>{fonts}\n{style}\n"
-            f"body {{ margin: 0; }} .dg-chart {{ padding: 28px 24px 16px; width: {WIDTH - 48}px; }}</style></head>"
+            f"body {{ margin: 0; }} .dg-chart {{ padding: 28px 24px 16px; width: {WIDTH - 48}px; }}{extra_css}"
+            "</style></head>"
             f"<body><figure class='dg-chart'><figcaption><div class='dg-chart-title'>{html.escape(title)}</div>"
             f"<div class='dg-chart-sub'>{html.escape(' '.join(subtitle))}</div></figcaption>"
             f"<div class='dg-graph'>{body}</div></figure></body></html>")
@@ -87,19 +111,29 @@ def main():
     IMG_DIR.mkdir(parents=True, exist_ok=True)
     browser = find_browser()
     params = default_params()
-    sales = service.generate(params)["sales_data"]
+    datasets = service.generate(params)
+    sales = datasets["sales_data"]
     weights = params.weekday_seasonality
-    with nf.notation("en"):
-        charts = [
-            ("monthly-revenue.png", ch.monthly_revenue_text(sales), figures.monthly_revenue(sales)),
-            ("weekday-profile.png", ch.weekday_text(sales, weights), figures.weekday_profile(sales, weights)),
-            ("category-mix.png", ch.category_text(sales), figures.category_mix(sales)),
-        ]
-    for file_name, text, figure in charts:
-        height = int(figure.layout.height) + 130
-        save_png(browser, chart_page(text, figure), height, file_name)
-        print(f"{file_name}: {text[0]} | {' '.join(text[1])}")
+    for suffix, colors, css in (("", {}, ""), ("-dark", DARK, DARK_CSS)):
+        with nf.notation("en"), theme(colors):
+            charts = [
+                ("monthly-revenue", ch.monthly_revenue_text(sales), figures.monthly_revenue(sales)),
+                ("weekday-profile", ch.weekday_text(sales, weights), figures.weekday_profile(sales, weights)),
+                ("category-mix", ch.category_text(sales), figures.category_mix(sales)),
+            ]
+        for name, text, figure in charts:
+            if colors:  # Plotly outlines bars in white, which only blends in on the light page
+                figure.update_traces(marker_line_color=colors["PAGE"], selector={"type": "bar"})
+            height = int(figure.layout.height) + 130
+            save_png(browser, chart_page(text, figure, css), height, f"{name}{suffix}.png")
+            print(f"{name}{suffix}.png: {text[0]} | {' '.join(text[1])}")
     print(f"Charts saved to {IMG_DIR}")
+    with nf.notation("en"):
+        blocks = {"sample": readme_numbers.sample_block(datasets),
+                  "results": readme_numbers.results_block(datasets, weights),
+                  "cli": readme_numbers.cli_block(datasets)}
+    readme_numbers.update_readme(PROJECT_DIR / "README.md", blocks)
+    print("README.md numbers updated")
 
 
 if __name__ == "__main__":
