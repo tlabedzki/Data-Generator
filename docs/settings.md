@@ -7,6 +7,7 @@ The settings live in the `settings/` package:
 - `settings/basket_settings.py` controls products bought together, customer preferences and replenishment.
 - `settings/commerce_settings.py` controls special days, product life cycle, price changes, price elasticity, order
   times, shipping and returns.
+- `settings/experiment_settings.py` controls A/B experiments.
 - `settings/marketing_settings.py` controls channels, campaigns, devices and web sessions.
 - `settings/quality_settings.py` controls dirty data (data quality issues) and labelled anomalies.
 - `settings/market_settings.py` controls market behavior, products, categories, brands, prices, margins, payments, deliveries, discounts, and sales mix.
@@ -77,6 +78,8 @@ Available values:
 | `return_data` | a returned order line | reason, quantity, refund |
 | `campaign_data` | a marketing campaign | channel, dates, cost, voucher, true effect |
 | `session_data` | a web session | about 12 per order; the converting one has `order_id` |
+| `experiment_data` | an A/B experiment | unit, metric, window, planned split, true effect |
+| `experiment_assignment_data` | a unit (session or customer) in an experiment | variant A or B |
 | `anomaly_data` | a labelled anomaly (fraud ring, shop outage, return spike) | the truth for anomaly detection |
 | `quality_issue_data` | one injected data quality issue | empty when `data_quality_level = "none"` |
 
@@ -356,6 +359,25 @@ cart and `non_converting_checkout_share` (35%) of those reach the checkout (aban
 `known_visitor_share` (45%) belong to a known customer, the rest are anonymous (`customer_id` empty).
 
 The session table is the largest one: about 690,000 rows for the default volume (11 MB as Parquet, 45 MB as CSV).
+
+## A/B Experiments
+
+Use `experiments` in `settings/experiment_settings.py`. Each experiment runs in its own window of the period
+(`start_share`, `duration_days`) and has the effect it should show in the data (`true_effect`, the answer to check an
+analysis against):
+
+| Key | Meaning |
+|---|---|
+| `unit` | `session` (every session on its own) or `customer` (all sessions of a known customer; anonymous sessions are left out) |
+| `metric` | `conversion_rate` (relative change of session conversion) or `units_per_line` (absolute change of the mean quantity of order lines) |
+| `planned_split_b`, `actual_split_b` | the share of units meant for B and the share they get; a difference is a sample ratio mismatch to detect |
+
+Defaults: `checkout_redesign` (+10% conversion), `recommendation_widget` (+0.12 units per line for customers in B),
+`free_shipping_banner` (+6% conversion with a sample ratio mismatch: 46% instead of 50% in B) and
+`search_ranking_aa` (an A/A test with no effect).
+
+For conversion experiments, orders do not change: converting sessions go to B with a slightly higher chance than
+the others, so B gets `actual_split_b` of the sessions and converts `1 + true_effect` times as often as A.
 
 ## Category Catalog Mix
 

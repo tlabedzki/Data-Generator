@@ -4,7 +4,7 @@ from pathlib import Path
 from faker import Faker
 import func.data as d
 from func import assembler as a, customer as c, order as o, product as p, log as l, format as f, save as sv, localization as loc
-from func import anomaly as an, behaviour as b, calendar as cal, fulfilment as ff, marketing as mk, prices as pr, quality as q, rng
+from func import anomaly as an, behaviour as b, calendar as cal, experiments as ex, fulfilment as ff, marketing as mk, prices as pr, quality as q, rng
 import settings.main_settings as s
 import settings.market_settings as ms
 
@@ -21,7 +21,8 @@ POSTAL_CODE_DATA = SOURCE_DIR / "pl_postal_code.csv"
 
 # Export files paths. Source tables first, then the joined sales lines, then the extra tables:
 DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data",
-                 "return_data", "campaign_data", "session_data", "anomaly_data", "quality_issue_data"]
+                 "return_data", "campaign_data", "session_data", "experiment_data", "experiment_assignment_data",
+                 "anomaly_data", "quality_issue_data"]
 SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
 saving_paths = {name: EXPORT_DIR / f"{name}.{s.saving_format}" for name in DATASET_NAMES}
 
@@ -96,6 +97,8 @@ def run_generation_pipeline(progress=None):
         tables["customer_data"] = customers
         extra["session_data"], session_of_order = mk.build_sessions(order_data, rng.stream("sessions"))
         order_data = mk.add_session_ids(order_data, session_of_order)
+        order_data, extra["experiment_data"], extra["experiment_assignment_data"] = ex.run_experiments(
+            order_data, extra["session_data"], calendar, rng.stream("experiments"))
         order_data = ff.add_unit_prices(order_data, price_book)
         order_data, bulky_orders = ff.fit_delivery_to_products(order_data, products, logistics)
         extra["shipment_data"] = ff.build_shipments(order_data, calendar, bulky_orders, logistics)

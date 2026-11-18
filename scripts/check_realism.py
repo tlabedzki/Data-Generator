@@ -275,7 +275,49 @@ def check_c(data):
           cart > 0)
 
 
-PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c}
+# ---------------------------------------------------------------------------------------------------------------- #
+# Pack F: A/B experiments
+
+def check_f(data):
+    import math
+    experiments = data["experiment_data"]
+    assignments = data["experiment_assignment_data"]
+    sessions = data["session_data"].set_index("session_id")
+    lines = data["order_data"]
+    for row in experiments.itertuples():
+        units = assignments[assignments["experiment_id"] == row.experiment_id]
+        counts = units["variant"].value_counts()
+        expected = np.array([1 - row.planned_split_b, row.planned_split_b]) * counts.sum()
+        observed = np.array([counts.get("A", 0), counts.get("B", 0)])
+        chi2 = float(((observed - expected) ** 2 / expected).sum())
+        p_value = math.erfc(math.sqrt(chi2 / 2))  # chi-square with one degree of freedom
+        srm_ok = p_value < 0.001 if row.has_sample_ratio_mismatch else p_value > 0.01
+        check("F", f"{row.experiment_name}: sample ratio test p-value (mismatch planted: {row.has_sample_ratio_mismatch})",
+              f"{p_value:.2g} (B {counts.get('B', 0) / counts.sum():.1%})", srm_ok)
+        if row.metric == "conversion_rate":
+            converted = sessions.loc[units["unit_id"], "order_id"].notna().to_numpy()
+            b = units["variant"].to_numpy() == "B"
+            pa, pb = converted[~b].mean(), converted[b].mean()
+            se = np.sqrt((1 - pa) / (pa * (~b).sum()) + (1 - pb) / (pb * b.sum()))
+            low, high = np.exp(np.log(pb / pa) + np.array([-1.96, 1.96]) * se) - 1
+            check("F", f"{row.experiment_name}: conversion lift, 95% CI (true {row.true_effect:+.0%})",
+                  f"{pb / pa - 1:+.1%} [{low:+.1%}, {high:+.1%}]", low <= row.true_effect <= high)
+        else:
+            variant = units.set_index("unit_id")["variant"]
+            window = sessions[(sessions["session_start"].dt.normalize() >= row.start_date)
+                              & (sessions["session_start"].dt.normalize() <= row.end_date)].dropna(subset=["order_id"])
+            in_test = lines[lines["order_id"].isin(window["order_id"].astype(int))
+                            & lines["customer_id"].isin(variant.index)]
+            group = in_test["customer_id"].map(variant)
+            qa, qb = in_test.loc[group == "A", "quantity"], in_test.loc[group == "B", "quantity"]
+            diff = qb.mean() - qa.mean()
+            se = np.sqrt(qa.var() / len(qa) + qb.var() / len(qb))
+            check("F", f"{row.experiment_name}: units per line B - A, 95% CI (true {row.true_effect:+.2f})",
+                  f"{diff:+.3f} [{diff - 1.96 * se:+.3f}, {diff + 1.96 * se:+.3f}]",
+                  diff - 1.96 * se <= row.true_effect <= diff + 1.96 * se)
+
+
+PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f}
 
 
 def main(selected):
