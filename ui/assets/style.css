@@ -72,13 +72,19 @@ body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing
 .dg-stat:first-child .dg-stat-value { color: var(--dg-teal); }
 .dg-stat-label { margin-top: 6px; font-size: 14px; color: var(--dg-text); }
 .dg-stat-note { font-size: 12px; color: var(--dg-muted); min-height: 18px; }
-.dg-table-scroll { border-top: 1px solid var(--dg-line); border-bottom: 1px solid var(--dg-line); }
-.dg-table { font-family: var(--dg-num); font-feature-settings: var(--dg-num-features); white-space: nowrap; }
-.dg-table td, .dg-table th { font-size: calc(13px * var(--dg-num-scale)) !important; }
-.dg-table thead { background: #ffffff; }
+/* Table previews: one native scroll box for every table (mouse, Shift + wheel, trackpad, touch, keyboard). */
+.dg-table-scroll { margin-top: 16px; max-height: 380px; overflow: auto; overscroll-behavior-x: contain;
+                   -webkit-overflow-scrolling: touch; border-top: 1px solid var(--dg-line);
+                   border-bottom: 1px solid var(--dg-line); scrollbar-width: thin; scrollbar-color: #c3cdd0 transparent; }
+.dg-table-scroll:focus-visible { outline: 2px solid var(--dg-teal); outline-offset: 2px; }
+.dg-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%;
+            font-family: var(--dg-num); font-feature-settings: var(--dg-num-features); white-space: nowrap; }
+.dg-table td, .dg-table th { font-size: calc(13px * var(--dg-num-scale)); padding: 6px 16px; text-align: left; }
+.dg-table th { position: sticky; top: 0; z-index: 1; background: #ffffff; padding-top: 10px; padding-bottom: 10px; }
+.dg-table td { max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
 .dg-table th { color: var(--dg-muted); font-weight: 600; font-size: 12px; letter-spacing: .02em;
-               border-bottom: 1px solid var(--dg-line) !important; }
-.dg-table td { color: var(--dg-ink); border-bottom: 1px solid #f0f2f3 !important; }
+               border-bottom: 1px solid var(--dg-line); }
+.dg-table td { color: var(--dg-ink); border-bottom: 1px solid #f0f2f3; }
 .dg-table tr:hover td { background: var(--dg-teal-soft); }
 
 /* Charts */

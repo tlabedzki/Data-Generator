@@ -258,16 +258,25 @@ def format_cell(value):
     return str(value)
 
 
-def table_view(data):
+CELL_TITLE_MIN = 24  # longer values may be cut with an ellipsis (CSS max-width); their cell carries the full text
+
+
+def table_view(data, key=""):
+    """
+    One table preview in its own native scroll box (both directions, sticky header). The key gives every table and
+    run a fresh box, so a new preview always starts at the first row and column instead of inheriting the scroll
+    position of the previous one.
+    """
     head = data.head(PREVIEW_ROWS)
-    table = dmc.Table(
-        data={"head": list(head.columns), "body": [[format_cell(v) for v in row]
-                                              for row in head.itertuples(index=False)]},
-        stickyHeader=True, highlightOnHover=True, verticalSpacing=6, horizontalSpacing="md", fz=13,
-        className="dg-table",
-    )
+    rows = [[format_cell(v) for v in row] for row in head.itertuples(index=False)]
+    table = html.Table([
+        html.Thead(html.Tr([html.Th(column) for column in head.columns])),
+        html.Tbody([html.Tr([html.Td(value, title=value if len(value) >= CELL_TITLE_MIN else None) for value in row])
+                    for row in rows]),
+    ], className="dg-table")
     return [
-        dmc.ScrollArea(table, h=380, type="auto", offsetScrollbars=True, className="dg-table-scroll", mt="md"),
+        html.Div(table, key=f"table-{key}", className="dg-table-scroll", tabIndex="0", role="region",
+                 **{"aria-label": "Table preview, scrolls in both directions"}),
         dmc.Text(f"First {nf.number(len(head), 0)} of {nf.number(len(data), 0)} rows and "
                  f"{data.shape[1]} columns. "
                  "Download the files for the full table.", className="dg-caption", mt="sm"),
@@ -473,7 +482,8 @@ def show_table(name, run_id):
     run = runs.get(run_id)
     if run is None or run.datasets is None:
         return no_update
-    return table_view(run.datasets[name or "sales_data"])
+    name = name or "sales_data"
+    return table_view(run.datasets[name], key=f"{run_id}-{name}")
 
 
 @app.callback(Output("file-list", "children"), Input("file-format", "value"), State("result-id", "data"))

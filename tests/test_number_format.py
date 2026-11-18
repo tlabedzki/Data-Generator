@@ -63,7 +63,8 @@ def test_screen_numbers_use_polish_notation_in_both_languages(run):
         for trace in fig.data:
             if getattr(trace, "mode", None) == "text":
                 assert not any(ENGLISH_NUMBER.search(label) for label in trace.text)
-    cells = ui_app.table_view(sales)[0].children.data["body"][0]
+    body = ui_app.table_view(sales)[0].children.children[1]
+    cells = [cell.children for cell in body.children[0].children]
     assert any(re.fullmatch(r"\d+,\d\d", cell) for cell in cells)
     assert not any(ENGLISH_NUMBER.search(cell) for cell in cells if not re.fullmatch(r"\d{4}-\d\d-\d\d", cell))
 
