@@ -60,9 +60,11 @@ def test_order_data(small_data):
     assert len(orders) >= 1200
     first_day, last_day = pd.Timestamp(s.start_year, 1, 1), pd.Timestamp(s.end_year, 12, 31)
     assert orders["order_date"].between(first_day, last_day).all()
-    assert orders["quantity"].between(1, 5).all()
+    assert (orders["quantity"] >= 1).all()
+    assert orders.loc[orders["discount_rate"] == 0, "quantity"].between(1, 5).all()
     assert orders["discount_rate"].between(0, 0.45).all()
-    assert orders["order_date"].is_monotonic_increasing
+    assert orders["order_datetime"].is_monotonic_increasing
+    assert (orders["order_datetime"].dt.normalize() == orders["order_date"]).all()
 
 
 def test_order_ids_are_consecutive_and_consistent(small_data):
@@ -82,5 +84,5 @@ def test_sales_data_joins_and_revenue(small_data):
     assert sales["customer_id"].isin(customers["customer_id"]).all()
     assert sales["product_id"].isin(products["product_id"]).all()
     assert sales[["city", "product_name", "sales_price_gross"]].notna().all().all()
-    expected = sales["quantity"] * sales["sales_price_gross"] * (1 - sales["discount_rate"])
+    expected = sales["quantity"] * sales["unit_price_gross"] * (1 - sales["discount_rate"])
     pd.testing.assert_series_equal(sales["revenue_gross"], expected, check_names=False)

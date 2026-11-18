@@ -8,15 +8,19 @@ Vectorized order engine.
    divided by the active customer base of the month, so the total orders per day follow the calendar (seasonality
    and growth) while individual customers churn.
 4. Order lines get a category (base mix × category seasonality × age and gender affinity), a product (popularity ×
-   brand), a quantity and a discount (category × month × segment).
+   brand, only products on sale that day, fewer when their list price is high), a discount (category × month ×
+   special day × segment) and a quantity (more units when discounted).
 5. Payment and delivery follow the customer's habits; expensive orders are paid differently.
 """
 import numpy as np
 import pandas as pd
 
 import func.behaviour as b
+import func.calendar as cal
 import func.data as d
+import func.prices as pr
 import settings.behaviour_settings as bs
+import settings.commerce_settings as cs
 import settings.main_settings as s
 import settings.market_settings as ms
 
@@ -131,55 +135,79 @@ def draw_order_customers(behaviour, calendar, order_count, generator):
 # Order lines: what is bought
 
 def category_probability_matrix(categories, base_probabilities):
-    """Cumulative category probabilities for every (month, age group, gender) combination."""
+    """Cumulative category probabilities for every (month, special day, age group, gender) combination."""
     age_limits = sorted(bs.age_category_affinity)
     genders = ["Female", "Male"]
+    events = cal.event_names()
     rows = []
     for month in range(1, 13):
         season = np.array([ms.category_monthly_seasonality.get(c, {}).get(month, 1.0) for c in categories])
-        for limit in age_limits:
-            age = np.array([bs.age_category_affinity[limit].get(c, 1.0) for c in categories])
-            for gender in genders:
-                sex = np.array([bs.gender_category_affinity.get(gender, {}).get(c, 1.0) for c in categories])
-                p = np.asarray(base_probabilities) * season * age * sex
-                rows.append(np.cumsum(p / p.sum()))
-    return np.array(rows), len(age_limits), genders
+        for event in events:
+            boosts = cs.special_days[event]["categories"] if event else {}
+            boost = np.array([boosts.get(c, 1.0) for c in categories])
+            for limit in age_limits:
+                age = np.array([bs.age_category_affinity[limit].get(c, 1.0) for c in categories])
+                for gender in genders:
+                    sex = np.array([bs.gender_category_affinity.get(gender, {}).get(c, 1.0) for c in categories])
+                    p = np.asarray(base_probabilities) * season * boost * age * sex
+                    rows.append(np.cumsum(p / p.sum()))
+    return np.array(rows), len(events), len(age_limits), genders
 
 
-def draw_categories(line_month, line_age, line_gender, params, generator):
+def draw_categories(line_month, line_event, line_age, line_gender, params, generator):
     categories, base = d.get_param_list_and_normalized_probabilities(params["product_category_weights"])
-    matrix, age_groups, genders = category_probability_matrix(categories, base)
+    matrix, events, age_groups, genders = category_probability_matrix(categories, base)
     gender_index = np.where(np.asarray(line_gender) == "Male", 1, 0)
-    key = (np.asarray(line_month) - 1) * age_groups * 2 + age_group_index(line_age) * 2 + gender_index
+    key = (((np.asarray(line_month) - 1) * events + np.asarray(line_event)) * age_groups
+           + age_group_index(line_age)) * 2 + gender_index
     return np.asarray(categories, dtype=object)[draw_categorical(matrix[key], generator)]
 
 
-def draw_products(line_category, params, generator):
+def draw_products(line_category, line_day, params, price_book, generator, rounds=12):
+    """
+    Draw a product for every line by popularity x brand, keeping it with the chance price_book.acceptance gives
+    (0 when the product is not on sale that day, lower when its list price is above its lowest price).
+    """
     product_ids = np.zeros(len(line_category), dtype=np.int64)
     for category in np.unique(line_category):
         slots = np.flatnonzero(line_category == category)
         ids = params["product_ids_by_category"][category]
         weights = params["product_weights_by_category"][category]
-        product_ids[slots] = ids[generator.choice(len(ids), size=len(slots), p=weights / weights.sum())]
+        p = weights / weights.sum()
+        pending = slots
+        for _ in range(rounds):
+            if not len(pending):
+                break
+            candidates = ids[generator.choice(len(ids), size=len(pending), p=p)]
+            keep = generator.random(len(pending)) < price_book.acceptance(candidates, line_day[pending])
+            product_ids[pending[keep]] = candidates[keep]
+            pending = pending[~keep]
+        for slot in pending:  # rare: take any product of the category on sale that day, else any product
+            on_sale = price_book.available(ids, np.full(len(ids), line_day[slot]))
+            pool, pool_p = (ids[on_sale], p[on_sale] / p[on_sale].sum()) if on_sale.any() else (ids, p)
+            product_ids[slot] = pool[generator.choice(len(pool), p=pool_p)]
     return product_ids
 
 
-def draw_quantities(line_category, generator):
+def draw_quantities(line_category, discount, generator):
+    """Quantity from the category profile; a discount adds units: expected x (1 - discount) ** -elasticity."""
     quantities = np.ones(len(line_category), dtype=np.int64)
     for category in np.unique(line_category):
         slots = np.flatnonzero(line_category == category)
         profile = ms.category_quantity_profiles.get(category, s.quantity_per_order_line)
         values, p = d.get_param_list_and_normalized_probabilities(profile)
-        quantities[slots] = np.asarray(values)[generator.choice(len(values), size=len(slots), p=p)]
+        base = np.asarray(values)[generator.choice(len(values), size=len(slots), p=p)]
+        uplift = (1 - discount[slots]) ** -pr.price_elasticity(category) - 1
+        quantities[slots] = base + generator.poisson(base * uplift)
     return quantities
 
 
-def draw_discounts(line_category, line_month, line_segment, generator):
+def draw_discounts(line_category, line_month, line_boost, line_segment, generator):
     base = np.array([ms.discount_probability_by_category.get(c, 0.0) for c in line_category])
     month = np.array([ms.discount_monthly_multiplier.get(m, 1.0) for m in range(1, 13)])[np.asarray(line_month) - 1]
     affinity = b.segment_table()["discount_affinity"].astype(float)
     segment = affinity.reindex(line_segment).fillna(1.0).to_numpy()
-    probability = np.minimum(base * month * segment, 0.95)
+    probability = np.minimum(base * month * np.asarray(line_boost) * segment, 0.95)
     discounted = generator.random(len(base)) < probability
     types, type_p = d.get_param_list_and_normalized_probabilities(ms.discount_type_probabilities)
     chosen = generator.choice(len(types), size=len(base), p=type_p)
@@ -209,16 +237,17 @@ def draw_deliveries(usual_delivery, generator):
 # ---------------------------------------------------------------------------------------------------------------- #
 # Main entry point
 
-def generate_order_data(num_rows, params, behaviour, calendar, generator, progress=None):
+def generate_order_data(num_rows, params, behaviour, calendar, price_book, generator, progress=None):
     """
     Generate order lines.
 
     Parameters:
     num_rows (int): Target number of order lines (the result can be up to four lines more).
     params (dict): Product selection parameters (product_ids_by_category, product_weights_by_category,
-        product_category_weights) and product prices (price_by_product).
+        product_category_weights).
     behaviour (pd.DataFrame): Customer behaviour from func.behaviour.draw_customer_behaviour.
     calendar (pd.DataFrame): Daily calendar.
+    price_book (func.prices.PriceBook): List prices and availability of products by day.
     generator (np.random.Generator): Random stream.
     progress (callable, optional): Called with the completed fraction (0-1).
 
@@ -236,15 +265,17 @@ def generate_order_data(num_rows, params, behaviour, calendar, generator, progre
     line_day = order_day[line_order]
     line_month = calendar["month"].to_numpy()[line_day]
     line_segment = behaviour["customer_segment"].to_numpy()[line_row]
-    line_category = draw_categories(line_month, behaviour["age"].to_numpy()[line_row],
-                                    behaviour["gender"].to_numpy()[line_row], params, generator)
-    product_id = draw_products(line_category, params, generator)
-    quantity = draw_quantities(line_category, generator)
-    discount = draw_discounts(line_category, line_month, line_segment, generator)
+    line_category = draw_categories(line_month, calendar["event_index"].to_numpy()[line_day],
+                                    behaviour["age"].to_numpy()[line_row], behaviour["gender"].to_numpy()[line_row],
+                                    params, generator)
+    product_id = draw_products(line_category, line_day, params, price_book, generator)
+    discount = draw_discounts(line_category, line_month, calendar["discount_boost"].to_numpy()[line_day],
+                              line_segment, generator)
+    quantity = draw_quantities(line_category, discount, generator)
     d.report_progress(progress, 2, 3, steps=3)
 
-    prices = params["price_by_product"]
-    line_value = prices.reindex(product_id).to_numpy() * quantity * (1 - discount)
+    unit_price, _ = price_book.lookup(product_id, line_day)
+    line_value = unit_price * quantity * (1 - discount)
     order_value = np.bincount(line_order, weights=line_value, minlength=order_count)
     payment = draw_payments(order_value, behaviour["usual_payment"].to_numpy()[order_row], generator)
     provider = draw_values(ms.payment_provider_with_probabilities, generator, order_count)

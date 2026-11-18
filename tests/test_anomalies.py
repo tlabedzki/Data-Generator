@@ -13,7 +13,7 @@ def data():
 
 def test_anomaly_table(data):
     anomalies = data["anomaly_data"]
-    assert set(anomalies["anomaly_type"]) == {"fraud_ring", "shop_outage"}
+    assert set(anomalies["anomaly_type"]) == {"fraud_ring", "shop_outage", "return_spike"}
     assert anomalies["anomaly_id"].is_unique
     assert (anomalies["end_date"] >= anomalies["start_date"]).all()
 

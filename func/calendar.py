@@ -9,7 +9,10 @@ import numpy as np
 import pandas as pd
 
 import settings.behaviour_settings as bs
+import settings.commerce_settings as cs
 import settings.main_settings as s
+
+NO_EVENT = ""
 
 
 def build_calendar(generator, month_noise_sd=None):
@@ -46,9 +49,80 @@ def build_calendar(generator, month_noise_sd=None):
 
     year_index = calendar["year"].to_numpy() - s.start_year
     month_index = calendar["month"].to_numpy() - 1
-    calendar["weight"] = year_weights[year_index] * month_weights[year_index, month_index] * within_month
-    calendar["weight"] = calendar["weight"] / calendar["weight"].sum()
+    weight = year_weights[year_index] * month_weights[year_index, month_index] * within_month
+
+    # Special days move demand inside their month; the month total stays the same. A special day starts from the
+    # average day of its month (not its weekday), so Black Friday is a peak even when Fridays are quiet.
+    events = special_day_names(calendar["date"])
+    demand = np.array([cs.special_days[e]["demand"] if e else 1.0 for e in events])
+    month_sum = pd.Series(weight).groupby(month_key.to_numpy()).transform("sum").to_numpy()
+    average_day = month_sum / calendar["date"].dt.days_in_month.to_numpy()
+    adjusted = np.where(events != NO_EVENT, average_day, weight) * demand
+    adjusted_sum = pd.Series(adjusted).groupby(month_key.to_numpy()).transform("sum").to_numpy()
+    with np.errstate(divide="ignore", invalid="ignore"):
+        weight = np.where(adjusted_sum > 0, adjusted * month_sum / adjusted_sum, 0.0)
+
+    calendar["weight"] = weight / weight.sum()
+    calendar["event"] = events
+    names = [NO_EVENT] + list(cs.special_days)
+    calendar["event_index"] = [names.index(e) for e in events]
+    calendar["discount_boost"] = [cs.special_days[e]["discount"] if e else 1.0 for e in events]
     return calendar
+
+
+def event_names():
+    """Special day names in the order of calendar["event_index"] (0 = an ordinary day)."""
+    return [NO_EVENT] + list(cs.special_days)
+
+
+def easter_sunday(year):
+    """Easter Sunday (anonymous Gregorian algorithm)."""
+    a, b, c = year % 19, year // 100, year % 100
+    d, e = b // 4, b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = c // 4, c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = (h + l - 7 * m + 114) % 31 + 1
+    return pd.Timestamp(year, month, day)
+
+
+def black_friday(year):
+    first = pd.Timestamp(year, 11, 1)
+    first_thursday = first + pd.Timedelta(days=(3 - first.dayofweek) % 7)
+    return first_thursday + pd.Timedelta(days=22)
+
+
+def named_days(name, year):
+    if name == "black_friday":
+        return [black_friday(year)]
+    if name == "cyber_monday":
+        return [black_friday(year) + pd.Timedelta(days=3)]
+    if name == "black_week":
+        return [black_friday(year) - pd.Timedelta(days=n) for n in range(1, 5)]
+    if name == "easter_sunday":
+        return [easter_sunday(year)]
+    if name == "easter_monday":
+        return [easter_sunday(year) + pd.Timedelta(days=1)]
+    raise ValueError(f"Unknown special day: {name}.")
+
+
+def special_day_names(dates):
+    """Name of the special day for every date, or "" for an ordinary day."""
+    names = pd.Series(NO_EVENT, index=pd.DatetimeIndex(dates))
+    for year in sorted(set(names.index.year)):
+        for name, definition in reversed(list(cs.special_days.items())):  # the first entry wins on overlaps
+            rule = definition["dates"]
+            if isinstance(rule, str):
+                days = named_days(rule, year)
+            else:
+                days = pd.date_range(f"{year}-{rule[0]}", f"{year}-{rule[1]}", freq="D")
+            days = [day for day in days if day in names.index]
+            names.loc[days] = name
+    return names.to_numpy()
 
 
 def draw_days(calendar, generator, size, low=None, high=None, weights=None):

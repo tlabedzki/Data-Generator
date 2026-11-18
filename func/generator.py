@@ -4,7 +4,7 @@ from pathlib import Path
 from faker import Faker
 import func.data as d
 from func import assembler as a, customer as c, order as o, product as p, log as l, format as f, save as sv, localization as loc
-from func import anomaly as an, behaviour as b, calendar as cal, quality as q, rng
+from func import anomaly as an, behaviour as b, calendar as cal, fulfilment as ff, prices as pr, quality as q, rng
 import settings.main_settings as s
 import settings.market_settings as ms
 
@@ -20,7 +20,8 @@ EXPORT_DIR = PROJECT_DIR / "export"
 POSTAL_CODE_DATA = SOURCE_DIR / "pl_postal_code.csv"
 
 # Export files paths. Source tables first, then the joined sales lines, then the extra tables:
-DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "anomaly_data", "quality_issue_data"]
+DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data",
+                 "return_data", "anomaly_data", "quality_issue_data"]
 SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
 saving_paths = {name: EXPORT_DIR / f"{name}.{s.saving_format}" for name in DATASET_NAMES}
 
@@ -66,17 +67,30 @@ def run_generation_pipeline(progress=None):
         d.report_progress(stage_progress("customer_data"), 1, 1)
 
     if "product_data" in needed:
-        tables["product_data"] = p.generate_product_data(s.product_data_rows, stage_progress("product_data"))
+        product_data = p.generate_product_data(s.product_data_rows, stage_progress("product_data"))
+        tables["product_data"] = pr.add_life_cycle(product_data, rng.stream("prices"))
 
     if "order_data" in needed:
+        customers, products = tables["customer_data"], tables["product_data"]
         calendar = cal.build_calendar(rng.stream("calendar"))
-        behaviour = b.draw_customer_behaviour(tables["customer_data"], calendar, rng.stream("behaviour"))
-        tables["customer_data"] = b.add_behaviour_columns(tables["customer_data"], behaviour)
-        order_params = get_order_generation_params(tables["product_data"])
-        order_data = o.generate_order_data(s.order_data_rows, order_params, behaviour, calendar, rng.stream("orders"),
-                                           stage_progress("order_data"))
-        tables["order_data"], extra["anomaly_data"] = an.inject_anomalies(
-            order_data, tables["customer_data"], tables["product_data"])
+        behaviour = b.draw_customer_behaviour(customers, calendar, rng.stream("behaviour"))
+        customers = tables["customer_data"] = b.add_behaviour_columns(customers, behaviour)
+        extra["price_history"] = pr.build_price_history(products, rng.stream("prices"))
+        price_book = pr.PriceBook(products, extra["price_history"], calendar)
+        order_params = get_order_generation_params(products)
+        order_data = o.generate_order_data(s.order_data_rows, order_params, behaviour, calendar, price_book,
+                                           rng.stream("orders"), stage_progress("order_data"))
+        order_data, anomalies = an.inject_anomalies(order_data, customers, products)
+
+        logistics = rng.stream("logistics")
+        order_data = an.renumber_orders(ff.add_order_times(order_data, logistics))
+        order_data = ff.add_unit_prices(order_data, price_book)
+        order_data, bulky_orders = ff.fit_delivery_to_products(order_data, products, logistics)
+        extra["shipment_data"] = ff.build_shipments(order_data, calendar, bulky_orders, logistics)
+        extra["return_data"], spikes = ff.build_returns(order_data, products, customers, extra["shipment_data"],
+                                                        rng.stream("returns"))
+        tables["order_data"] = order_data
+        extra["anomaly_data"] = an.anomaly_frame(anomalies + spikes)
 
     tables, extra["quality_issue_data"] = q.inject_quality_issues(tables)
 
@@ -98,7 +112,8 @@ def run_generation_pipeline(progress=None):
 
 def required_sources(selected_files):
     """
-    Return the source tables needed for the selected outputs.
+    Return the source tables needed for the selected outputs: every table except customers and products alone
+    needs the orders, and the orders need customers and products.
 
     Parameters:
     selected_files (list): Selected dataset names.
@@ -106,11 +121,9 @@ def required_sources(selected_files):
     Returns:
     set: Source dataset names to generate.
     """
-    needs_orders = bool(set(selected_files) & {"order_data", "sales_data", "anomaly_data"})
-    if needs_orders:
+    if set(selected_files) - {"customer_data", "product_data"}:
         return set(SOURCE_DATASETS)
-    return {name for name in selected_files if name in SOURCE_DATASETS} | (
-        {"customer_data", "product_data"} if "quality_issue_data" in selected_files else set())
+    return set(selected_files)
 
 def log_characteristics(name, data):
     """Log a short summary of one generated table."""

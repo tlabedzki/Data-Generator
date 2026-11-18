@@ -57,7 +57,8 @@ def renumber_orders(order_data):
 
     Lines of one order keep their order: they share the old order_id, which is used as the tie-breaker.
     """
-    order_data = order_data.sort_values(["order_date", "order_id"], kind="stable").reset_index(drop=True)
+    time_column = "order_datetime" if "order_datetime" in order_data else "order_date"
+    order_data = order_data.sort_values([time_column, "order_id"], kind="stable").reset_index(drop=True)
     new_order = order_data["order_id"].ne(order_data["order_id"].shift())
     order_data["order_id"] = new_order.cumsum() + FIRST_ORDER_ID - 1
     order_data["order_line_id"] = np.arange(FIRST_ORDER_LINE_ID, FIRST_ORDER_LINE_ID + len(order_data))
@@ -105,8 +106,8 @@ def apply_shop_outages(order_data, generator):
     return order_data, records
 
 
-def fraud_products(product_data, generator, size):
-    """Pick expensive products from the fraud categories, weighted by price."""
+def fraud_products(product_data, generator, size, day=None):
+    """Pick expensive products from the fraud categories (on sale on the day when given), weighted by price."""
     categories = list(qs.fraud_category_weights)
     weights = np.array(list(qs.fraud_category_weights.values()), dtype=float)
     chosen_categories = generator.choice(categories, size=size, p=weights / weights.sum())
@@ -116,6 +117,9 @@ def fraud_products(product_data, generator, size):
         if not slots.any():
             continue
         pool = product_data[product_data["category"] == category]
+        if day is not None and "launch_date" in pool:
+            on_sale = (pool["launch_date"] <= day) & ~(pool["discontinued_date"] <= day + pd.Timedelta(days=7))
+            pool = pool[on_sale] if on_sale.any() else pool
         if pool.empty:
             pool = product_data
         pool = pool[pool["sales_price_gross"] >= pool["sales_price_gross"].quantile(0.75)]
@@ -155,10 +159,11 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
         drop_code = draw_postal_codes(generator, 1)[0]
         provider = generator.choice(["Stripe", "PayU", "Przelewy24"])
         line_counts = generator.integers(1, 3, size=orders)
-        products = fraud_products(product_data, generator, int(line_counts.sum()))
+        products = fraud_products(product_data, generator, int(line_counts.sum()), start)
         offsets = np.sort(generator.integers(0, qs.fraud_burst_days, size=orders))
         product_index = 0
         for order_offset, lines in zip(offsets, line_counts):
+            delivery = generator.choice(["InPost courier", "DPD"])
             for _ in range(lines):
                 rows.append({
                     "order_date": start + pd.Timedelta(days=int(order_offset)),
@@ -168,7 +173,7 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
                     "customer_id": customer["customer_id"],
                     "payment_method": "Card",
                     "payment_provider": provider,
-                    "delivery_method": generator.choice(["InPost courier", "DPD"]),
+                    "delivery_method": delivery,
                     "discount_rate": 0.0,
                     "shipping_postal_code": drop_code,
                     "is_fraud": True,
@@ -194,7 +199,7 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
 
 def inject_anomalies(order_data, customer_data, product_data):
     """
-    Add shipping addresses and, when enabled, shop outages and fraud rings; give orders final IDs.
+    Add shipping addresses and, when enabled, shop outages and fraud rings; give orders consecutive IDs.
 
     Parameters:
     order_data (pd.DataFrame): Order lines.
@@ -202,7 +207,7 @@ def inject_anomalies(order_data, customer_data, product_data):
     product_data (pd.DataFrame or None): Products.
 
     Returns:
-    tuple: (order lines, anomaly_data).
+    tuple: (order lines, list of anomaly records for anomaly_frame).
     """
     generator = rng.stream("anomalies")
     if customer_data is not None:
@@ -215,12 +220,14 @@ def inject_anomalies(order_data, customer_data, product_data):
         records = outage_records + fraud_records
     elif "is_fraud" not in order_data:
         order_data["is_fraud"] = False
-    order_data = renumber_orders(order_data)
+    return renumber_orders(order_data), records
 
-    anomaly_data = empty_anomaly_data() if not records else pd.DataFrame(records)
-    if records:
-        anomaly_data = anomaly_data.sort_values("start_date", kind="stable").reset_index(drop=True)
-        anomaly_data.insert(0, "anomaly_id", np.arange(1, len(anomaly_data) + 1))
-        anomaly_data["customer_id"] = anomaly_data["customer_id"].astype("Int64")
-        anomaly_data = anomaly_data[ANOMALY_COLUMNS]
-    return order_data, anomaly_data
+
+def anomaly_frame(records):
+    """Build anomaly_data from anomaly records, oldest first."""
+    if not records:
+        return empty_anomaly_data()
+    anomaly_data = pd.DataFrame(records).sort_values("start_date", kind="stable").reset_index(drop=True)
+    anomaly_data.insert(0, "anomaly_id", np.arange(1, len(anomaly_data) + 1))
+    anomaly_data["customer_id"] = anomaly_data["customer_id"].astype("Int64")
+    return anomaly_data[ANOMALY_COLUMNS]

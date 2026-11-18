@@ -4,6 +4,8 @@ The settings live in the `settings/` package:
 
 - `settings/main_settings.py` controls the generation process.
 - `settings/behaviour_settings.py` controls the demand calendar, customer segments, churn, demographics and habits.
+- `settings/commerce_settings.py` controls special days, product life cycle, price changes, price elasticity, order
+  times, shipping and returns.
 - `settings/quality_settings.py` controls dirty data (data quality issues) and labelled anomalies.
 - `settings/market_settings.py` controls market behavior, products, categories, brands, prices, margins, payments, deliveries, discounts, and sales mix.
 - `settings/category_hierarchy.py` controls second-level categories.
@@ -68,7 +70,10 @@ Available values:
 | `product_data` | a product | |
 | `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line |
 | `sales_data` | an order line joined with its product and customer | revenue columns added |
-| `anomaly_data` | a labelled anomaly (fraud ring, shop outage) | the truth for anomaly detection |
+| `price_history` | a list price of a product with its validity period | the last price equals `sales_price_gross` |
+| `shipment_data` | the shipment of an order | cost, dispatch, delivery, late or not |
+| `return_data` | a returned order line | reason, quantity, refund |
+| `anomaly_data` | a labelled anomaly (fraud ring, shop outage, return spike) | the truth for anomaly detection |
 | `quality_issue_data` | one injected data quality issue | empty when `data_quality_level = "none"` |
 
 Source tables needed by a selected file are always generated, but only the selected files are saved.
@@ -210,6 +215,91 @@ more electronics and clothing, older ones more health, home and DIY products.
 Customers keep habits: `usual_payment_share` (70%) of orders are paid with the customer's usual method and
 `usual_delivery_share` (60%) delivered the usual way. Orders above `high_value_order_threshold` (2000 PLN gross) use
 `high_value_payment_multipliers`, so expensive orders are paid more often with deferred payment or card.
+
+## Special Days
+
+Use `special_days` in `settings/commerce_settings.py`.
+
+```python
+special_days = {
+    "black_friday": {"dates": "black_friday", "demand": 4.0, "discount": 2.2, "categories": {"Electronics": 1.4}},
+    "christmas":    {"dates": ("12-25", "12-26"), "demand": 0.25, "discount": 1.0, "categories": {}},
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `dates` | a named movable day (`black_friday`, `black_week`, `cyber_monday`, `easter_sunday`, `easter_monday`) or a `("MM-DD", "MM-DD")` range |
+| `demand` | multiplier of the day's orders compared with an average day of its month |
+| `discount` | multiplier of the chance that a line is discounted |
+| `categories` | multipliers of category probabilities on these days |
+
+The month total does not change: a strong Black Friday takes orders from the rest of November, so the monthly
+seasonality stays as set. Defaults: Black Friday, Black Week, Cyber Monday, Singles' Day (11.11), Valentine's,
+Mother's Day and Children's Day weeks, Mikołajki, and quiet days at Christmas, New Year and Easter.
+
+## Product Life Cycle And Price History
+
+`product_data` has `launch_date` and `discontinued_date` (empty = still on sale). Products are sold only between
+these dates.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `launched_during_period_share` | `0.30` | products launched during the period (the rest existed before) |
+| `discontinued_share` | `0.15` | products withdrawn before the end of the period |
+| `min_product_life_days` | `120` | a discontinued product is on sale at least this long |
+| `price_changes_per_year` | `1.2` | list price changes per product and year |
+| `price_increase_share` | `0.75` | share of changes that are increases |
+| `price_increase_range`, `price_decrease_range` | `(0.02, 0.12)`, `(0.05, 0.20)` | size of a change |
+
+`price_history` lists every list price with `valid_from`, `valid_to` and `change_type` (`initial`, `increase`,
+`decrease`). The last price of every product equals `sales_price_gross` in `product_data`. Order lines carry the
+list price valid on the order day (`unit_price_gross`, `unit_price_net`); `sales_data` computes the discounted prices
+and `revenue_gross` from them.
+
+## Price Elasticity And Discounts
+
+`category_price_elasticity` (default `default_price_elasticity = 1.2`) sets how strongly demand reacts to price:
+
+- a product's chance to be bought is multiplied by `(list price / its lowest price) ** -elasticity`, so a price
+  increase lowers its sales;
+- a discount raises the expected quantity of the line by `(1 - discount) ** -elasticity` (extra units are drawn
+  from a Poisson distribution, so discounted lines can have more than 5 units).
+
+## Order Time Of Day
+
+`order_data.order_datetime` adds the time to `order_date`. Hours follow `hour_weights` (24 values, busiest between
+19:00 and 22:00); fraud orders follow `fraud_hour_weights` (mostly at night).
+
+## Shipping
+
+`shipment_data` has one row per order.
+
+| Setting | Meaning |
+|---|---|
+| `bulky_product_types` | product types too big for parcel lockers; orders with one of them go by courier (`bulky_delivery_methods`) |
+| `delivery_methods` | cost (PLN gross), transit days (min, max) and promised days per delivery method |
+| `free_shipping_threshold` | orders from this gross value ship for free (199 PLN) |
+| `bulky_shipping_surcharge` | extra cost of a bulky shipment, also above the threshold |
+| `dispatch_cutoff_hour` | orders placed before this hour on a working day leave the same day |
+| `carrier_delay_share`, `peak_delay_share`, `peak_months`, `peak_extra_days` | delays: 5% of shipments, 25% in November and December |
+
+`promised_delivery_date` counts the promised working days from the dispatch day; `is_late` is True when
+`delivered_at` is later.
+
+## Returns
+
+`return_data` has one row per returned order line.
+
+| Setting | Meaning |
+|---|---|
+| `category_return_rate`, `default_return_rate` | chance that a line is returned (Clothing 24%, Electronics 6%) |
+| `segment_return_multiplier`, `discounted_return_multiplier` | deal hunters and discounted lines return more often |
+| `return_delay_days`, `return_within_14_days_share` | days from delivery to the return; 85% within 14 days |
+| `return_reasons` | reason mix for Clothing (mostly `wrong_size`) and the other categories |
+| `return_spikes`, `return_spike_rate`, `return_spike_days` | a defective batch: one popular product is returned 55% of the time for a month, labelled in `anomaly_data` as `return_spike` |
+
+Fraud lines are never returned. 4% of returns are `rejected` with a refund of 0.
 
 ## Category Catalog Mix
 

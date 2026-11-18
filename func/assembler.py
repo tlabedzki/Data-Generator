@@ -18,8 +18,9 @@ def build_sales_data(order_data, product_data, customer_data):
     """
     sales_data = pd.merge(order_data, product_data, on='product_id', how='left')
     sales_data = pd.merge(sales_data, customer_data, on='customer_id', how='left')
-    sales_data['sales_price_gross_after_discount'] = sales_data['sales_price_gross'] * (1 - sales_data['discount_rate'])
-    sales_data['sales_price_net_after_discount'] = sales_data['sales_price_net'] * (1 - sales_data['discount_rate'])
+    # Line prices come from the list price on the order day (unit_price_*); sales_price_* is today's list price.
+    sales_data['sales_price_gross_after_discount'] = sales_data['unit_price_gross'] * (1 - sales_data['discount_rate'])
+    sales_data['sales_price_net_after_discount'] = sales_data['unit_price_net'] * (1 - sales_data['discount_rate'])
     sales_data['revenue_gross'] = sales_data['quantity'] * sales_data['sales_price_gross_after_discount']
 
-    return sales_data.sort_values(['order_date', 'order_id'], ascending=[True, True])
+    return sales_data.sort_values(['order_datetime', 'order_id'], kind='stable').reset_index(drop=True)
