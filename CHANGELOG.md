@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### 1.1.0 - unreleased
+### 1.1.0 - 2026-11-18
 Added:
 - GitHub Actions workflow running the pytest suite on every push to main and on pull requests, with a Tests badge in the README.
 - README rewritten to the shared portfolio layout: badges, an app demo GIF as the hero, a stack line, a three-command Quickstart, a sample of `sales_data`, shorter sections and a collapsible project tree.
