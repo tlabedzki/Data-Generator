@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### Unreleased
+Changed:
+- README: the table of analyses moved to its own section, What you can analyse, right after Why. Each row starts with the business question it answers, then the method and tables and the column or setting with the true answer. A new row covers seasonality and forecasting against the growth, month weights and special days in `settings/`.
+
 ### 1.2.0 - 2026-11-18
 Added:
 - Nine new tables, 13 in all: `price_history`, `shipment_data`, `return_data`, `campaign_data`, `session_data`, `experiment_data`, `experiment_assignment_data`, `anomaly_data` and `quality_issue_data`. Every table is saved by default.

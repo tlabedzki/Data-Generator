@@ -19,6 +19,23 @@ analysts, trainers and BI teams a shop that behaves like a real one: customers w
 peaks, baskets of products bought together, campaigns that move traffic and A/B tests with a known true effect.
 Truth columns hold the right answer, so you can check your analysis, and a Large dataset takes about 5 seconds.
 
+## What you can analyse
+
+Each row starts with a question a shop asks; the last column says where the true answer sits.
+
+| Question | Method and tables | Answer to check against |
+|---|---|---|
+| How fast do sales grow, and how big is the November peak? | Seasonality and forecasting on `sales_data` | `annual_growth_rate`, `base_monthly_seasonality`, `special_days` in `settings/` |
+| Which customers come back, and which churn and when? | Cohort retention, RFM and customer value on `customer_data`, `sales_data` | `customer_segment` |
+| Which products are bought together? | Market basket analysis (support, confidence, lift) on `sales_data` | `complements` in `settings/basket_settings.py` |
+| Which channel brings the orders, and did the campaign pay for itself? | Funnel, attribution and ROAS on `session_data`, `campaign_data`, `order_data` | `true_daily_lift` per campaign |
+| Is the A/B test result real? | Significance test, confidence interval, sample ratio mismatch and A/A test on `experiment_data`, `experiment_assignment_data`, `session_data` | `true_effect`, `has_sample_ratio_mismatch` |
+| Do discounts sell more, and what drives returns and late deliveries? | Price elasticity, promotion uplift, return and delivery rates on `sales_data`, `price_history`, `return_data`, `shipment_data` | settings in `docs/settings.md` |
+| Which orders are fraud, and when did the shop go down? | Fraud and anomaly detection on `order_data`, `anomaly_data` | `is_fraud`, `anomaly_data` |
+| Can you trust the data before you analyse it? | Data cleaning (missing values, typos, formats, outliers, duplicates) on every table at `data_quality_level` low, medium or high | `quality_issue_data` (clean values) |
+
+Section 12 of the notebook in `notebooks/` covers seasonality and section 18 walks through the advanced tables.
+
 ## What it does
 
 - Generates 13 linked tables: customers, products, order lines, sales lines, price history, shipments, returns,
@@ -30,18 +47,6 @@ Truth columns hold the right answer, so you can check your analysis, and a Large
 - Adds channels, campaigns, devices and a session funnel, plus labelled fraud, shop outages and optional dirty data
   (missing values, typos, formats, outliers, duplicates).
 - Saves CSV or Parquet with values in English or Polish; the same seed gives identical files.
-
-| Practise | Tables | Answer to check against |
-|---|---|---|
-| Cohorts, retention, RFM and customer value | `customer_data`, `sales_data` | `customer_segment` |
-| Market basket analysis | `sales_data` | pairs in `settings/basket_settings.py` |
-| Funnel, attribution and ROAS | `session_data`, `campaign_data`, `order_data` | `true_daily_lift` per campaign |
-| A/B testing, sample ratio mismatch, A/A test | `experiment_data`, `experiment_assignment_data`, `session_data` | `true_effect`, `has_sample_ratio_mismatch` |
-| Pricing, promotions, returns and delivery | `price_history`, `return_data`, `shipment_data` | settings in `docs/settings.md` |
-| Fraud and anomaly detection | `order_data`, `anomaly_data` | `is_fraud`, `anomaly_data` |
-| Data cleaning | every table at `data_quality_level` low, medium or high | `quality_issue_data` (clean values) |
-
-Section 18 of the notebook in `notebooks/` walks through the advanced tables.
 
 <!-- generated:sample -->
 
