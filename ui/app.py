@@ -64,9 +64,9 @@ def number_input(input_id, label, value, limits, step, **props):
 # Size presets of the Parameters section. Times measured on a laptop with the default seed;
 # medium is the app default and large is the command-line default.
 PRESETS = {
-    "small": {"label": "Small", "customers": 1_000, "products": 1_000, "order_lines": 2_000, "time": "about 1 s"},
-    "medium": {"label": "Medium", "customers": 5_000, "products": 5_000, "order_lines": 10_000, "time": "about 4 s"},
-    "large": {"label": "Large", "customers": 40_000, "products": 50_000, "order_lines": 80_000, "time": "about 30 s"},
+    "small": {"label": "Small", "customers": 1_000, "products": 1_000, "order_lines": 2_000, "time": "under 1 s"},
+    "medium": {"label": "Medium", "customers": 5_000, "products": 5_000, "order_lines": 10_000, "time": "about 1 s"},
+    "large": {"label": "Large", "customers": 40_000, "products": 50_000, "order_lines": 80_000, "time": "about 5 s"},
 }
 
 
@@ -212,10 +212,11 @@ def page():
                 html.P("Synthetic e-commerce data", className="dg-eyebrow"),
                 html.H1(["A shop that never existed, ", html.Br(), "with ", html.Em("data"), " that looks real."],
                         className="dg-h1"),
-                html.P("Customers, products, orders and sales lines with seasonality, growth and discounts. "
-                       "100% fictional, reproducible with a seed, ready as CSV or Parquet.", className="dg-lead"),
+                html.P("Customers, orders, sessions, campaigns, returns and A/B tests, with seasonality, churn, "
+                       "promotions and optional dirty data. 100% fictional, reproducible with a seed, ready as CSV or "
+                       "Parquet.", className="dg-lead"),
             ], className="dg-hero"),
-            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds the seed and seasonality weights.",
+            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds the seed, dirty data and seasonality weights.",
                     parameters(), "parameters"),
             section(2, "Preview", "Key numbers and the first rows of each table.",
                     placeholder("Generate data to see the preview."), "preview"),
@@ -271,7 +272,8 @@ def format_cell(value):
     if value is None or (not isinstance(value, str) and pd.isna(value)):
         return ""
     if hasattr(value, "strftime"):
-        return value.strftime("%Y-%m-%d")
+        has_time = getattr(value, "hour", 0) or getattr(value, "minute", 0) or getattr(value, "second", 0)
+        return value.strftime("%Y-%m-%d %H:%M" if has_time else "%Y-%m-%d")
     if isinstance(value, float):
         return nf.number(value, 2)
     return str(value)

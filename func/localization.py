@@ -24,7 +24,11 @@ def localize_dataset(data):
     localized_data = data.copy()
     language_translations = loc.translations[language]
 
-    for column_name, value_translations in language_translations.items():
+    # Columns that hold the same values as another translated column:
+    aliases = {"preferred_category": "category"}
+    columns = list(language_translations.items()) + [
+        (alias, language_translations[source]) for alias, source in aliases.items() if source in language_translations]
+    for column_name, value_translations in columns:
         if column_name in localized_data.columns:
             localized_data[column_name] = localized_data[column_name].map(
                 lambda value: value_translations.get(value, value)

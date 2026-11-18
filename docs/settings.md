@@ -62,7 +62,11 @@ and model names such as `Galaxy`, `ThinkPad`, `Air Max`, or `Spider-Man` are int
 Use `generated_files` in `settings/main_settings.py`.
 
 ```python
-generated_files = ["customer_data", "product_data", "order_data", "sales_data", "anomaly_data", "quality_issue_data"]
+generated_files = [
+    "customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data", "return_data",
+    "campaign_data", "session_data", "experiment_data", "experiment_assignment_data", "anomaly_data",
+    "quality_issue_data",
+]
 ```
 
 Available values:
