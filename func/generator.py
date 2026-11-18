@@ -4,6 +4,7 @@ from pathlib import Path
 from faker import Faker
 import func.data as d
 from func import assembler as a, customer as c, order as o, product as p, log as l, format as f, save as sv, localization as loc
+from func import anomaly as an, behaviour as b, calendar as cal, experiments as ex, fulfilment as ff, marketing as mk, prices as pr, quality as q, rng
 import settings.main_settings as s
 import settings.market_settings as ms
 
@@ -18,13 +19,12 @@ EXPORT_DIR = PROJECT_DIR / "export"
 # Source files paths:
 POSTAL_CODE_DATA = SOURCE_DIR / "pl_postal_code.csv"
 
-# Export files paths:
-saving_paths = {
-    "customer_data": EXPORT_DIR / f"customer_data.{s.saving_format}",
-    "product_data": EXPORT_DIR / f"product_data.{s.saving_format}",
-    "order_data": EXPORT_DIR / f"order_data.{s.saving_format}",
-    "sales_data": EXPORT_DIR / f"sales_data.{s.saving_format}",
-}
+# Export files paths. Source tables first, then the joined sales lines, then the extra tables:
+DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data",
+                 "return_data", "campaign_data", "session_data", "experiment_data", "experiment_assignment_data",
+                 "anomaly_data", "quality_issue_data"]
+SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
+saving_paths = {name: EXPORT_DIR / f"{name}.{s.saving_format}" for name in DATASET_NAMES}
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
@@ -39,62 +39,120 @@ def generate_full_sales_data():
     sv.save_generated_outputs(generated_data, saving_paths)
 
 # Share of total run time per stage, used to turn stage progress into overall progress:
-STAGE_SHARES = {"customer_data": 0.06, "product_data": 0.26, "order_data": 0.63, "sales_data": 0.05}
+STAGE_SHARES = {"customer_data": 0.40, "product_data": 0.15, "order_data": 0.35, "sales_data": 0.10}
 
 def run_generation_pipeline(progress=None):
     """
     Generate datasets selected in the settings file.
 
+    Source tables (customers, products, order lines) are generated whenever a selected table needs them. Anomalies
+    and data quality issues are added to the source tables before the sales lines are joined.
+
     Parameters:
     progress (callable, optional): Called as progress(fraction, stage_name) while data is generated.
 
     Returns:
-    dict: Dataset names mapped to generated DataFrames.
+    dict: Dataset names mapped to generated DataFrames, in the order of DATASET_NAMES.
     """
     stage_progress = make_stage_progress(progress)
     set_random_state()
     l.log_info("Rozpoczynam przygotowanie danych.")
 
     selected_files = get_selected_files()
-    generated_data = {}
+    needed = required_sources(selected_files)
+    tables = {"customer_data": None, "product_data": None, "order_data": None}
+    extra = {}
 
-    customer_data = None
-    product_data = None
-    order_data = None
-
-    if should_generate_source("customer_data", selected_files):
-        customer_data = c.generate_customer_data(s.customer_data_rows)
+    if "customer_data" in needed:
+        tables["customer_data"] = c.generate_customer_data(s.customer_data_rows)
         d.report_progress(stage_progress("customer_data"), 1, 1)
-        if "customer_data" in selected_files:
-            localized_customer_data = loc.localize_dataset(customer_data)
-            generated_data["customer_data"] = localized_customer_data
-            log_customer_data_characteristics(localized_customer_data)
 
-    if should_generate_source("product_data", selected_files):
+    if "product_data" in needed:
         product_data = p.generate_product_data(s.product_data_rows, stage_progress("product_data"))
-        if "product_data" in selected_files:
-            localized_product_data = loc.localize_dataset(product_data)
-            generated_data["product_data"] = localized_product_data
-            log_product_data_characteristics(localized_product_data)
+        tables["product_data"] = pr.add_life_cycle(product_data, rng.stream("prices"))
 
-    if should_generate_source("order_data", selected_files):
-        order_params = get_order_generation_params(customer_data, product_data)
-        order_data = o.generate_order_data(s.order_data_rows, order_params, stage_progress("order_data"))
-        if "order_data" in selected_files:
-            localized_order_data = loc.localize_dataset(order_data)
-            generated_data["order_data"] = localized_order_data
-            log_order_data_characteristics(localized_order_data)
+    if "order_data" in needed:
+        customers, products = tables["customer_data"], tables["product_data"]
+        marketing = rng.stream("marketing")
+        plain_calendar = cal.build_calendar(rng.stream("calendar"))
+        campaigns, campaign_effects, own_effects = mk.draw_campaigns(plain_calendar, marketing)
+        calendar = cal.build_calendar(rng.stream("calendar"),
+                                      day_multiplier=mk.campaign_multiplier(campaign_effects, len(plain_calendar)))
+        calendar = mk.add_campaign_columns(calendar, campaign_effects)
+        extra["campaign_data"] = campaigns[mk.CAMPAIGN_COLUMNS]
+        order_params = get_order_generation_params(products)
+        behaviour = b.draw_customer_behaviour(customers, calendar, rng.stream("behaviour"),
+                                              order_params["product_category_weights"])
+        customers = tables["customer_data"] = b.add_behaviour_columns(customers, behaviour)
+        extra["price_history"] = pr.build_price_history(products, rng.stream("prices"))
+        price_book = pr.PriceBook(products, extra["price_history"], calendar)
+        order_data = o.generate_order_data(s.order_data_rows, order_params, behaviour, calendar, price_book,
+                                           rng.stream("orders"), stage_progress("order_data"))
+        order_data, anomalies = an.inject_anomalies(order_data, customers, products)
+
+        logistics = rng.stream("logistics")
+        order_data = an.renumber_orders(ff.add_order_times(order_data, logistics))
+        order_data, customers = mk.add_marketing_columns(order_data, customers, calendar, campaigns, own_effects,
+                                                         marketing)
+        tables["customer_data"] = customers
+        extra["session_data"], session_of_order = mk.build_sessions(order_data, rng.stream("sessions"))
+        order_data = mk.add_session_ids(order_data, session_of_order)
+        order_data, extra["experiment_data"], extra["experiment_assignment_data"] = ex.run_experiments(
+            order_data, extra["session_data"], calendar, rng.stream("experiments"))
+        order_data = ff.add_unit_prices(order_data, price_book)
+        order_data, bulky_orders = ff.fit_delivery_to_products(order_data, products, logistics)
+        extra["shipment_data"] = ff.build_shipments(order_data, calendar, bulky_orders, logistics)
+        extra["return_data"], spikes = ff.build_returns(order_data, products, customers, extra["shipment_data"],
+                                                        rng.stream("returns"))
+        tables["order_data"] = order_data
+        extra["anomaly_data"] = an.anomaly_frame(anomalies + spikes)
+
+    tables, extra["quality_issue_data"] = q.inject_quality_issues(tables)
 
     if "sales_data" in selected_files:
-        sales_data = a.build_sales_data(order_data, product_data, customer_data)
-        localized_sales_data = loc.localize_dataset(sales_data)
-        generated_data["sales_data"] = localized_sales_data
-        log_sales_data_characteristics(localized_sales_data)
+        extra["sales_data"] = a.build_sales_data(tables["order_data"], tables["product_data"], tables["customer_data"])
+
+    generated_data = {}
+    for name in DATASET_NAMES:
+        if name not in selected_files:
+            continue
+        frame = tables.get(name) if name in SOURCE_DATASETS else extra.get(name)
+        generated_data[name] = loc.localize_dataset(frame)
+        log_characteristics(name, generated_data[name])
 
     d.report_progress(stage_progress("sales_data"), 1, 1)
     l.log_info('Dane zostały przygotowane.')
 
     return generated_data
+
+def required_sources(selected_files):
+    """
+    Return the source tables needed for the selected outputs: every table except customers and products alone
+    needs the orders, and the orders need customers and products.
+
+    Parameters:
+    selected_files (list): Selected dataset names.
+
+    Returns:
+    set: Source dataset names to generate.
+    """
+    if set(selected_files) - {"customer_data", "product_data"}:
+        return set(SOURCE_DATASETS)
+    return set(selected_files)
+
+def log_characteristics(name, data):
+    """Log a short summary of one generated table."""
+    loggers = {
+        "customer_data": log_customer_data_characteristics,
+        "product_data": log_product_data_characteristics,
+        "order_data": log_order_data_characteristics,
+        "sales_data": log_sales_data_characteristics,
+    }
+    if name in loggers:
+        loggers[name](data)
+    else:
+        l.log_section(f'Podsumowanie: {name}')
+        l.log_metric('Liczba wierszy', f.format_number(len(data)))
 
 def make_stage_progress(progress):
     """
@@ -144,61 +202,30 @@ def set_random_state():
         Faker.seed(s.random_state)
         c.fake.seed_instance(s.random_state)
         p.fake.seed_instance(s.random_state)
-        o.fake.seed_instance(s.random_state)
         l.log_info(f'Ustawiono ziarno losowości random_state={s.random_state}.')
 
-def should_generate_source(data_name, selected_files):
+def get_order_generation_params(product_data):
     """
-    Check if a source dataset is required for selected outputs.
+    Build product parameters required to generate order lines.
 
     Parameters:
-    data_name (str): Source dataset name.
-    selected_files (list): Selected dataset names.
+    product_data (pd.DataFrame): Generated product data.
 
     Returns:
-    bool: True when the source dataset should be generated.
+    dict: Product IDs and sales weights by category, category probabilities and gross prices by product.
     """
-    source_files = {"customer_data", "product_data", "order_data"}
-    if data_name not in source_files:
-        raise ValueError(f"Nieobsługiwana nazwa pliku źródłowego: {data_name}")
-
-    return data_name in selected_files or "sales_data" in selected_files
-
-def get_order_generation_params(customer_data=None, product_data=None):
-    """
-    Build ID ranges required to generate order data.
-
-    Parameters:
-    customer_data (pd.DataFrame, optional): Generated customer data.
-    product_data (pd.DataFrame, optional): Generated product data.
-
-    Returns:
-    dict: Minimum and maximum customer and product IDs.
-    """
-    if customer_data is not None:
-        customer_id_min = customer_data['customer_id'].min()
-        customer_id_max = customer_data['customer_id'].max()
-    else:
-        customer_id_min = 100001
-        customer_id_max = 100001 + s.customer_data_rows - 1
-
-    if product_data is not None:
-        product_id_min = product_data['product_id'].min()
-        product_id_max = product_data['product_id'].max()
-        product_selection_params = get_product_selection_params(product_data)
-    else:
-        product_id_min = 200001
-        product_id_max = 200001 + s.product_data_rows - 1
-        product_selection_params = {}
-
-    params = {
-        'customer_id_min': customer_id_min,
-        'customer_id_max': customer_id_max,
-        'product_id_min': product_id_min,
-        'product_id_max': product_id_max
-    }
-    params.update(product_selection_params)
-
+    params = get_product_selection_params(product_data)
+    by_type = product_data.groupby("product_type")
+    params["product_ids_by_type"] = {name: group["product_id"].to_numpy() for name, group in by_type}
+    params["product_weights_by_type"] = {
+        name: group["product_popularity"].astype(float).to_numpy() * np.power(
+            group["brand"].map(ms.category_brand_weights[group["category"].iloc[0]]).fillna(1).astype(float).to_numpy(),
+            ms.brand_sales_weight_power)
+        for name, group in by_type}
+    params["category_by_type"] = by_type["category"].first().to_dict()
+    indexed = product_data.set_index("product_id")
+    params["product_type_by_id"] = indexed["product_type"]
+    params["category_by_id"] = indexed["category"]
     return params
 
 def get_product_selection_params(product_data):

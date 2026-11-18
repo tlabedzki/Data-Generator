@@ -7,6 +7,8 @@ Run locally (from the repository root):
 import os
 import random
 
+import pandas as pd
+
 import dash._dash_renderer
 import dash_mantine_components as dmc
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
@@ -27,7 +29,11 @@ PREVIEW_ROWS = 100
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 DATASET_LABELS = {"sales_data": "Sales lines", "order_data": "Order lines", "customer_data": "Customers",
-                  "product_data": "Products"}
+                  "product_data": "Products", "price_history": "Price history", "shipment_data": "Shipments",
+                  "return_data": "Returns", "campaign_data": "Campaigns", "session_data": "Sessions",
+                  "experiment_data": "Experiments", "experiment_assignment_data": "Experiment assignments",
+                  "anomaly_data": "Anomalies", "quality_issue_data": "Data issues"}
+QUALITY_LABELS = {"none": "None", "low": "Low", "medium": "Medium", "high": "High"}
 STAGE_LABELS = {"customer_data": "Generating customers", "product_data": "Building the product catalog",
                 "order_data": "Drawing orders", "sales_data": "Joining sales lines"}
 
@@ -58,9 +64,9 @@ def number_input(input_id, label, value, limits, step, **props):
 # Size presets of the Parameters section. Times measured on a laptop with the default seed;
 # medium is the app default and large is the command-line default.
 PRESETS = {
-    "small": {"label": "Small", "customers": 1_000, "products": 1_000, "order_lines": 2_000, "time": "about 1 s"},
-    "medium": {"label": "Medium", "customers": 5_000, "products": 5_000, "order_lines": 10_000, "time": "about 4 s"},
-    "large": {"label": "Large", "customers": 40_000, "products": 50_000, "order_lines": 80_000, "time": "about 30 s"},
+    "small": {"label": "Small", "customers": 1_000, "products": 1_000, "order_lines": 2_000, "time": "under 1 s"},
+    "medium": {"label": "Medium", "customers": 5_000, "products": 5_000, "order_lines": 10_000, "time": "about 1 s"},
+    "large": {"label": "Large", "customers": 40_000, "products": 50_000, "order_lines": 80_000, "time": "about 5 s"},
 }
 
 
@@ -116,6 +122,13 @@ def parameter_fields():
                      "deliveries. Column names and numbers stay the same.", className="dg-caption")], gap=4),
         "seed": number_input("seed", "Seed", defaults.seed, limits["seed"], 1, thousandSeparator="",
                              description="same seed, same data"),
+        "quality": dmc.Stack([
+            dmc.Text("Dirty data", className="dg-label"),
+            dmc.SegmentedControl(id="quality-level", value=defaults.data_quality_level, size="md", fullWidth=True,
+                                 data=[{"value": k, "label": QUALITY_LABELS[k]} for k in service.DATA_QUALITY_LEVELS]),
+            dmc.Text("Missing values, typos, mixed formats, outliers and duplicate customers for cleaning practice. "
+                     "Every issue is listed with its clean value in the Data issues table.", className="dg-caption")],
+            gap=4),
         "new_seed": dmc.Stack(dmc.Switch(id="new-seed", label="New random seed on every run", size="md",
                                          color="petrol"), justify="center", h="100%", pt=18),
         "weights": [
@@ -168,7 +181,7 @@ def parameters():
     advanced = dmc.Accordion(dmc.AccordionItem([
         dmc.AccordionControl("Advanced"),
         dmc.AccordionPanel([
-            dmc.SimpleGrid([f["seed"], f["new_seed"]], cols={"base": 1, "sm": 3}, spacing="xl",
+            dmc.SimpleGrid([f["seed"], f["new_seed"], f["quality"]], cols={"base": 1, "sm": 3}, spacing="xl",
                            verticalSpacing="lg"),
             html.H4("Seasonality weights", className="dg-subgroup-title"),
             *f["weights"],
@@ -199,16 +212,17 @@ def page():
                 html.P("Synthetic e-commerce data", className="dg-eyebrow"),
                 html.H1(["A shop that never existed, ", html.Br(), "with ", html.Em("data"), " that looks real."],
                         className="dg-h1"),
-                html.P("Customers, products, orders and sales lines with seasonality, growth and discounts. "
-                       "100% fictional, reproducible with a seed, ready as CSV or Parquet.", className="dg-lead"),
+                html.P("Customers, orders, sessions, campaigns, returns and A/B tests, with seasonality, churn, "
+                       "promotions and optional dirty data. 100% fictional, reproducible with a seed, ready as CSV or "
+                       "Parquet.", className="dg-lead"),
             ], className="dg-hero"),
-            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds the seed and seasonality weights.",
+            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds the seed, dirty data and seasonality weights.",
                     parameters(), "parameters"),
             section(2, "Preview", "Key numbers and the first rows of each table.",
                     placeholder("Generate data to see the preview."), "preview"),
             section(3, "Charts", "What the generated sales look like. Hover for exact values.",
                     placeholder("Charts appear after the first run."), "charts"),
-            section(4, "Download", "All four tables at once or one by one.",
+            section(4, "Download", "All tables at once or one by one.",
                     placeholder("Files are ready after the first run."), "download-section"),
             html.Footer([
                 html.P("All people, products and sales are generated. Postal codes: ZnajdzKod.pl na podstawie PRG "
@@ -246,16 +260,20 @@ def preview_view(run):
     return [
         stats,
         dmc.Text(meta, className="dg-caption", mt="sm"),
-        dmc.SegmentedControl(id="table-choice", value="sales_data", mt=36, size="sm", className="dg-tabs",
-                             data=[{"value": k, "label": v} for k, v in DATASET_LABELS.items()]),
+        dmc.Select(id="table-choice", value="sales_data", mt=36, size="sm", className="dg-table-select",
+                   label="Table", allowDeselect=False, checkIconPosition="right", w=260,
+                   data=[{"value": k, "label": DATASET_LABELS.get(k, k)} for k in run.datasets]),
         html.Div(id="table"),
     ]
 
 
 def format_cell(value):
     """Dates as ISO, decimals with a decimal comma; whole numbers (IDs, quantities) without grouping."""
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return ""
     if hasattr(value, "strftime"):
-        return value.strftime("%Y-%m-%d")
+        has_time = getattr(value, "hour", 0) or getattr(value, "minute", 0) or getattr(value, "second", 0)
+        return value.strftime("%Y-%m-%d %H:%M" if has_time else "%Y-%m-%d")
     if isinstance(value, float):
         return nf.number(value, 2)
     return str(value)
@@ -330,12 +348,12 @@ def download_view():
 def file_list(run, file_format):
     files = runs.exports_for(run, file_format)
     rows = [html.Div([
-        html.Div([html.Div(DATASET_LABELS[name], className="dg-file-name"),
+        html.Div([html.Div(DATASET_LABELS.get(name, name), className="dg-file-name"),
                   html.Div(f"{export.file_name(name, file_format)} · {nf.number(len(run.datasets[name]), 0)} rows",
                            className="dg-caption")]),
         html.Div(size_label(files["tables"][name]), className="dg-file-size"),
         dmc.Button("Download", id={"type": "dl-table", "name": name}, variant="subtle", color="petrol", size="sm"),
-    ], className="dg-file") for name in DATASET_LABELS]
+    ], className="dg-file") for name in run.datasets]
     zip_button = dmc.Button(f"Download all tables · ZIP {size_label(files['zip'])}", id="dl-zip", size="lg",
                             color="petrol", className="dg-zip")
     return [zip_button, html.Div(rows, className="dg-file-rows")]
@@ -412,11 +430,11 @@ def reset_weights(clicks):
     State("customers", "value"), State("products", "value"), State("order-lines", "value"),
     State("start-year", "value"), State("end-year", "value"), State("growth", "value"),
     State("weights-month-drag", "data"), State("weights-day-drag", "data"),
-    State("language", "value"), State("seed", "value"), State("new-seed", "checked"),
+    State("language", "value"), State("seed", "value"), State("new-seed", "checked"), State("quality-level", "value"),
     prevent_initial_call=True,
 )
 def start_run(clicks, customers, products, order_lines, start_year, end_year, growth, monthly, weekday, language, seed,
-              new_seed):
+              new_seed, quality_level="none"):
     if not clicks:  # rendered, not clicked
         return no_update, no_update, no_update, no_update, no_update
     if new_seed:
@@ -427,6 +445,7 @@ def start_run(clicks, customers, products, order_lines, start_year, end_year, gr
             start_year=int(start_year), end_year=int(end_year), annual_growth_rate=float(growth) / 100,
             monthly_seasonality=tuple(float(v or 0) for v in monthly),
             weekday_seasonality=tuple(float(v or 0) for v in weekday), seed=int(seed), language=language,
+            data_quality_level=quality_level or "none",
         )
     except (TypeError, ValueError):
         return no_update, True, error_box(["Fill in every parameter with a number."]), no_update, False

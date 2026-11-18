@@ -5,12 +5,18 @@
 saving_format = "parquet"
 
 # Choose which files should be generated and saved.
-# Available options: "customer_data", "product_data", "order_data", "sales_data".
-# Examples:
+# Available options (see docs/settings.md, "Output Files"): "customer_data", "product_data", "order_data",
+# "sales_data", "price_history", "shipment_data", "return_data", "campaign_data", "session_data", "experiment_data",
+# "experiment_assignment_data", "anomaly_data", "quality_issue_data". Source tables needed by a selected file are
+# always generated, but only selected files are saved. Examples:
 # - ["customer_data"] generates only the customer file.
 # - ["customer_data", "product_data", "order_data"] generates three separate files without joining them.
-# - ["customer_data", "product_data", "order_data", "sales_data"] generates all source files and the joined file.
-generated_files = ["customer_data", "product_data", "order_data", "sales_data"]
+# - ["sales_data"] saves only the joined sales lines.
+generated_files = [
+    "customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data", "return_data",
+    "campaign_data", "session_data", "experiment_data", "experiment_assignment_data", "anomaly_data",
+    "quality_issue_data",
+]
 
 # Set a number for reproducible generated data, or None for fully random data on every run.
 random_state = 42

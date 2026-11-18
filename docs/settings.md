@@ -1,8 +1,15 @@
 # Generator Settings Guide
 
-This project has two main settings files:
+The settings live in the `settings/` package:
 
 - `settings/main_settings.py` controls the generation process.
+- `settings/behaviour_settings.py` controls the demand calendar, customer segments, churn, demographics and habits.
+- `settings/basket_settings.py` controls products bought together, customer preferences and replenishment.
+- `settings/commerce_settings.py` controls special days, product life cycle, price changes, price elasticity, order
+  times, shipping and returns.
+- `settings/experiment_settings.py` controls A/B experiments.
+- `settings/marketing_settings.py` controls channels, campaigns, devices and web sessions.
+- `settings/quality_settings.py` controls dirty data (data quality issues) and labelled anomalies.
 - `settings/market_settings.py` controls market behavior, products, categories, brands, prices, margins, payments, deliveries, discounts, and sales mix.
 - `settings/category_hierarchy.py` controls second-level categories.
 - `settings/product_catalog.py` controls product types, product names, type-level prices, type-level margins, series, and models.
@@ -55,15 +62,32 @@ and model names such as `Galaxy`, `ThinkPad`, `Air Max`, or `Spider-Man` are int
 Use `generated_files` in `settings/main_settings.py`.
 
 ```python
-generated_files = ["customer_data", "product_data", "order_data", "sales_data"]
+generated_files = [
+    "customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data", "return_data",
+    "campaign_data", "session_data", "experiment_data", "experiment_assignment_data", "anomaly_data",
+    "quality_issue_data",
+]
 ```
 
 Available values:
 
-- `customer_data`
-- `product_data`
-- `order_data`
-- `sales_data`
+| File | One row is | Notes |
+|---|---|---|
+| `customer_data` | a customer account | |
+| `product_data` | a product | |
+| `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line |
+| `sales_data` | an order line joined with its product and customer | revenue columns added |
+| `price_history` | a list price of a product with its validity period | the last price equals `sales_price_gross` |
+| `shipment_data` | the shipment of an order | cost, dispatch, delivery, late or not |
+| `return_data` | a returned order line | reason, quantity, refund |
+| `campaign_data` | a marketing campaign | channel, dates, cost, voucher, true effect |
+| `session_data` | a web session | about 12 per order; the converting one has `order_id` |
+| `experiment_data` | an A/B experiment | unit, metric, window, planned split, true effect |
+| `experiment_assignment_data` | a unit (session or customer) in an experiment | variant A or B |
+| `anomaly_data` | a labelled anomaly (fraud ring, shop outage, return spike) | the truth for anomaly detection |
+| `quality_issue_data` | one injected data quality issue | empty when `data_quality_level = "none"` |
+
+Source tables needed by a selected file are always generated, but only the selected files are saved.
 
 Examples:
 
@@ -72,6 +96,62 @@ generated_files = ["customer_data"]
 generated_files = ["customer_data", "product_data", "order_data"]
 generated_files = ["sales_data"]
 ```
+
+## Random Streams
+
+Every step added after the first version (anomalies, dirty data and the later behaviour models) draws from its own
+random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for example the dirty
+data level, does not change the random numbers of the other steps.
+
+## Data Quality Issues (Dirty Data)
+
+Use `data_quality_level` in `settings/quality_settings.py`. In the app it is **Advanced → Dirty data**.
+
+```python
+data_quality_level = "none"   # "none", "low", "medium" or "high"
+```
+
+`data_quality_rates` gives the base share of rows affected by one issue type at each level (1%, 3% and 8% by
+default). `data_quality_issues` lists the issue types as `(table, column, issue type, multiplier)`; the share of rows
+with an issue is `rate × multiplier`.
+
+| Issue type | What happens | Columns by default |
+|---|---|---|
+| `missing` | the value is removed (empty cell) | phone, e-mail, city, age, product colour, payment provider |
+| `typo` | city in lower or upper case, without Polish letters, with swapped letters or extra spaces | city |
+| `format` | the same value written differently: `600-100-200`, `0048600100200`, `00123`, e-mail in capitals or with spaces | phone, postal code, e-mail |
+| `outlier` | an impossible value: age 0 or 150, quantity 50-500, purchase price entered in grosze (×100) | age, quantity, net purchase price |
+| `duplicate_customer` | the same person gets a second account with a new ID and a slightly different e-mail; about half of their repeat orders move to it | customers |
+| `duplicate_row` | an order line is saved twice with the same `order_line_id` | order lines |
+
+Issues are injected into the source tables before the sales lines are joined, so `sales_data` is dirty in the same
+way. Every issue has a row in `quality_issue_data`:
+
+| Column | Meaning |
+|---|---|
+| `table_name`, `key_column`, `key_value` | where the issue is (for example `customer_data`, `customer_id`, `100123`) |
+| `column_name`, `issue_type` | what is wrong |
+| `dirty_value`, `clean_value` | the value in the file and the correct one (for a duplicate customer: new and original ID) |
+
+## Anomalies
+
+Anomalies are part of the shop's behaviour and are on by default (`inject_anomalies = True` in
+`settings/quality_settings.py`). Each one has a row in `anomaly_data`; fraudulent order lines also have
+`is_fraud = True` in `order_data` and `sales_data`.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `fraud_order_share` | `0.004` | share of orders placed from stolen accounts |
+| `fraud_orders_per_account` | `(3, 8)` | orders in one burst |
+| `fraud_burst_days` | `3` | days over which a burst is spread |
+| `fraud_category_weights` | Electronics 0.75, Jewelry 0.25 | what fraudsters buy (expensive products, paid by card, no discount) |
+| `shop_outages_per_year` | `1` | days when the shop is down (January-October) |
+| `outage_kept_order_share` | `0.05` | orders that still go through on the outage day |
+| `outage_recovery_days` | `2` | the other orders come back within this many days |
+| `other_shipping_address_share` | `0.06` | legitimate orders shipped to another postal code (gifts, work) |
+
+`order_data.shipping_postal_code` is the delivery postal code. Fraud orders ship to a postal code far from the
+customer's own, which makes them detectable together with the burst and the order value.
 
 ## Volumes
 
@@ -84,6 +164,224 @@ order_data_rows = 80000
 ```
 
 `order_data_rows` is the target number of order lines. The final number can be slightly higher because complete multi-line orders are generated.
+
+## Demand Calendar
+
+Order dates come from a daily calendar (`func/calendar.py`). A day's weight is:
+
+```text
+year weight (1 + annual_growth_rate × years since start) × month weight × weekday weight within the month
+```
+
+The month weights are `base_monthly_seasonality` with one random fluctuation per month and year
+(`monthly_noise_sd = 0.03` in `settings/behaviour_settings.py`, a multiplicative factor around 1.0). Month totals
+therefore follow the settings closely; across seeds the fluctuation averages out. Weekday weights split each month
+over its days, so the weekday profile follows `base_weekday_seasonality`.
+
+## Customer Behaviour
+
+Customers follow a "buy till you die" model (`func/behaviour.py`, settings in `settings/behaviour_settings.py`):
+
+1. Every customer gets a hidden segment, saved in `customer_data.customer_segment` as the answer for checking a
+   segmentation (drop it, `preferred_category` and `price_tier` before clustering).
+2. `existing_customer_share` (45%) signed up before the period, spread over `existing_customer_years` (4). The rest
+   sign up during the period following the demand calendar; `signup_date` is in `customer_data`.
+3. New customers place their first order on the signup day (`first_order_same_day_share`, 60%) or after a short
+   delay (`first_order_delay_mean_days`, 10); `no_order_share` (8%) never order.
+4. After the first order a customer buys again at a personal rate until their lifetime ends (churn). Rates are
+   gamma-distributed inside a segment (`purchase_rate_shape`; lower means more "whales"); lifetimes are exponential.
+5. The generator rescales all rates so the total number of order lines matches `order_data_rows`, and divides the
+   calendar by the active customer base of each month, so seasonality and growth stay as set while customers churn.
+
+```python
+customer_segments = {
+    "loyal":       {"share": 0.10, "orders_per_year": 6.0, "lifetime_days": 1600, "discount_affinity": 0.8,
+                    "promo_month_power": 0.0},
+    "deal_hunter": {"share": 0.15, "orders_per_year": 3.0, "lifetime_days": 500, "discount_affinity": 2.6,
+                    "promo_month_power": 2.0},
+    # regular, occasional, one_time ...
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `share` | share of customers (normalized) |
+| `orders_per_year` | relative purchase frequency of an active customer; `0` means one order only |
+| `lifetime_days` | mean time from the first order until the customer stops buying |
+| `discount_affinity` | multiplier of the chance that the customer's order line is discounted |
+| `promo_month_power` | the customer buys more in promotional months: `discount_monthly_multiplier ** power` |
+
+What this gives in the data: cohort retention falls after the first month, orders per customer are over-dispersed
+(a few customers place many orders), revenue per customer differs strongly by segment, and deal hunters buy mostly
+with discounts and in November.
+
+The ratio of customers to order lines still matters: fewer customers per line means more repeat orders.
+
+## Demographics And Habits
+
+`age_category_affinity` and `gender_category_affinity` multiply category probabilities for the customer of the
+order line (keys: upper age of a group, or `"Female"` / `"Male"`; missing categories keep `1.0`). Young customers buy
+more electronics and clothing, older ones more health, home and DIY products.
+
+Customers keep habits: `usual_payment_share` (70%) of orders are paid with the customer's usual method and
+`usual_delivery_share` (60%) delivered the usual way. Orders above `high_value_order_threshold` (2000 PLN gross) use
+`high_value_payment_multipliers`, so expensive orders are paid more often with deferred payment or card.
+
+## Market Basket And Preferences
+
+Settings in `settings/basket_settings.py`.
+
+**Products bought together.** `complements` maps a product type to the types bought with it. In an order with more
+than one line, every further line becomes a complement of the first line's type with the given probability:
+
+```python
+complements = {
+    "Laptop": {"Wireless Mouse": 0.35, "Headphones": 0.12, "Backpack": 0.10},
+    "Cat Food": {"Pet Litter": 0.45, "Pet Toy": 0.15},
+}
+```
+
+**Favourite category.** Every customer has `preferred_category` (drawn with the age and gender affinities);
+`category_loyalty` (30%) of their lines come from it. **Price tier.** `price_tier` is `budget`, `standard` or
+`premium` (`price_tiers`: share and exponent); the chance to keep a drawn product is multiplied by
+`min(1, (price / category median) ** exponent)`, so premium customers buy dearer products. Both columns are hidden
+truth in `customer_data` for recommendation and segmentation exercises.
+
+**Replenishment.** `replenishment_products` lists consumables with their cycle in days and the share of loyal and
+regular customers who buy them again and again (baby products mostly for customers aged 25-44). Their repeat orders
+follow the cycle (±`replenishment_jitter`) and start with the same product. The other repeat orders fill up every
+day, so the totals still follow the calendar.
+
+## Special Days
+
+Use `special_days` in `settings/commerce_settings.py`.
+
+```python
+special_days = {
+    "black_friday": {"dates": "black_friday", "demand": 4.0, "discount": 2.2, "categories": {"Electronics": 1.4}},
+    "christmas":    {"dates": ("12-25", "12-26"), "demand": 0.25, "discount": 1.0, "categories": {}},
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `dates` | a named movable day (`black_friday`, `black_week`, `cyber_monday`, `easter_sunday`, `easter_monday`) or a `("MM-DD", "MM-DD")` range |
+| `demand` | multiplier of the day's orders compared with an average day of its month |
+| `discount` | multiplier of the chance that a line is discounted |
+| `categories` | multipliers of category probabilities on these days |
+
+The month total does not change: a strong Black Friday takes orders from the rest of November, so the monthly
+seasonality stays as set. Defaults: Black Friday, Black Week, Cyber Monday, Singles' Day (11.11), Valentine's,
+Mother's Day and Children's Day weeks, Mikołajki, and quiet days at Christmas, New Year and Easter.
+
+## Product Life Cycle And Price History
+
+`product_data` has `launch_date` and `discontinued_date` (empty = still on sale). Products are sold only between
+these dates.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `launched_during_period_share` | `0.30` | products launched during the period (the rest existed before) |
+| `discontinued_share` | `0.15` | products withdrawn before the end of the period |
+| `min_product_life_days` | `120` | a discontinued product is on sale at least this long |
+| `price_changes_per_year` | `1.2` | list price changes per product and year |
+| `price_increase_share` | `0.75` | share of changes that are increases |
+| `price_increase_range`, `price_decrease_range` | `(0.02, 0.12)`, `(0.05, 0.20)` | size of a change |
+
+`price_history` lists every list price with `valid_from`, `valid_to` and `change_type` (`initial`, `increase`,
+`decrease`). The last price of every product equals `sales_price_gross` in `product_data`. Order lines carry the
+list price valid on the order day (`unit_price_gross`, `unit_price_net`); `sales_data` computes the discounted prices
+and `revenue_gross` from them.
+
+## Price Elasticity And Discounts
+
+`category_price_elasticity` (default `default_price_elasticity = 1.2`) sets how strongly demand reacts to price:
+
+- a product's chance to be bought is multiplied by `(list price / its lowest price) ** -elasticity`, so a price
+  increase lowers its sales;
+- a discount raises the expected quantity of the line by `(1 - discount) ** -elasticity` (extra units are drawn
+  from a Poisson distribution, so discounted lines can have more than 5 units).
+
+## Order Time Of Day
+
+`order_data.order_datetime` adds the time to `order_date`. Hours follow `hour_weights` (24 values, busiest between
+19:00 and 22:00); fraud orders follow `fraud_hour_weights` (mostly at night).
+
+## Shipping
+
+`shipment_data` has one row per order.
+
+| Setting | Meaning |
+|---|---|
+| `bulky_product_types` | product types too big for parcel lockers; orders with one of them go by courier (`bulky_delivery_methods`) |
+| `delivery_methods` | cost (PLN gross), transit days (min, max) and promised days per delivery method |
+| `free_shipping_threshold` | orders from this gross value ship for free (199 PLN) |
+| `bulky_shipping_surcharge` | extra cost of a bulky shipment, also above the threshold |
+| `dispatch_cutoff_hour` | orders placed before this hour on a working day leave the same day |
+| `carrier_delay_share`, `peak_delay_share`, `peak_months`, `peak_extra_days` | delays: 5% of shipments, 25% in November and December |
+
+`promised_delivery_date` counts the promised working days from the dispatch day; `is_late` is True when
+`delivered_at` is later.
+
+## Returns
+
+`return_data` has one row per returned order line.
+
+| Setting | Meaning |
+|---|---|
+| `category_return_rate`, `default_return_rate` | chance that a line is returned (Clothing 24%, Electronics 6%) |
+| `segment_return_multiplier`, `discounted_return_multiplier` | deal hunters and discounted lines return more often |
+| `return_delay_days`, `return_within_14_days_share` | days from delivery to the return; 85% within 14 days |
+| `return_reasons` | reason mix for Clothing (mostly `wrong_size`) and the other categories |
+| `return_spikes`, `return_spike_rate`, `return_spike_days` | a defective batch: one popular product is returned 55% of the time for a month, labelled in `anomaly_data` as `return_spike` |
+
+Fraud lines are never returned. 4% of returns are `rejected` with a refund of 0.
+
+## Marketing And Traffic
+
+Settings in `settings/marketing_settings.py`.
+
+**Campaigns** (`campaign_data`). `campaign_plans` sets one plan per paid channel: always-on paid search every month,
+social bursts, weekly e-mails and affiliate campaigns. Every campaign raises demand on its days by `true_daily_lift`
+(drawn from `lift`) and a decaying carry-over after it ends (`decay`, adstock). Month totals stay as set, so campaigns
+move demand inside the month; special days come on top. `total_cost` splits `marketing_budget_per_order` × expected
+orders between channels (`channel_budget_shares`) and campaigns (by their expected reach, ±30%). `true_daily_lift`
+is the answer for media mix models.
+
+**Order channel, device, campaign and voucher** (`order_data`). New customers have `acquisition_channel` in
+`customer_data`; `first_order_from_acquisition_share` (80%) of their first orders come through it, the rest follow
+`first_order_channels`. Repeat orders follow `repeat_order_channels`. On a campaign day a share
+`lift / (1 + lift)` of orders comes through the campaign; other orders of its channel on its days are credited to it
+too (last click). `voucher_share` of a campaign's orders carry its `voucher_code`. Devices follow `device_shares`
+weighted by `device_conversion_multipliers`. Fraud orders are `direct`.
+
+**Sessions** (`session_data`). Every order has one converting session (`order_id`, also `order_data.session_id`)
+that starts a few minutes before the order. Around it there are sessions without an order from the same channel and
+device on the same day, so that orders / sessions equals `channel_conversion_rates` × `device_conversion_multipliers`
+(email 14%, social 4%, desktop ×1.35, mobile ×0.85). `non_converting_add_to_cart_share` (22%) of them add to the
+cart and `non_converting_checkout_share` (35%) of those reach the checkout (abandoned carts);
+`known_visitor_share` (45%) belong to a known customer, the rest are anonymous (`customer_id` empty).
+
+The session table is the largest one: about 690,000 rows for the default volume (11 MB as Parquet, 45 MB as CSV).
+
+## A/B Experiments
+
+Use `experiments` in `settings/experiment_settings.py`. Each experiment runs in its own window of the period
+(`start_share`, `duration_days`) and has the effect it should show in the data (`true_effect`, the answer to check an
+analysis against):
+
+| Key | Meaning |
+|---|---|
+| `unit` | `session` (every session on its own) or `customer` (all sessions of a known customer; anonymous sessions are left out) |
+| `metric` | `conversion_rate` (relative change of session conversion) or `units_per_line` (absolute change of the mean quantity of order lines) |
+| `planned_split_b`, `actual_split_b` | the share of units meant for B and the share they get; a difference is a sample ratio mismatch to detect |
+
+Defaults: `checkout_redesign` (+10% conversion), `recommendation_widget` (+0.12 units per line for customers in B),
+`free_shipping_banner` (+6% conversion with a sample ratio mismatch: 46% instead of 50% in B) and
+`search_ranking_aa` (an A/A test with no effect).
+
+For conversion experiments, orders do not change: converting sessions go to B with a slightly higher chance than
+the others, so B gets `actual_split_b` of the sessions and converts `1 + true_effect` times as often as A.
 
 ## Category Catalog Mix
 

@@ -69,7 +69,7 @@ def weekday_data(sales, configured_weights):
         "share": generated.to_numpy(),
         "configured": configured.to_numpy(),
     })
-    data["is_top"] = data["share"] == data["share"].max()
+    data["is_top"] = data.index == data["share"].idxmax()  # one highlighted day, also on a tie
     return data
 
 

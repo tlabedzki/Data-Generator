@@ -98,3 +98,10 @@ def test_default_notation_switch_for_recordings():
     finally:
         nf.set_default_notation("pl")
     assert nf.number(1234.5, 1) == f"1{NBSP}234,5" and nf.thousands_mark() == NBSP
+
+
+def test_format_cell_dates_missing_values_and_times():
+    import pandas as pd
+    assert ui_app.format_cell(pd.Timestamp("2024-11-29")) == "2024-11-29"
+    assert ui_app.format_cell(pd.Timestamp("2024-11-29 20:15:31")) == "2024-11-29 20:15"
+    assert ui_app.format_cell(None) == "" and ui_app.format_cell(pd.NA) == "" and ui_app.format_cell(float("nan")) == ""

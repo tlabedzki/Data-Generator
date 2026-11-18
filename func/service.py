@@ -11,8 +11,11 @@ from dataclasses import asdict, dataclass
 
 import func.generator as g
 import settings.main_settings as s
+import settings.quality_settings as qs
 
-DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data"]
+DATASET_NAMES = list(g.DATASET_NAMES)
+
+DATA_QUALITY_LEVELS = list(qs.data_quality_rates)
 
 LANGUAGES = {"en": "English", "pl": "Polish"}
 
@@ -52,6 +55,7 @@ class GenerationParams:
     weekday_seasonality: tuple = DEFAULT_WEEKDAY_SEASONALITY
     seed: int | None = 42
     language: str = "en"
+    data_quality_level: str = qs.data_quality_level
 
     def errors(self):
         """Return a list of readable validation errors; an empty list means the parameters are valid."""
@@ -74,6 +78,8 @@ class GenerationParams:
             problems.append("seed must be a non-negative 32-bit integer.")
         if self.language not in LANGUAGES:
             problems.append(f"language must be one of {sorted(LANGUAGES)}.")
+        if self.data_quality_level not in DATA_QUALITY_LEVELS:
+            problems.append(f"data_quality_level must be one of {DATA_QUALITY_LEVELS}.")
         problems += _weights_errors("monthly_seasonality", self.monthly_seasonality, 12)
         problems += _weights_errors("weekday_seasonality", self.weekday_seasonality, 7)
         return problems
@@ -94,6 +100,10 @@ class GenerationParams:
             "generated_files": list(DATASET_NAMES),
         }
 
+    def to_quality_settings(self):
+        """Map the parameters to the names used in settings.quality_settings."""
+        return {"data_quality_level": self.data_quality_level}
+
     def as_dict(self):
         return asdict(self)
 
@@ -107,25 +117,25 @@ def _weights_errors(name, weights, length):
 
 
 @contextmanager
-def overridden_settings(values):
-    """Temporarily set attributes of settings.main_settings and restore them afterwards."""
+def overridden_settings(values, module=s):
+    """Temporarily set attributes of a settings module (settings.main_settings by default) and restore them."""
     missing = object()
-    previous = {name: getattr(s, name, missing) for name in values}
+    previous = {name: getattr(module, name, missing) for name in values}
     try:
         for name, value in values.items():
-            setattr(s, name, value)
+            setattr(module, name, value)
         yield
     finally:
         for name, value in previous.items():
             if value is missing:
-                delattr(s, name)
+                delattr(module, name)
             else:
-                setattr(s, name, value)
+                setattr(module, name, value)
 
 
 def generate(params, progress=None):
     """
-    Generate all four datasets for the given parameters.
+    Generate all datasets for the given parameters.
 
     Parameters:
     params (GenerationParams): Validated parameters.
@@ -138,5 +148,6 @@ def generate(params, progress=None):
     if problems:
         raise ValueError(" ".join(problems))
 
-    with _GENERATION_LOCK, overridden_settings(params.to_settings()):
+    with (_GENERATION_LOCK, overridden_settings(params.to_settings()),
+          overridden_settings(params.to_quality_settings(), qs)):
         return g.run_generation_pipeline(progress=progress)

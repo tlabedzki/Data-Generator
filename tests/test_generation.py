@@ -91,3 +91,7 @@ def test_unknown_save_format_is_rejected(small_data, tmp_path, monkeypatch):
     monkeypatch.setattr(s, "saving_format", "xlsx")
     with pytest.raises(ValueError):
         sv.save_file_as_chosen_format(small_data["customer_data"], "customer_data", tmp_path / "x.xlsx")
+
+
+def test_default_settings_save_every_table():
+    assert list(dict.fromkeys(s.generated_files)) == g.DATASET_NAMES
