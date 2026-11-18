@@ -37,9 +37,6 @@ Each row starts with a question a shop asks; the last column says where the true
 | Which orders are fraud, and when did the shop go down? | Fraud and anomaly detection on `order_data`, `anomaly_data` | `is_fraud`, `anomaly_data` |
 | Can you trust the data before you analyse it? | Data cleaning (missing values, typos, formats, outliers, duplicates) on every table at `data_quality_level` low, medium or high | `quality_issue_data` (clean values) |
 
-The [worked example](notebooks/worked_example.ipynb) answers three of these questions from the raw tables (the A/B
-test, cohort retention with RFM, fraud) and then checks each answer against the truth.
-
 ## What it does
 
 - Generates 13 linked tables: customers, products, order lines, sales lines, price history, shipments, returns,
@@ -196,8 +193,7 @@ ui/           web app (Dash with Mantine)
 func/         generation steps, the app service, charts and exports
 settings/     every parameter, described in docs/settings.md
 source/       postal codes with localities and address counts
-scripts/      realism criteria, README charts and numbers, demo, notebook, postal code import
-notebooks/    worked example with outputs
+scripts/      realism criteria, README charts and numbers, demo, postal code import
 docs/         settings, data model, columns, realism criteria, README images
 tests/        pytest suite
 ```

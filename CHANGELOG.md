@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.3.1 - 2026-11-19
+Removed:
+- `notebooks/worked_example.ipynb` and `scripts/make_notebook.py` that built it, with their `nbformat`, `nbclient` and `ipykernel` dev dependencies. Analyses of the generated data will live in separate projects; this repository covers the generator.
+
 ### 1.3.0 - 2026-11-18
 Added:
 - `notebooks/worked_example.ipynb`, saved with its outputs: three questions answered from the raw tables and then checked against the truth columns (an A/B test with a sample ratio check, cohort retention and RFM against `customer_segment`, fraud rules scored with precision and recall against `is_fraud`). `scripts/make_notebook.py` writes and runs it; two runs give the same file.

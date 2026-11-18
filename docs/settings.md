@@ -159,8 +159,8 @@ Anomalies are part of the shop's behaviour and are on by default (`inject_anomal
 
 `order_data.shipping_postal_code` is the delivery postal code. Most fraud orders ship away from the customer's own
 postal code, come in a burst, are expensive and are paid by card, but none of these signs is always there, and honest
-customers also ship again and again to a second address. Detection rules therefore trade precision for recall; the
-worked example in `notebooks/` scores a few of them against `is_fraud`. No ring places an order on a shop outage day.
+customers also ship again and again to a second address. Detection rules therefore trade precision for recall. No
+ring places an order on a shop outage day.
 
 ## Volumes
 

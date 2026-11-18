@@ -2,8 +2,8 @@
     # Data quality issues (dirty data for cleaning exercises):
 
 # Choose how dirty the generated files are. Available options: "none", "low", "medium", "high".
-# "none" gives clean data. Every injected issue is listed in quality_issue_data with the clean value, so a cleaning
-# notebook can be scored against the truth.
+# "none" gives clean data. Every injected issue is listed in quality_issue_data with the clean value, so cleaning
+# work can be scored against the truth.
 data_quality_level = "none"
 
 # Base share of rows affected by one issue type at each level.
