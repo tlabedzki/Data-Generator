@@ -8,7 +8,10 @@
 Generates a fully fictional Polish online shop as 13 linked tables, from orders to web sessions, returns and A/B
 tests, for analytics practice.
 
-![Pick Large, generate, read the charts, then drag November up to reshape the season](docs/img/app-demo.gif)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/app-demo-dark.svg">
+  <img alt="The app, illustrated: pick Large, generate, glide through the preview to the revenue chart, then drag November up on the month weights to reshape the season" src="docs/img/app-demo.svg">
+</picture>
 
 **Stack:** Python · pandas · NumPy · Faker · Dash with Mantine · Plotly · pytest
 
@@ -65,7 +68,7 @@ order line joined with its customer and product.
 
 Every chart and number below comes from the default run (seed 42). `python scripts/make_charts.py` regenerates the
 data, redraws the charts in light and dark versions and rewrites the numbers in this README;
-`python scripts/make_demo_gif.py` records the demo GIF at the top.
+`python scripts/make_demo_svg.py` builds the animated demo at the top from screenshots of the app.
 
 <!-- generated:results -->
 

@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Unreleased
 Changed:
+- README: the demo at the top is an animated SVG instead of a GIF: three screenshots of the app in a browser frame, smooth CSS motion, a drawn cursor and the November point dragged up as a vector. It is about 300 KB instead of 1.2 MB, sharp at full width, has a dark-theme frame and stands still with reduced motion. `scripts/make_demo_svg.py` takes the screenshots and builds it; `scripts/make_demo_gif.py` and `docs/img/app-demo.gif` are removed.
 - README: the table of analyses moved to its own section, What you can analyse, right after Why. Each row starts with the business question it answers, then the method and tables and the column or setting with the true answer. A new row covers seasonality and forecasting against the growth, month weights and special days in `settings/`.
 
 ### 1.2.0 - 2026-11-18

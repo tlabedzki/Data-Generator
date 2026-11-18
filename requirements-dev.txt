@@ -1,5 +1,7 @@
 -r requirements.txt
 pytest~=8.3
-# README images: scripts/make_demo_gif.py drives headless Chrome or Edge
+# README demo: scripts/make_demo_svg.py drives headless Chrome or Edge and embeds a subset of Inter
 websockets~=17.4
 pillow~=13.0
+fonttools~=4.68
+brotli~=1.2
