@@ -15,13 +15,15 @@ import settings.main_settings as s
 NO_EVENT = ""
 
 
-def build_calendar(generator, month_noise_sd=None):
+def build_calendar(generator, month_noise_sd=None, day_multiplier=None):
     """
     Build the daily calendar of the configured period.
 
     Parameters:
     generator (np.random.Generator): Random stream for the yearly and monthly fluctuations.
     month_noise_sd (float, optional): Overrides behaviour_settings.monthly_noise_sd.
+    day_multiplier (np.array, optional): Extra demand per day (campaigns), applied before special days; month
+        totals stay the same.
 
     Returns:
     pd.DataFrame: One row per day with date, year, month, weekday (0 = Monday) and weight (sums to 1).
@@ -50,6 +52,12 @@ def build_calendar(generator, month_noise_sd=None):
     year_index = calendar["year"].to_numpy() - s.start_year
     month_index = calendar["month"].to_numpy() - 1
     weight = year_weights[year_index] * month_weights[year_index, month_index] * within_month
+    if day_multiplier is not None:
+        boosted = weight * np.asarray(day_multiplier)
+        total = pd.Series(weight).groupby(month_key.to_numpy()).transform("sum").to_numpy()
+        boosted_total = pd.Series(boosted).groupby(month_key.to_numpy()).transform("sum").to_numpy()
+        with np.errstate(divide="ignore", invalid="ignore"):
+            weight = np.where(boosted_total > 0, boosted * total / boosted_total, 0.0)
 
     # Special days move demand inside their month; the month total stays the same. A special day starts from the
     # average day of its month (not its weekday), so Black Friday is a peak even when Fridays are quiet.

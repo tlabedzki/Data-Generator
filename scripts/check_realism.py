@@ -230,7 +230,52 @@ def check_b(data):
     check("B", "lines from the customer's preferred category", f"{favourite:.0%}", favourite >= 0.35)
 
 
-PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b}
+# ---------------------------------------------------------------------------------------------------------------- #
+# Pack C: marketing and traffic
+
+def check_c(data):
+    import settings.marketing_settings as mk
+    orders = data["order_data"].drop_duplicates("order_id")
+    sessions = data["session_data"]
+    converting = sessions.dropna(subset=["order_id"])
+    covered = orders["order_id"].isin(converting["order_id"]).mean()
+    check("C", "orders with a converting session", f"{covered:.1%} ({len(sessions):,} sessions)",
+          covered == 1 and converting["order_id"].is_unique)
+    worst = 0.0
+    for (channel, device), group in sessions.groupby(["channel", "device"]):
+        expected = mk.channel_conversion_rates[channel] * mk.device_conversion_multipliers[device]
+        measured = group["order_id"].notna().mean()
+        if len(group) > 2000:
+            worst = max(worst, abs(measured / expected - 1))
+    email = sessions[sessions["channel"] == "email"]["order_id"].notna().mean()
+    check("C", "largest relative gap of conversion vs setting (channel x device)",
+          f"{worst:.1%} (email {email:.1%})", worst <= 0.10)
+    mobile = (sessions["device"] == "mobile").mean()
+    check("C", "mobile share of sessions", f"{mobile:.1%} vs {mk.device_shares['mobile']:.0%}",
+          abs(mobile - mk.device_shares["mobile"]) <= 0.02)
+    campaigns = data["campaign_data"]
+    social = campaigns[campaigns["channel"] == "social"]
+    days = pd.Series(False, index=pd.date_range(f"{s.start_year}-01-01", f"{s.end_year}-12-31"))
+    for row in social.itertuples():
+        days[row.start_date:row.end_date] = True
+    per_day = orders[orders["channel"] == "social"].groupby("order_date").size().reindex(days.index, fill_value=0)
+    total = orders.groupby("order_date").size().reindex(days.index, fill_value=0)
+    ratio = (per_day[days] / total[days]).mean() / (per_day[~days] / total[~days]).mean()
+    check("C", "social share of orders on social campaign days / other days", f"{ratio:.2f}x", ratio >= 1.3)
+    revenue = data["sales_data"].groupby("campaign_id")["revenue_gross"].sum()
+    roas = revenue.reindex(campaigns["campaign_id"]).fillna(0).groupby(campaigns["channel"].to_numpy()).sum() /         campaigns.groupby("channel")["total_cost"].sum()
+    check("C", "ROAS by channel (attributed revenue / cost)", ", ".join(f"{k} {v:.1f}" for k, v in roas.items()),
+          bool((roas > 1).all()))
+    cost_per_order = campaigns["total_cost"].sum() / len(orders)
+    check("C", "marketing cost per order", f"{cost_per_order:.0f} PLN vs {mk.marketing_budget_per_order:.0f}",
+          abs(cost_per_order / mk.marketing_budget_per_order - 1) <= 0.1)
+    cart = sessions.loc[sessions["order_id"].isna(), "added_to_cart"].mean()
+    check("C", "carts abandoned (sessions with a cart and no order / all carts)",
+          f"{(sessions['added_to_cart'] & sessions['order_id'].isna()).sum() / sessions['added_to_cart'].sum():.0%}",
+          cart > 0)
+
+
+PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c}
 
 
 def main(selected):

@@ -29,7 +29,9 @@ PREVIEW_ROWS = 100
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 DATASET_LABELS = {"sales_data": "Sales lines", "order_data": "Order lines", "customer_data": "Customers",
-                  "product_data": "Products", "anomaly_data": "Anomalies", "quality_issue_data": "Data issues"}
+                  "product_data": "Products", "price_history": "Price history", "shipment_data": "Shipments",
+                  "return_data": "Returns", "campaign_data": "Campaigns", "session_data": "Sessions",
+                  "anomaly_data": "Anomalies", "quality_issue_data": "Data issues"}
 QUALITY_LABELS = {"none": "None", "low": "Low", "medium": "Medium", "high": "High"}
 STAGE_LABELS = {"customer_data": "Generating customers", "product_data": "Building the product catalog",
                 "order_data": "Drawing orders", "sales_data": "Joining sales lines"}

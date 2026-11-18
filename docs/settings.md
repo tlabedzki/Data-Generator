@@ -7,6 +7,7 @@ The settings live in the `settings/` package:
 - `settings/basket_settings.py` controls products bought together, customer preferences and replenishment.
 - `settings/commerce_settings.py` controls special days, product life cycle, price changes, price elasticity, order
   times, shipping and returns.
+- `settings/marketing_settings.py` controls channels, campaigns, devices and web sessions.
 - `settings/quality_settings.py` controls dirty data (data quality issues) and labelled anomalies.
 - `settings/market_settings.py` controls market behavior, products, categories, brands, prices, margins, payments, deliveries, discounts, and sales mix.
 - `settings/category_hierarchy.py` controls second-level categories.
@@ -74,6 +75,8 @@ Available values:
 | `price_history` | a list price of a product with its validity period | the last price equals `sales_price_gross` |
 | `shipment_data` | the shipment of an order | cost, dispatch, delivery, late or not |
 | `return_data` | a returned order line | reason, quantity, refund |
+| `campaign_data` | a marketing campaign | channel, dates, cost, voucher, true effect |
+| `session_data` | a web session | about 12 per order; the converting one has `order_id` |
 | `anomaly_data` | a labelled anomaly (fraud ring, shop outage, return spike) | the truth for anomaly detection |
 | `quality_issue_data` | one injected data quality issue | empty when `data_quality_level = "none"` |
 
@@ -326,6 +329,33 @@ and `revenue_gross` from them.
 | `return_spikes`, `return_spike_rate`, `return_spike_days` | a defective batch: one popular product is returned 55% of the time for a month, labelled in `anomaly_data` as `return_spike` |
 
 Fraud lines are never returned. 4% of returns are `rejected` with a refund of 0.
+
+## Marketing And Traffic
+
+Settings in `settings/marketing_settings.py`.
+
+**Campaigns** (`campaign_data`). `campaign_plans` sets one plan per paid channel: always-on paid search every month,
+social bursts, weekly e-mails and affiliate campaigns. Every campaign raises demand on its days by `true_daily_lift`
+(drawn from `lift`) and a decaying carry-over after it ends (`decay`, adstock). Month totals stay as set, so campaigns
+move demand inside the month; special days come on top. `total_cost` splits `marketing_budget_per_order` × expected
+orders between channels (`channel_budget_shares`) and campaigns (by their expected reach, ±30%). `true_daily_lift`
+is the answer for media mix models.
+
+**Order channel, device, campaign and voucher** (`order_data`). New customers have `acquisition_channel` in
+`customer_data`; `first_order_from_acquisition_share` (80%) of their first orders come through it, the rest follow
+`first_order_channels`. Repeat orders follow `repeat_order_channels`. On a campaign day a share
+`lift / (1 + lift)` of orders comes through the campaign; other orders of its channel on its days are credited to it
+too (last click). `voucher_share` of a campaign's orders carry its `voucher_code`. Devices follow `device_shares`
+weighted by `device_conversion_multipliers`. Fraud orders are `direct`.
+
+**Sessions** (`session_data`). Every order has one converting session (`order_id`, also `order_data.session_id`)
+that starts a few minutes before the order. Around it there are sessions without an order from the same channel and
+device on the same day, so that orders / sessions equals `channel_conversion_rates` × `device_conversion_multipliers`
+(email 14%, social 4%, desktop ×1.35, mobile ×0.85). `non_converting_add_to_cart_share` (22%) of them add to the
+cart and `non_converting_checkout_share` (35%) of those reach the checkout (abandoned carts);
+`known_visitor_share` (45%) belong to a known customer, the rest are anonymous (`customer_id` empty).
+
+The session table is the largest one: about 690,000 rows for the default volume (11 MB as Parquet, 45 MB as CSV).
 
 ## Category Catalog Mix
 
