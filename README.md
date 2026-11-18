@@ -52,7 +52,8 @@ python -m ui.app
 
 The app opens at http://127.0.0.1:8050 and reads from top to bottom in four steps. Pick a size (Small, Medium or
 Large, each with its generation time) or type your own numbers, set the years and the annual growth and click
-**Generate data**. Language, seed and seasonality weights sit under **Advanced**. The page moves on to the headline
+**Generate data**. Language, seed and seasonality weights sit under **Advanced**; drag the points of the month and
+weekday charts up or down to shape the seasonality, or type exact values. The page moves on to the headline
 numbers and a preview of each table, then the charts, then the downloads. Medium (5,000 customers, 5,000 products and
 10,000 order lines) takes about 4 seconds; Large (the command-line volumes) takes about half a minute and shows a
 progress bar. The same seed and parameters always give the same data.
@@ -113,10 +114,11 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-91 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
+96 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
 with a seed, monthly and weekday seasonality, year-over-year growth, postal code weighting, localization, the
-settings validators, app parameters and size presets, exports, the on-screen number format, chart data, the app's
-charts and downloads and a request to the running app. They take about 10 seconds on small volumes.
+settings validators, app parameters, size presets and draggable weights, exports, the on-screen number format,
+chart data, the app's charts and downloads and a request to the running app. They take about 10 seconds on small
+volumes.
 
 ## License
 

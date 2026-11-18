@@ -17,9 +17,10 @@ def _num(size, color):
 
 
 def _layout(fig, height, **extra):
+    margin = extra.pop("margin", {"l": 8, "r": 8, "t": 12, "b": 8})
     fig.update_layout(
         separators=nf.PLOTLY_SEPARATORS,
-        height=height, margin={"l": 8, "r": 8, "t": 12, "b": 8}, paper_bgcolor=t.PAGE, plot_bgcolor=t.PAGE,
+        height=height, margin=margin, paper_bgcolor=t.PAGE, plot_bgcolor=t.PAGE,
         font={"family": t.SANS_STACK, "size": 13, "color": t.TEXT}, showlegend=False,
         hoverlabel={"bgcolor": t.PAGE, "bordercolor": t.LINE, "font": {"family": t.SANS_STACK, "color": t.INK, "size": 13}},
         barcornerradius=4, dragmode=False, **{"bargap": 0.32, **extra},
@@ -94,3 +95,28 @@ def category_mix(sales, language="en"):
                      ticklabelstandoff=10)
     fig.update_xaxes(visible=False, range=[0, float(label_x.max()) * 1.3], fixedrange=True)
     return _layout(fig, max(260, 26 * len(data) + 30), bargap=0.38)
+
+
+WEIGHT_MAX = 1.0  # upper limit of a draggable seasonality weight
+WEIGHT_STEP = 0.01
+
+
+def weights_figure(values, labels):
+    """
+    Draggable seasonality weights: one teal point per month or weekday with its value above it. ui/assets/drag_weights.js
+    moves the points vertically; the y range stays fixed so a dragged point never rescales the chart.
+    """
+    values = [max(0.0, min(WEIGHT_MAX, float(v or 0))) for v in values]
+    top = max(0.4, max(values) * 1.3)
+    fig = go.Figure()
+    fig.add_scatter(
+        x=list(labels), y=values, mode="lines+markers+text", text=[nf.number(v, 2) for v in values],
+        textposition="top center", cliponaxis=False, hoverinfo="skip",
+        line={"color": t.MIST, "width": 1.5, "shape": "linear"},
+        marker={"color": t.PRIMARY, "size": 13, "line": {"color": t.PAGE, "width": 2}},
+        textfont=_num(11, t.TEXT),
+    )
+    fig.update_xaxes(showgrid=False, ticks="", tickfont={"color": t.TEXT, "size": 11}, tickangle=0, fixedrange=True)
+    fig.update_yaxes(visible=False, range=[0, top], fixedrange=True)
+    fig.update_layout(meta={"max": WEIGHT_MAX, "step": WEIGHT_STEP, "top": top})
+    return _layout(fig, 170, margin={"l": 14, "r": 14, "t": 22, "b": 6}, hovermode=False)

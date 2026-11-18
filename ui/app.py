@@ -69,6 +69,24 @@ def preset_for(customers, products, order_lines):
     return "custom"
 
 
+WEIGHT_GRAPH_CONFIG = {"displayModeBar": False, "scrollZoom": False, "doubleClick": False, "showTips": False}
+
+
+def weights_block(kind, title, labels, values, cols):
+    """A draggable weights chart (ui/assets/drag_weights.js) above the exact number fields for the same weights."""
+    return html.Div([
+        dmc.Text(title, className="dg-weights-title"),
+        dcc.Graph(id=f"weights-{kind}-graph", figure=figures.weights_figure(values, labels),
+                  config=WEIGHT_GRAPH_CONFIG, className="dg-weights-graph", style={"height": "170px"}),
+        dcc.Store(id=f"weights-{kind}-drag"),
+        dmc.SimpleGrid([dmc.NumberInput(id={"type": f"w-{kind}", "index": i}, label=label, value=value, min=0,
+                                        max=figures.WEIGHT_MAX, step=0.05, decimalScale=2, fixedDecimalScale=True,
+                                        decimalSeparator=nf.DECIMAL,
+                                        size="sm", hideControls=True)
+                        for i, (label, value) in enumerate(zip(labels, values))], cols=cols, spacing="xs"),
+    ], className="dg-weights-block")
+
+
 def parameter_fields():
     """All parameter inputs."""
     defaults = service.GenerationParams()
@@ -94,16 +112,14 @@ def parameter_fields():
         "new_seed": dmc.Stack(dmc.Switch(id="new-seed", label="New random seed on every run", size="md",
                                          color="petrol"), justify="center", h="100%", pt=18),
         "weights": [
-            dmc.Text("Relative weights. They are normalized and get some random noise, like real demand.",
-                     className="dg-caption", mb="sm"),
-            dmc.SimpleGrid([dmc.NumberInput(id={"type": "w-month", "index": i}, label=m, value=v, min=0, step=0.05,
-                                            decimalScale=2, decimalSeparator=nf.DECIMAL, size="sm", hideControls=True)
-                            for i, (m, v) in enumerate(zip(MONTHS, defaults.monthly_seasonality))],
-                           cols={"base": 4, "sm": 6, "md": 12}, spacing="xs"),
-            dmc.SimpleGrid([dmc.NumberInput(id={"type": "w-day", "index": i}, label=d, value=v, min=0, step=0.05,
-                                            decimalScale=2, decimalSeparator=nf.DECIMAL, size="sm", hideControls=True)
-                            for i, (d, v) in enumerate(zip(WEEKDAYS, defaults.weekday_seasonality))],
-                           cols={"base": 4, "sm": 7}, spacing="xs", mt="md", maw=620),
+            dmc.Group([
+                dmc.Text("Drag a point up or down, or type the number below it. Weights are relative: they are "
+                         "normalized and get some random noise, like real demand.", className="dg-caption"),
+                dmc.Button("Restore defaults", id="weights-reset", variant="subtle", color="petrol", size="compact-sm",
+                           className="dg-weights-reset"),
+            ], justify="space-between", align="flex-start", wrap="wrap", gap="xs", mb="sm"),
+            weights_block("month", "Months", MONTHS, defaults.monthly_seasonality, {"base": 4, "sm": 6, "md": 12}),
+            weights_block("day", "Weekdays", WEEKDAYS, defaults.weekday_seasonality, {"base": 4, "sm": 7}),
         ],
     }
 
@@ -338,6 +354,40 @@ def mark_preset(customers, products, order_lines, ids):
     """Highlight the preset that matches the sizes; any other combination shows Custom."""
     active = preset_for(customers, products, order_lines)
     return ["dg-preset is-active" if item["name"] == active else "dg-preset" for item in ids]
+
+
+def _weights_callbacks(kind, labels):
+    @app.callback(Output(f"weights-{kind}-graph", "figure"), Input({"type": f"w-{kind}", "index": ALL}, "value"),
+                  prevent_initial_call=True)
+    def redraw(values):
+        """Typed numbers move the points."""
+        return figures.weights_figure(values, labels)
+
+    @app.callback(Output({"type": f"w-{kind}", "index": ALL}, "value", allow_duplicate=True),
+                  Input(f"weights-{kind}-drag", "data"), prevent_initial_call=True)
+    def from_drag(values):
+        """Dragged points fill in the numbers (the generator reads the number fields)."""
+        if not values or len(values) != len(labels):
+            return [no_update] * len(labels)
+        return [round(max(0.0, min(figures.WEIGHT_MAX, float(v))), 2) for v in values]
+
+    return redraw, from_drag
+
+
+redraw_months, months_from_drag = _weights_callbacks("month", MONTHS)
+redraw_weekdays, weekdays_from_drag = _weights_callbacks("day", WEEKDAYS)
+
+
+@app.callback(
+    Output({"type": "w-month", "index": ALL}, "value", allow_duplicate=True),
+    Output({"type": "w-day", "index": ALL}, "value", allow_duplicate=True),
+    Input("weights-reset", "n_clicks"), prevent_initial_call=True,
+)
+def reset_weights(clicks):
+    if not clicks:
+        return [no_update] * len(MONTHS), [no_update] * len(WEEKDAYS)
+    defaults = service.GenerationParams()
+    return list(defaults.monthly_seasonality), list(defaults.weekday_seasonality)
 
 
 @app.callback(

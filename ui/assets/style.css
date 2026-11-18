@@ -118,6 +118,14 @@ body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing
                   color: var(--dg-muted); }
 .dg-subgroup-title { margin: 36px 0 6px; font-size: 15px; font-weight: 600; color: var(--dg-ink); }
 
+/* Draggable seasonality weights */
+.dg-weights-block { margin-top: 18px; }
+.dg-weights-title { font-size: 14px; font-weight: 600; color: var(--dg-ink); }
+.dg-weights-graph { margin: 2px 0 6px; }
+.dg-weights-graph .js-plotly-plot { touch-action: none; user-select: none; }
+.dg-weights-graph .is-dragging { cursor: ns-resize; }
+.dg-weights-reset { flex: none; padding-left: 0; }
+
 /* Phone */
 @media (max-width: 760px) {
   .dg-wrap { padding: 0 20px; }
@@ -136,6 +144,8 @@ body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing
   .dg-generate { width: 100%; }
   .dg-presets { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 32px; }
   .dg-preset-detail { display: none; }
+  .dg-weights-graph .textpoint { opacity: 0; }
+  .dg-weights-graph .textpoint.dg-active { opacity: 1; }
   .dg-progress-wrap { max-width: none; }
 }
 @media (max-width: 760px) { .dg-h1 br { display: none; } }

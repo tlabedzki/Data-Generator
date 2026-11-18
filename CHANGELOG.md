@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### 1.1.0 - unreleased
 Added:
+- Seasonality weights for months and weekdays can be set by dragging points up and down on two small charts (mouse or touch), with the value shown live next to the point; the number fields stay for exact values and a Restore defaults button resets both.
 - Size presets in the app: Small, Medium (the default) and Large set customers, products and order lines and show the generation time measured on a laptop; any manual change shows Custom.
 
 Changed:
