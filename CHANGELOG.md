@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### 1.4.0 - Unreleased
+### 1.4.0 - 2026-11-19
 Added:
 - Order status in `order_data`: `order_status` (`delivered`, `returned`, `cancelled`, `payment_failed`), `payment_status` (`paid`, `refunded`, `failed`, `unpaid`), `cancel_reason` and `cancelled_at`. Payments fail by method (deferred payment 10%, card 3.5%, BLIK 1.2%, cash on delivery never), and about 2.5% of the other orders are cancelled before dispatch, more often with cash on delivery and in November and December, when `out_of_stock` grows. An order is `returned` when every line came back in full and was refunded. Cancelled and failed orders have no shipment, return or review. Settings in `settings/commerce_settings.py`, section Order status.
 - `review_data`, the 14th table: 1 to 5 stars for delivered order lines, with a date after delivery and an optional comment from ready sentences (translated to Polish with `data_language = "pl"`). A late delivery and a defect (returned as defective or damaged, or bought in the defective batch of the return spike) lower the rating and make a review more likely; `review_rate` and `review_score_weights` hold the true effect.
