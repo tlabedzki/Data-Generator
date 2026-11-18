@@ -9,8 +9,8 @@
 
   var HIT_RADIUS = 22;  // px around a point that starts a drag
 
-  function format(value) {
-    return value.toFixed(2).replace(".", ",");
+  function format(value, decimal) {
+    return value.toFixed(2).replace(".", decimal || ",");
   }
 
   function storeId(container) {
@@ -49,13 +49,16 @@
 
     function valueAt(event) {
       var a = axes(), meta = gd.layout.meta || {}, max = meta.max || 1, step = meta.step || 0.01;
+      // The scale stays fixed while dragging; a point stops just below the top edge so its value stays visible.
+      var ceiling = Math.min(max, a.y.range[1] * 0.88);
       var value = a.y.p2d(local(event).y - a.top);
       value = Math.round(value / step) * step;
-      return Math.max(0, Math.min(max, value));
+      return Math.max(0, Math.min(ceiling, value));
     }
 
     function redraw(values, active) {
-      Plotly.restyle(gd, {y: [values.slice()], text: [values.map(format)]}, [0]);
+      var decimal = (gd.layout.meta || {}).decimal;
+      Plotly.restyle(gd, {y: [values.slice()], text: [values.map(function (v) { return format(v, decimal); })]}, [0]);
       // On narrow screens the labels are hidden by CSS; keep the one being dragged visible.
       var labels = gd.querySelectorAll(".textpoint");
       for (var i = 0; i < labels.length; i++) { labels[i].classList.toggle("dg-active", i === active); }
@@ -92,6 +95,12 @@
       }
       var values = drag.values.map(function (v) { return Math.round(v * 100) / 100; });
       drag = null;
+      // After the drag, make room above a high point so it can be dragged further next time.
+      var meta = gd.layout.meta || {}, top = gd._fullLayout.yaxis.range[1];
+      var needed = Math.max.apply(null, values) * 1.45;
+      if (needed > top) {
+        Plotly.relayout(gd, {"yaxis.range": [0, Math.min(needed, (meta.max || 1) * 1.15)]});
+      }
       gd.classList.remove("is-dragging");
       try { gd.releasePointerCapture(event.pointerId); } catch (error) { /* ignore */ }
       if (window.dash_clientside && window.dash_clientside.set_props) {

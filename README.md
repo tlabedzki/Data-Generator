@@ -1,65 +1,82 @@
 # Data Generator
 
-Generates realistic, 100% fictional e-commerce data for data analysis practice: customers, products, orders and
-joined sales lines with seasonality, year-over-year growth, discounts and a configurable category mix.
+[![Tests](https://github.com/tlabedzki/Data-Generator/actions/workflows/tests.yml/badge.svg)](https://github.com/tlabedzki/Data-Generator/actions/workflows/tests.yml)
+![Python 3.11](https://img.shields.io/badge/python-3.11-3776AB)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![Release](https://img.shields.io/github/v/release/tlabedzki/Data-Generator)](https://github.com/tlabedzki/Data-Generator/releases)
 
-![Generated sales grow 16% a year and peak in November](docs/img/monthly-revenue.png)
+Generates a realistic, fully fictional Polish e-commerce dataset (customers, products, orders and sales) from the
+command line or a web app.
+
+![Pick Large, generate, read the charts, then drag November up to reshape the season](docs/img/app-demo.gif)
+
+**Stack:** Python · pandas · NumPy · Faker · Dash with Mantine · Plotly · pytest
 
 ## Why
 
-Practicing analytics on real shop data is rarely possible: it is private, and public sets are small or too clean.
-This generator produces a Polish e-commerce dataset that behaves like a real shop: November spikes, Sunday and Monday
-peaks, a long tail of products and discounts that cluster around Black Friday. Every rule lives in plain Python
-settings files, so you can change the market and get a new dataset in about 35 seconds.
+Real shop data is private, and public sets are small or too clean. Data Generator gives analysts, trainers and BI
+teams a shop that behaves like a real one: November spikes, Sunday and Monday peaks, a long tail of products and
+discounts that cluster around Black Friday. Change the rules in the app or in plain Python settings and get a new
+dataset in about 4 seconds, with no real personal data.
 
 ## What it does
 
-- Generates four tables: `customer_data`, `product_data`, `order_data` and `sales_data` (orders joined with
-  customers and products), saved as Parquet or CSV.
-- Draws order dates with monthly and weekday seasonality, random noise and an annual growth rate.
-- Builds a product catalog with a six-level hierarchy (category, subcategory, product type, brand, series, model),
-  price and margin ranges per product type, brand share tiers and long-tail product popularity.
-- Steers the revenue mix by category, adds category seasonality (toys in December, sports in summer), multi-line
-  orders, quantity profiles and discounts that get deeper in November and December.
-- Writes display values in English or Polish (`data_language`) and gives identical output for the same seed.
-- Comes with a web app (Dash with Mantine): set the parameters, look at the tables and charts, then download CSV,
-  Parquet or a ZIP with all tables.
+- Generates four linked tables (customers, products, orders and joined sales lines) as Parquet or CSV.
+- Shapes order dates with monthly and weekday seasonality, random noise and annual growth.
+- Builds a six-level product catalog with price and margin ranges, brand tiers and a long tail of popularity.
+- Steers the category revenue mix and adds category seasonality, multi-line orders and deeper discounts in
+  November and December.
+- Writes values in English or Polish and returns identical output for the same seed.
+
+| order_date | order_id | category | product_name | quantity | revenue_gross | city |
+|---|---|---|---|---|---|---|
+| 2023-01-01 | 100001 | Health | Vitamin Supplement Naturell Daily D3 | 1 | 239.00 | Kolbuszowa |
+| 2023-01-24 | 101005 | Automotive | Car Tire Goodyear Vector 4Seasons | 1 | 649.00 | Bochnia |
+| 2024-02-08 | 127493 | Beauty | Face Cream Ziaja Classic Olive | 1 | 269.00 | Krosno Odrzańskie |
+
+Three rows of `sales_data` from the default run, which has 35 columns (orders joined with customers and products).
+
+## Results
+
+The charts come from the default run (seed 42), the same data as the Large size in the app demo.
+`python scripts/make_charts.py` redraws them with headless Chrome or Edge.
+
+![Sales grow 16% a year and peak in November](docs/img/monthly-revenue.png)
+
+Revenue grows 16% a year and peaks at 5.1M PLN in November 2024, the Black Friday month.
+
+![Monday brings 24% of orders, close to the configured weekday weights](docs/img/weekday-profile.png)
+
+The weekday mix stays within a percentage point or two of the configured weights, with deliberate random noise.
+
+![Clothing earns 35% of revenue, close to the configured target mix](docs/img/category-mix.png)
+
+Category revenue lands within 1.3 percentage points of the target mix: the generator corrects for average price, so
+expensive categories do not take over revenue just because their unit prices are high.
 
 ## Quickstart
 
-Tested with Python 3.11.
+Tested with Python 3.11, ideally in a fresh virtual environment (`python -m venv .venv`).
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python main.py
+python -m ui.app        # web app at http://127.0.0.1:8050
+python main.py          # or: four Parquet files in export/
 ```
 
 ### Command line
 
-The default run (seed 42) writes four Parquet files to `export/`: 40,000 customers, 50,000 products and 80,000 order
-lines in 55,123 orders from 2023 and 2024. Volumes, years, seasonality, language and output format are set in
-`settings/main_settings.py`. The market itself (categories, brands, prices, margins, discounts, payments and
-deliveries) is defined in `settings/market_settings.py` and `settings/product_catalog.py`. Every option is described
-in [docs/settings.md](docs/settings.md).
+The default run (seed 42) writes 40,000 customers, 50,000 products and 80,000 order lines (55,123 orders
+in 2023 and 2024) as Parquet to `export/`. Volumes and seasonality live in `settings/main_settings.py`, the market in
+`settings/market_settings.py` and `settings/product_catalog.py`; [docs/settings.md](docs/settings.md) describes
+every option.
 
 ### App
 
-```bash
-python -m ui.app
-```
-
-The app opens at http://127.0.0.1:8050 and reads from top to bottom in four steps. Pick a size (Small, Medium or
-Large, each with its generation time) or type your own numbers, set the years and the annual growth and click
-**Generate data**. Just above the button you choose the language of values (it translates categories, products,
-colours, payments and deliveries; column names and numbers stay the same). The seed and the seasonality weights sit
-under **Advanced**: drag the points of the month and weekday charts up or down to shape the seasonality. The page moves on to the headline
-numbers and a preview of each table, then the charts, then the downloads. Medium (5,000 customers, 5,000 products and
-10,000 order lines) takes about 4 seconds; Large (the command-line volumes) takes about half a minute and shows a
-progress bar. The same seed and parameters always give the same data.
-
-![The app shows headline numbers, a table preview and the monthly revenue chart](docs/img/app.png)
+The app walks you through four steps: parameters, preview, charts and downloads. Pick a size (Medium takes about
+4 seconds, Large about half a minute), set the years and growth, and drag the month and weekday points under
+**Advanced** to shape the seasonality. Values come in English or Polish, and the same seed and parameters always give
+the same data.
 
 ## Data
 
@@ -67,39 +84,28 @@ All people, e-mails, phone numbers, bank account numbers, products, prices and s
 `func/` with [Faker](https://faker.readthedocs.io/) (`pl_PL`) and NumPy, seed 42. E-mail addresses use the reserved
 domains `example.com`, `example.org` and `example.net`.
 
-Brand names (for example Samsung, Apple, H&M and Reserved) are used only as labels to make the catalog look
-familiar. Products, prices, margins, popularity and market shares are fictional and say nothing about these
-companies.
+Brand, payment and delivery names (for example Samsung, H&M, PayU, BLIK and InPost) are used only as labels to make
+the data look familiar. Products, prices, margins, popularity and market shares are fictional and say nothing about
+these companies.
 
 Customer addresses take a real postal code and its main locality from `source/pl_postal_code.csv` (20,553 Polish
-postal codes, 3,413 localities). Each code is drawn with a weight equal to its number of addresses. Addresses count
-buildings rather than residents, so cities with large apartment blocks get fewer customers than their population
-would suggest: Warsaw has about 1.5% of customers.
+postal codes, 3,413 localities), drawn with a weight equal to the number of addresses. Addresses count buildings
+rather than residents, so cities with large apartment blocks get fewer customers than their population would
+suggest: Warsaw has about 1.5% of customers.
 
 Source: [ZnajdzKod.pl](https://znajdzkod.pl/baza-kodow-pocztowych/) na podstawie PRG (GUGiK) i TERYT (GUS),
-stan 16.09.2026. The site allows downloading, processing and publishing its files with this attribution.
-`scripts/build_postal_codes.py` rebuilds the file from `kody-pocztowe.csv`.
-
-## Results
-
-The charts come from the default settings. The app draws the same charts from whatever you generate; `python scripts/make_charts.py` rebuilds these images
-with headless Chrome or Edge.
-
-![Monday brings 24% of orders, close to the configured weekday weights](docs/img/weekday-profile.png)
-
-The weekday mix stays within a percentage point or two of `base_weekday_seasonality`, with deliberate random noise.
-
-![Clothing earns 35% of revenue, close to the configured target mix](docs/img/category-mix.png)
-
-Category revenue lands close to `category_revenue_target_weights`. The generator corrects for average price, so
-expensive categories do not take over revenue just because their unit prices are high.
+stan 16.09.2026 (attribution in Polish, as required by the source). The site allows downloading, processing and
+publishing its files with this attribution; `scripts/build_postal_codes.py` rebuilds the file from
+`kody-pocztowe.csv`.
 
 ## Project structure
 
+<details><summary>Show the tree</summary>
+
 ```
 main.py              command-line entry point
-ui/                  web app (Dash with Mantine): layout, charts, theme, fonts
-func/                generation steps, plus service.py (app parameters), charts.py and export.py
+ui/                  web app (Dash with Mantine): layout, charts, draggable weights, theme, fonts
+func/                generation steps, plus service.py (app parameters), charts.py, export.py and number_format.py
 settings/            all parameters: volumes, seasonality, market, product catalog, translations
 source/              postal codes with localities and address counts
 scripts/             postal code import and chart rendering for this README
@@ -108,6 +114,8 @@ docs/                settings guide and README images
 tests/               pytest suite
 ```
 
+</details>
+
 ## Tests
 
 ```bash
@@ -115,12 +123,9 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-98 tests cover table shapes and types, value ranges, unique IDs and e-mails, joins between tables, reproducibility
-with a seed, monthly and weekday seasonality, year-over-year growth, postal code weighting, localization, the
-settings validators, app parameters, size presets and draggable weights, exports, the on-screen number format,
-chart data, the app's charts and downloads and a request to the running app. They take about 10 seconds on small
-volumes.
+106 pytest tests (about 10 seconds) check table shapes, joins, seed reproducibility, seasonality and growth against
+the settings, exports and the running app.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE). [Changelog](CHANGELOG.md).

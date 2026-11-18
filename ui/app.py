@@ -19,6 +19,9 @@ from ui import theme as t
 
 dash._dash_renderer._set_react_version("19.2.4")  # Mantine 3 needs React 19; Dash 4.5 still defaults to 18
 
+if os.environ.get("DG_NOTATION"):  # English notation only for recording README images; the app default is Polish
+    nf.set_default_notation(os.environ["DG_NOTATION"])
+
 REPO_URL = "https://github.com/tlabedzki/Data-Generator"
 PREVIEW_ROWS = 100
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -46,7 +49,7 @@ def placeholder(text):
 
 
 def number_input(input_id, label, value, limits, step, **props):
-    props = {"thousandSeparator": nf.THOUSANDS, **props}
+    props = {"thousandSeparator": nf.thousands_mark(), **props}
     return dmc.NumberInput(id=input_id, label=label, value=value, min=limits[0], max=limits[1], step=step,
                            allowDecimal=False, size="md", hideControls=True,
                            inputWrapperOrder=["label", "input", "description"], **props)

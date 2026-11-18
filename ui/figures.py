@@ -19,7 +19,7 @@ def _num(size, color):
 def _layout(fig, height, **extra):
     margin = extra.pop("margin", {"l": 8, "r": 8, "t": 12, "b": 8})
     fig.update_layout(
-        separators=nf.PLOTLY_SEPARATORS,
+        separators=nf.plotly_separators(),
         height=height, margin=margin, paper_bgcolor=t.PAGE, plot_bgcolor=t.PAGE,
         font={"family": t.SANS_STACK, "size": 13, "color": t.TEXT}, showlegend=False,
         hoverlabel={"bgcolor": t.PAGE, "bordercolor": t.LINE, "font": {"family": t.SANS_STACK, "color": t.INK, "size": 13}},
@@ -118,5 +118,5 @@ def weights_figure(values, labels):
     )
     fig.update_xaxes(showgrid=False, ticks="", tickfont={"color": t.TEXT, "size": 11}, tickangle=0, fixedrange=True)
     fig.update_yaxes(visible=False, range=[0, top], fixedrange=True)
-    fig.update_layout(meta={"max": WEIGHT_MAX, "step": WEIGHT_STEP, "top": top})
-    return _layout(fig, 170, margin={"l": 14, "r": 14, "t": 22, "b": 6}, hovermode=False)
+    fig.update_layout(meta={"max": WEIGHT_MAX, "step": WEIGHT_STEP, "top": top, "decimal": nf.decimal_mark()})
+    return _layout(fig, 170, margin={"l": 14, "r": 14, "t": 26, "b": 6}, hovermode=False)

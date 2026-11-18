@@ -5,7 +5,8 @@ Usage (from the repository root):
     python scripts/make_charts.py
 
 The charts are the app's own Plotly figures (ui/figures.py) with the app's fonts and titles, so the README shows
-exactly what the app draws. Each chart becomes a small HTML page that headless Chrome or Edge saves as PNG to docs/img/.
+exactly what the app draws. Numbers use English notation (5.1M, 55,123) like the README text; the app itself writes
+them in Polish notation. Each chart becomes a small HTML page that headless Chrome or Edge saves as PNG to docs/img/.
 Set CHROME to the browser executable if it is not found automatically.
 """
 import html
@@ -20,6 +21,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_DIR))
 
 import func.charts as ch  # noqa: E402
+import func.number_format as nf  # noqa: E402
 import settings.main_settings as s  # noqa: E402
 from func import service  # noqa: E402
 from ui import figures  # noqa: E402
@@ -59,7 +61,8 @@ def find_browser():
 def chart_page(text, figure):
     """HTML page with the chart title, subtitle and figure in the app style and fonts."""
     title, subtitle = text
-    fonts = (ASSETS / "fonts.css").read_text(encoding="utf-8").replace("url('fonts/", f"url('{(ASSETS / 'fonts').as_uri()}/")
+    fonts = (ASSETS / "fonts.css").read_text(encoding="utf-8")
+    fonts = fonts.replace("url('fonts/", f"url('{(ASSETS / 'fonts').as_uri()}/")
     style = (ASSETS / "style.css").read_text(encoding="utf-8")
     figure.update_layout(width=WIDTH - 48)
     body = figure.to_html(full_html=False, include_plotlyjs=True, config={"staticPlot": True})
@@ -86,11 +89,12 @@ def main():
     params = default_params()
     sales = service.generate(params)["sales_data"]
     weights = params.weekday_seasonality
-    charts = [
-        ("monthly-revenue.png", ch.monthly_revenue_text(sales), figures.monthly_revenue(sales)),
-        ("weekday-profile.png", ch.weekday_text(sales, weights), figures.weekday_profile(sales, weights)),
-        ("category-mix.png", ch.category_text(sales), figures.category_mix(sales)),
-    ]
+    with nf.notation("en"):
+        charts = [
+            ("monthly-revenue.png", ch.monthly_revenue_text(sales), figures.monthly_revenue(sales)),
+            ("weekday-profile.png", ch.weekday_text(sales, weights), figures.weekday_profile(sales, weights)),
+            ("category-mix.png", ch.category_text(sales), figures.category_mix(sales)),
+        ]
     for file_name, text, figure in charts:
         height = int(figure.layout.height) + 130
         save_png(browser, chart_page(text, figure), height, file_name)

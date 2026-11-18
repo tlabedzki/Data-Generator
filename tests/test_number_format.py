@@ -27,7 +27,7 @@ def test_number(value, decimals, expected):
 def test_percent_compact_and_plotly_separators():
     assert nf.percent(0.334, 1) == "33,4%" and nf.percent(0.24) == "24%"
     assert nf.compact(6_600_000) == "6,6M" and nf.compact(672_100) == "672,1k" and nf.compact(961) == "961"
-    assert nf.PLOTLY_SEPARATORS == f",{NBSP}"
+    assert nf.PLOTLY_SEPARATORS == f",{NBSP}" and nf.plotly_separators() == f",{NBSP}"
 
 
 def _texts(component):
@@ -79,3 +79,22 @@ def test_downloads_keep_machine_format(run):
 def test_sizes_and_cells():
     assert ui_app.format_cell(1234.5) == f"1{NBSP}234,50"
     assert ui_app.size_label(b"x" * 3_600_000) == "3,6 MB"
+
+
+def test_english_notation_for_readme_images_is_temporary():
+    with nf.notation("en"):
+        assert nf.number(55_123) == "55,123" and nf.compact(5_100_000) == "5.1M" and nf.percent(0.347, 1) == "34.7%"
+        assert nf.plotly_separators() == ".,"
+    assert nf.number(55_123) == f"55{NBSP}123"  # back to the app's Polish notation
+    with pytest.raises(ValueError):
+        with nf.notation("de"):
+            pass
+
+
+def test_default_notation_switch_for_recordings():
+    try:
+        nf.set_default_notation("en")
+        assert nf.number(1234.5, 1) == "1,234.5" and nf.thousands_mark() == ","
+    finally:
+        nf.set_default_notation("pl")
+    assert nf.number(1234.5, 1) == f"1{NBSP}234,5" and nf.thousands_mark() == NBSP
