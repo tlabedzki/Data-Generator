@@ -4,7 +4,7 @@ from pathlib import Path
 from faker import Faker
 import func.data as d
 from func import assembler as a, customer as c, order as o, product as p, log as l, format as f, save as sv, localization as loc
-from func import anomaly as an, quality as q
+from func import anomaly as an, behaviour as b, calendar as cal, quality as q, rng
 import settings.main_settings as s
 import settings.market_settings as ms
 
@@ -69,8 +69,12 @@ def run_generation_pipeline(progress=None):
         tables["product_data"] = p.generate_product_data(s.product_data_rows, stage_progress("product_data"))
 
     if "order_data" in needed:
-        order_params = get_order_generation_params(tables["customer_data"], tables["product_data"])
-        order_data = o.generate_order_data(s.order_data_rows, order_params, stage_progress("order_data"))
+        calendar = cal.build_calendar(rng.stream("calendar"))
+        behaviour = b.draw_customer_behaviour(tables["customer_data"], calendar, rng.stream("behaviour"))
+        tables["customer_data"] = b.add_behaviour_columns(tables["customer_data"], behaviour)
+        order_params = get_order_generation_params(tables["product_data"])
+        order_data = o.generate_order_data(s.order_data_rows, order_params, behaviour, calendar, rng.stream("orders"),
+                                           stage_progress("order_data"))
         tables["order_data"], extra["anomaly_data"] = an.inject_anomalies(
             order_data, tables["customer_data"], tables["product_data"])
 
@@ -170,44 +174,20 @@ def set_random_state():
         Faker.seed(s.random_state)
         c.fake.seed_instance(s.random_state)
         p.fake.seed_instance(s.random_state)
-        o.fake.seed_instance(s.random_state)
         l.log_info(f'Ustawiono ziarno losowości random_state={s.random_state}.')
 
-def get_order_generation_params(customer_data=None, product_data=None):
+def get_order_generation_params(product_data):
     """
-    Build ID ranges required to generate order data.
+    Build product parameters required to generate order lines.
 
     Parameters:
-    customer_data (pd.DataFrame, optional): Generated customer data.
-    product_data (pd.DataFrame, optional): Generated product data.
+    product_data (pd.DataFrame): Generated product data.
 
     Returns:
-    dict: Minimum and maximum customer and product IDs.
+    dict: Product IDs and sales weights by category, category probabilities and gross prices by product.
     """
-    if customer_data is not None:
-        customer_id_min = customer_data['customer_id'].min()
-        customer_id_max = customer_data['customer_id'].max()
-    else:
-        customer_id_min = 100001
-        customer_id_max = 100001 + s.customer_data_rows - 1
-
-    if product_data is not None:
-        product_id_min = product_data['product_id'].min()
-        product_id_max = product_data['product_id'].max()
-        product_selection_params = get_product_selection_params(product_data)
-    else:
-        product_id_min = 200001
-        product_id_max = 200001 + s.product_data_rows - 1
-        product_selection_params = {}
-
-    params = {
-        'customer_id_min': customer_id_min,
-        'customer_id_max': customer_id_max,
-        'product_id_min': product_id_min,
-        'product_id_max': product_id_max
-    }
-    params.update(product_selection_params)
-
+    params = get_product_selection_params(product_data)
+    params["price_by_product"] = product_data.set_index("product_id")["sales_price_gross"]
     return params
 
 def get_product_selection_params(product_data):

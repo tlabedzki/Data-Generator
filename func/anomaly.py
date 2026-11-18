@@ -146,8 +146,12 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
     created = 0
     while created < target:
         orders = int(min(generator.integers(low, high + 1), target - created))
-        customer = customer_data.iloc[int(generator.integers(len(customer_data)))]
         start = pd.Timestamp(generator.choice(days))
+        accounts = customer_data
+        if "signup_date" in customer_data:
+            accounts = customer_data[customer_data["signup_date"] <= start]
+            accounts = customer_data if accounts.empty else accounts
+        customer = accounts.iloc[int(generator.integers(len(accounts)))]
         drop_code = draw_postal_codes(generator, 1)[0]
         provider = generator.choice(["Stripe", "PayU", "Przelewy24"])
         line_counts = generator.integers(1, 3, size=orders)

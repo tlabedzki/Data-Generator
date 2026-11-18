@@ -3,6 +3,7 @@
 The settings live in the `settings/` package:
 
 - `settings/main_settings.py` controls the generation process.
+- `settings/behaviour_settings.py` controls the demand calendar, customer segments, churn, demographics and habits.
 - `settings/quality_settings.py` controls dirty data (data quality issues) and labelled anomalies.
 - `settings/market_settings.py` controls market behavior, products, categories, brands, prices, margins, payments, deliveries, discounts, and sales mix.
 - `settings/category_hierarchy.py` controls second-level categories.
@@ -147,6 +148,68 @@ order_data_rows = 80000
 ```
 
 `order_data_rows` is the target number of order lines. The final number can be slightly higher because complete multi-line orders are generated.
+
+## Demand Calendar
+
+Order dates come from a daily calendar (`func/calendar.py`). A day's weight is:
+
+```text
+year weight (1 + annual_growth_rate × years since start) × month weight × weekday weight within the month
+```
+
+The month weights are `base_monthly_seasonality` with one random fluctuation per month and year
+(`monthly_noise_sd = 0.03` in `settings/behaviour_settings.py`, a multiplicative factor around 1.0). Month totals
+therefore follow the settings closely; across seeds the fluctuation averages out. Weekday weights split each month
+over its days, so the weekday profile follows `base_weekday_seasonality`.
+
+## Customer Behaviour
+
+Customers follow a "buy till you die" model (`func/behaviour.py`, settings in `settings/behaviour_settings.py`):
+
+1. Every customer gets a hidden segment, saved in `customer_data.customer_segment` as the answer for checking a
+   segmentation (drop it before clustering).
+2. `existing_customer_share` (45%) signed up before the period, spread over `existing_customer_years` (4). The rest
+   sign up during the period following the demand calendar; `signup_date` is in `customer_data`.
+3. New customers place their first order on the signup day (`first_order_same_day_share`, 60%) or after a short
+   delay (`first_order_delay_mean_days`, 10); `no_order_share` (8%) never order.
+4. After the first order a customer buys again at a personal rate until their lifetime ends (churn). Rates are
+   gamma-distributed inside a segment (`purchase_rate_shape`; lower means more "whales"); lifetimes are exponential.
+5. The generator rescales all rates so the total number of order lines matches `order_data_rows`, and divides the
+   calendar by the active customer base of each month, so seasonality and growth stay as set while customers churn.
+
+```python
+customer_segments = {
+    "loyal":       {"share": 0.10, "orders_per_year": 6.0, "lifetime_days": 1600, "discount_affinity": 0.8,
+                    "promo_month_power": 0.0},
+    "deal_hunter": {"share": 0.15, "orders_per_year": 3.0, "lifetime_days": 500, "discount_affinity": 2.6,
+                    "promo_month_power": 2.0},
+    # regular, occasional, one_time ...
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `share` | share of customers (normalized) |
+| `orders_per_year` | relative purchase frequency of an active customer; `0` means one order only |
+| `lifetime_days` | mean time from the first order until the customer stops buying |
+| `discount_affinity` | multiplier of the chance that the customer's order line is discounted |
+| `promo_month_power` | the customer buys more in promotional months: `discount_monthly_multiplier ** power` |
+
+What this gives in the data: cohort retention falls after the first month, orders per customer are over-dispersed
+(a few customers place many orders), revenue per customer differs strongly by segment, and deal hunters buy mostly
+with discounts and in November.
+
+The ratio of customers to order lines still matters: fewer customers per line means more repeat orders.
+
+## Demographics And Habits
+
+`age_category_affinity` and `gender_category_affinity` multiply category probabilities for the customer of the
+order line (keys: upper age of a group, or `"Female"` / `"Male"`; missing categories keep `1.0`). Young customers buy
+more electronics and clothing, older ones more health, home and DIY products.
+
+Customers keep habits: `usual_payment_share` (70%) of orders are paid with the customer's usual method and
+`usual_delivery_share` (60%) delivered the usual way. Orders above `high_value_order_threshold` (2000 PLN gross) use
+`high_value_payment_multipliers`, so expensive orders are paid more often with deferred payment or card.
 
 ## Category Catalog Mix
 
