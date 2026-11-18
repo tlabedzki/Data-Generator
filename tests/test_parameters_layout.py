@@ -65,3 +65,11 @@ def test_rendering_the_button_does_not_start_a_run():
     """A rendered but not clicked Generate button (n_clicks None) never starts a run."""
     result = ui_app.start_run(None, 5_000, 5_000, 10_000, 2023, 2024, 20, [1] * 12, [1] * 7, "en", 42, False)
     assert all(value is ui_app.no_update for value in result)
+
+
+def test_language_sits_after_advanced_just_before_generate():
+    blocks = ui_app.parameters()
+    position = {name: next(i for i, block in enumerate(blocks) if name in map(str, _ids(block)))
+                for name in ("seed", "language", "generate")}
+    assert position["seed"] < position["language"] < position["generate"]
+    assert position["generate"] - position["language"] == 1

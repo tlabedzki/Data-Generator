@@ -53,6 +53,7 @@ body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing
 .dg-section .mantine-NumberInput-controls { border: 0; }
 .dg-section .mantine-NumberInput-control { border: 0; color: var(--dg-muted); }
 .dg-weights { margin-top: 36px; }
+.dg-language { margin-top: 28px; }
 .dg-accordion .mantine-Accordion-item { border: 0; }
 .dg-accordion .mantine-Accordion-control { padding-left: 0; color: var(--dg-teal); font-weight: 500; }
 .dg-accordion .mantine-Accordion-control:hover { background: transparent; }
@@ -125,6 +126,10 @@ body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing
 .dg-weights-graph .js-plotly-plot { touch-action: none; user-select: none; }
 .dg-weights-graph .is-dragging { cursor: ns-resize; }
 .dg-weights-reset { flex: none; padding-left: 0; }
+.dg-weights-readout { display: none; }
+.dg-readout-item { font-family: var(--dg-num); font-feature-settings: var(--dg-num-features); font-size: 13px;
+                   color: var(--dg-ink); white-space: nowrap; }
+.dg-readout-label { color: var(--dg-muted); margin-right: 6px; }
 
 /* Phone */
 @media (max-width: 760px) {
@@ -146,6 +151,7 @@ body { color: var(--dg-ink); font-family: var(--dg-sans); -webkit-font-smoothing
   .dg-preset-detail { display: none; }
   .dg-weights-graph .textpoint { opacity: 0; }
   .dg-weights-graph .textpoint.dg-active { opacity: 1; }
+  .dg-weights-readout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 10px; margin-top: 4px; }
   .dg-progress-wrap { max-width: none; }
 }
 @media (max-width: 760px) { .dg-h1 br { display: none; } }

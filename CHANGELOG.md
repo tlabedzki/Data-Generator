@@ -6,11 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### 1.1.0 - unreleased
 Added:
-- Seasonality weights for months and weekdays can be set by dragging points up and down on two small charts (mouse or touch), with the value shown live next to the point; the number fields stay for exact values and a Restore defaults button resets both.
+- Seasonality weights for months and weekdays are set by dragging points up and down on two small charts (mouse or touch), with the value shown live next to the point; they replace the 19 number fields. Restore defaults resets both charts, and on narrow screens all weights are listed under each chart.
 - Size presets in the app: Small, Medium (the default) and Large set customers, products and order lines and show the generation time measured on a laptop; any manual change shows Custom.
 
 Changed:
-- Parameters are grouped into Size and Period; language, seed and seasonality weights moved to a collapsed Advanced section.
+- Parameters are grouped into Size and Period; the seed and seasonality weights moved to a collapsed Advanced section and the language of values sits just above Generate data, with a note on what it translates.
 - The app uses one typeface, Inter (SIL OFL, bundled locally), for text, bold headings and tabular numbers, instead of Bricolage Grotesque headings and Instrument Sans text. README charts and the app screenshot are redrawn.
 - Numbers on screen use Polish notation in both data languages: a no-break space between thousands and a decimal comma (1 234,56; 6,6M; 33,4%), in headline numbers, table previews, chart titles, labels, axes, tooltips and input fields. Downloaded files keep the machine format.
 

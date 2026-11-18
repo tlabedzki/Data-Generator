@@ -72,18 +72,20 @@ def preset_for(customers, products, order_lines):
 WEIGHT_GRAPH_CONFIG = {"displayModeBar": False, "scrollZoom": False, "doubleClick": False, "showTips": False}
 
 
-def weights_block(kind, title, labels, values, cols):
-    """A draggable weights chart (ui/assets/drag_weights.js) above the exact number fields for the same weights."""
+def weights_readout(labels, values):
+    """All weights as text ("Jan 0,06"), shown under the chart on narrow screens where point labels would overlap."""
+    return [html.Span([html.Span(label, className="dg-readout-label"), nf.number(float(value or 0), 2)],
+                      className="dg-readout-item") for label, value in zip(labels, values)]
+
+
+def weights_block(kind, title, labels, values):
+    """A draggable weights chart (ui/assets/drag_weights.js). Its store holds the weights the generator reads."""
     return html.Div([
         dmc.Text(title, className="dg-weights-title"),
         dcc.Graph(id=f"weights-{kind}-graph", figure=figures.weights_figure(values, labels),
                   config=WEIGHT_GRAPH_CONFIG, className="dg-weights-graph", style={"height": "170px"}),
-        dcc.Store(id=f"weights-{kind}-drag"),
-        dmc.SimpleGrid([dmc.NumberInput(id={"type": f"w-{kind}", "index": i}, label=label, value=value, min=0,
-                                        max=figures.WEIGHT_MAX, step=0.05, decimalScale=2, fixedDecimalScale=True,
-                                        decimalSeparator=nf.DECIMAL,
-                                        size="sm", hideControls=True)
-                        for i, (label, value) in enumerate(zip(labels, values))], cols=cols, spacing="xs"),
+        dcc.Store(id=f"weights-{kind}-drag", data=list(values)),
+        html.Div(weights_readout(labels, values), id=f"weights-{kind}-readout", className="dg-weights-readout"),
     ], className="dg-weights-block")
 
 
@@ -106,20 +108,22 @@ def parameter_fields():
         "language": dmc.Stack([
             dmc.Text("Language of values", className="dg-label"),
             dmc.SegmentedControl(id="language", value=defaults.language, size="md", fullWidth=True,
-                                 data=[{"value": k, "label": v} for k, v in service.LANGUAGES.items()])], gap=4),
+                                 data=[{"value": k, "label": v} for k, v in service.LANGUAGES.items()]),
+            dmc.Text("Translates the descriptive values in the files: categories, products, colours, payments and "
+                     "deliveries. Column names and numbers stay the same.", className="dg-caption")], gap=4),
         "seed": number_input("seed", "Seed", defaults.seed, limits["seed"], 1, thousandSeparator="",
                              description="same seed, same data"),
         "new_seed": dmc.Stack(dmc.Switch(id="new-seed", label="New random seed on every run", size="md",
                                          color="petrol"), justify="center", h="100%", pt=18),
         "weights": [
             dmc.Group([
-                dmc.Text("Drag a point up or down, or type the number below it. Weights are relative: they are "
-                         "normalized and get some random noise, like real demand.", className="dg-caption"),
+                dmc.Text("Drag a point up or down to set its weight. Weights are relative: they are normalized "
+                         "and get some random noise, like real demand.", className="dg-caption"),
                 dmc.Button("Restore defaults", id="weights-reset", variant="subtle", color="petrol", size="compact-sm",
                            className="dg-weights-reset"),
             ], justify="space-between", align="flex-start", wrap="wrap", gap="xs", mb="sm"),
-            weights_block("month", "Months", MONTHS, defaults.monthly_seasonality, {"base": 4, "sm": 6, "md": 12}),
-            weights_block("day", "Weekdays", WEEKDAYS, defaults.weekday_seasonality, {"base": 4, "sm": 7}),
+            weights_block("month", "Months", MONTHS, defaults.monthly_seasonality),
+            weights_block("day", "Weekdays", WEEKDAYS, defaults.weekday_seasonality),
         ],
     }
 
@@ -156,12 +160,12 @@ def group(title, children):
 
 
 def parameters():
-    """Size presets, then Size and Period groups, then everything else under a collapsed Advanced section."""
+    """Size presets, Size and Period groups, a collapsed Advanced section, then the language just above Generate."""
     f = parameter_fields()
     advanced = dmc.Accordion(dmc.AccordionItem([
         dmc.AccordionControl("Advanced"),
         dmc.AccordionPanel([
-            dmc.SimpleGrid([f["language"], f["seed"], f["new_seed"]], cols={"base": 1, "sm": 3}, spacing="xl",
+            dmc.SimpleGrid([f["seed"], f["new_seed"]], cols={"base": 1, "sm": 3}, spacing="xl",
                            verticalSpacing="lg"),
             html.H4("Seasonality weights", className="dg-subgroup-title"),
             *f["weights"],
@@ -172,6 +176,7 @@ def parameters():
         group("Size", [f["customers"], f["products"], f["order_lines"]]),
         group("Period", [f["start_year"], f["end_year"], f["growth"]]),
         html.Div(advanced, className="dg-weights"),
+        dmc.SimpleGrid([f["language"]], cols={"base": 1, "sm": 3}, spacing="xl", className="dg-language"),
         *generate_row(),
     ]
 
@@ -194,7 +199,7 @@ def page():
                 html.P("Customers, products, orders and sales lines with seasonality, growth and discounts. "
                        "100% fictional, reproducible with a seed, ready as CSV or Parquet.", className="dg-lead"),
             ], className="dg-hero"),
-            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds language, seed and seasonality.",
+            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds the seed and seasonality weights.",
                     parameters(), "parameters"),
             section(2, "Preview", "Key numbers and the first rows of each table.",
                     placeholder("Generate data to see the preview."), "preview"),
@@ -356,38 +361,36 @@ def mark_preset(customers, products, order_lines, ids):
     return ["dg-preset is-active" if item["name"] == active else "dg-preset" for item in ids]
 
 
-def _weights_callbacks(kind, labels):
-    @app.callback(Output(f"weights-{kind}-graph", "figure"), Input({"type": f"w-{kind}", "index": ALL}, "value"),
-                  prevent_initial_call=True)
-    def redraw(values):
-        """Typed numbers move the points."""
-        return figures.weights_figure(values, labels)
-
-    @app.callback(Output({"type": f"w-{kind}", "index": ALL}, "value", allow_duplicate=True),
-                  Input(f"weights-{kind}-drag", "data"), prevent_initial_call=True)
-    def from_drag(values):
-        """Dragged points fill in the numbers (the generator reads the number fields)."""
-        if not values or len(values) != len(labels):
-            return [no_update] * len(labels)
-        return [round(max(0.0, min(figures.WEIGHT_MAX, float(v))), 2) for v in values]
-
-    return redraw, from_drag
+def clean_weights(values, length):
+    """Dragged values as the generator expects them: rounded, within 0 and the chart maximum."""
+    if not values or len(values) != length:
+        return None
+    return [round(max(0.0, min(figures.WEIGHT_MAX, float(v or 0))), 2) for v in values]
 
 
-redraw_months, months_from_drag = _weights_callbacks("month", MONTHS)
-redraw_weekdays, weekdays_from_drag = _weights_callbacks("day", WEEKDAYS)
+@app.callback(Output("weights-month-readout", "children"), Input("weights-month-drag", "data"),
+              prevent_initial_call=True)
+def months_readout(values):
+    return weights_readout(MONTHS, clean_weights(values, len(MONTHS)) or [0] * len(MONTHS))
+
+
+@app.callback(Output("weights-day-readout", "children"), Input("weights-day-drag", "data"),
+              prevent_initial_call=True)
+def weekdays_readout(values):
+    return weights_readout(WEEKDAYS, clean_weights(values, len(WEEKDAYS)) or [0] * len(WEEKDAYS))
 
 
 @app.callback(
-    Output({"type": "w-month", "index": ALL}, "value", allow_duplicate=True),
-    Output({"type": "w-day", "index": ALL}, "value", allow_duplicate=True),
+    Output("weights-month-drag", "data", allow_duplicate=True), Output("weights-day-drag", "data", allow_duplicate=True),
+    Output("weights-month-graph", "figure"), Output("weights-day-graph", "figure"),
     Input("weights-reset", "n_clicks"), prevent_initial_call=True,
 )
 def reset_weights(clicks):
     if not clicks:
-        return [no_update] * len(MONTHS), [no_update] * len(WEEKDAYS)
+        return no_update, no_update, no_update, no_update
     defaults = service.GenerationParams()
-    return list(defaults.monthly_seasonality), list(defaults.weekday_seasonality)
+    months, days = list(defaults.monthly_seasonality), list(defaults.weekday_seasonality)
+    return months, days, figures.weights_figure(months, MONTHS), figures.weights_figure(days, WEEKDAYS)
 
 
 @app.callback(
@@ -396,7 +399,7 @@ def reset_weights(clicks):
     Input("generate", "n_clicks"),
     State("customers", "value"), State("products", "value"), State("order-lines", "value"),
     State("start-year", "value"), State("end-year", "value"), State("growth", "value"),
-    State({"type": "w-month", "index": ALL}, "value"), State({"type": "w-day", "index": ALL}, "value"),
+    State("weights-month-drag", "data"), State("weights-day-drag", "data"),
     State("language", "value"), State("seed", "value"), State("new-seed", "checked"),
     prevent_initial_call=True,
 )
