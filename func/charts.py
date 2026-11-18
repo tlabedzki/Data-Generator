@@ -2,7 +2,8 @@
 Chart data, chart titles and headline numbers computed from generated data. The app (ui/figures.py draws the charts)
 and scripts/make_charts.py (the same charts as PNG files for the README) both read them from here.
 
-Each chart title states the conclusion; the subtitle says what is measured.
+Each chart title states the conclusion; the subtitle says what is measured. Revenue counts only orders that were paid
+and shipped: cancelled and payment_failed orders keep their value in revenue_gross but bring no money.
 """
 import pandas as pd
 
@@ -17,19 +18,30 @@ WEEKDAY_NAMES = dict(zip(WEEKDAYS, ["Monday", "Tuesday", "Wednesday", "Thursday"
                          strict=True))
 
 
+NOT_REALISED = ("cancelled", "payment_failed")
+
+
+def realised(sales):
+    """Lines of orders that were paid and shipped (delivered or returned later); all lines without order_status."""
+    if "order_status" not in sales:
+        return sales
+    return sales[~sales["order_status"].isin(NOT_REALISED)]
+
+
 # ---------------------------------------------------------------------------------------------------------------- #
 # Headline numbers
 
 def headline_numbers(datasets):
-    """Return the key numbers shown above the charts."""
+    """Return the key numbers shown above the charts (revenue and order value of realised orders)."""
     sales = datasets["sales_data"]
-    order_revenue = sales.groupby("order_id")["revenue_gross"].sum()
+    paid = realised(sales)
+    order_revenue = paid.groupby("order_id")["revenue_gross"].sum()
     return {
         "orders": int(sales["order_id"].nunique()),
         "order_lines": int(len(sales)),
         "customers": int(len(datasets["customer_data"])),
         "products": int(len(datasets["product_data"])),
-        "revenue": float(sales["revenue_gross"].sum()),
+        "revenue": float(paid["revenue_gross"].sum()),
         "average_order_value": float(order_revenue.mean()),
         "discounted_line_share": float((sales["discount_rate"] > 0).mean()),
         "first_date": sales["order_date"].min(),
@@ -39,6 +51,7 @@ def headline_numbers(datasets):
 
 def yearly_growth(sales):
     """Average yearly revenue growth between the first and the last year, or None for a single year."""
+    sales = realised(sales)
     yearly = sales.groupby(sales["order_date"].dt.year)["revenue_gross"].sum()
     if len(yearly) < 2 or yearly.iloc[0] <= 0:
         return None
@@ -53,7 +66,7 @@ def compact_number(value):
 # Chart data
 
 def monthly_revenue_data(sales):
-    monthly = sales.set_index("order_date")["revenue_gross"].resample("MS").sum()
+    monthly = realised(sales).set_index("order_date")["revenue_gross"].resample("MS").sum()
     data = monthly.rename("revenue").rename_axis("month").reset_index()
     data["is_peak"] = data["revenue"] == data["revenue"].max()
     return data
@@ -81,7 +94,7 @@ def weekday_data(sales, configured_weights):
 
 
 def category_data(sales, language="en"):
-    generated = sales.groupby("category")["revenue_gross"].sum()
+    generated = realised(sales).groupby("category")["revenue_gross"].sum()
     generated = generated / generated.sum()
     target = pd.Series(ms.category_revenue_target_weights, dtype=float)
     target = target / target.sum()
@@ -99,14 +112,16 @@ def category_data(sales, language="en"):
 def monthly_revenue_text(sales):
     """Title (the conclusion) and subtitle lines of the monthly revenue chart."""
     data = monthly_revenue_data(sales)
-    peak_month = MONTH_NAMES[sales.groupby(sales["order_date"].dt.month)["revenue_gross"].sum().idxmax() - 1]
+    paid = realised(sales)
+    peak_month = MONTH_NAMES[paid.groupby(paid["order_date"].dt.month)["revenue_gross"].sum().idxmax() - 1]
     growth = yearly_growth(sales)
     if growth is not None:
         direction = "grow" if growth >= 0 else "shrink"
         title = f"Sales {direction} {nf.percent(abs(growth), 0)} a year, peaking in {peak_month}"
     else:
         title = f"Sales peak in {peak_month}"
-    return title, [f"Gross revenue by month in PLN, {data['month'].min():%b %Y} to {data['month'].max():%b %Y}"]
+    return title, [f"Gross revenue by month in PLN, {data['month'].min():%b %Y} to {data['month'].max():%b %Y}, "
+                   "without cancelled or unpaid orders"]
 
 
 def weekday_text(sales, configured_weights):

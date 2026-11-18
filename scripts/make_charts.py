@@ -133,6 +133,7 @@ def main():
     rows = readme_numbers.realism_checks(datasets)
     with nf.notation("en"):
         blocks = {"sample": readme_numbers.sample_block(datasets),
+                  "metrics": readme_numbers.metrics_block(datasets),
                   "results": readme_numbers.results_block(datasets, weights, rows),
                   "cli": readme_numbers.cli_block(datasets),
                   "data": readme_numbers.data_block(datasets, customer.code_df)}

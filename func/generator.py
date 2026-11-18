@@ -1,6 +1,6 @@
 """
 The generation pipeline: customers, products and order lines first, then the tables built on them (prices, sessions,
-experiments, shipments, returns, anomalies, data quality issues) and the joined sales lines.
+experiments, order status, shipments, returns, reviews, anomalies, data quality issues) and the joined sales lines.
 
 Every step draws from its own random stream (func/rng.py), so the same seed always gives the same files.
 """
@@ -28,6 +28,7 @@ from func import (
     prices,
     product,
     quality,
+    reviews,
     rng,
     save,
     summary,
@@ -41,8 +42,8 @@ EXPORT_DIR = PROJECT_DIR / "export"
 
 # Output tables: source tables first, then the joined sales lines, then the extra tables.
 DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data",
-                 "return_data", "campaign_data", "session_data", "experiment_data", "experiment_assignment_data",
-                 "anomaly_data", "quality_issue_data"]
+                 "return_data", "review_data", "campaign_data", "session_data", "experiment_data",
+                 "experiment_assignment_data", "anomaly_data", "quality_issue_data"]
 SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
 
 # Share of total run time per stage, used to turn stage progress into overall progress:
@@ -111,24 +112,31 @@ def run_generation_pipeline(progress: ProgressCallback | None = None) -> dict[st
         customers = tables["customer_data"] = behaviour.add_behaviour_columns(customers, customer_behaviour)
         extra["price_history"] = prices.build_price_history(products, price_stream)
         price_book = prices.PriceBook(products, extra["price_history"], day_calendar)
-        order_data = order.generate_order_data(s.order_data_rows, order_params, customer_behaviour, day_calendar,
-                                               price_book, rng.stream("orders"), stage_progress("order_data"))
+        order_data, annual_rate = order.generate_order_data(s.order_data_rows, order_params, customer_behaviour,
+                                                            day_calendar, price_book, rng.stream("orders"),
+                                                            stage_progress("order_data"))
         order_data, anomalies = anomaly.inject_anomalies(order_data, customers, products)
 
         logistics = rng.stream("logistics")
         order_data = anomaly.renumber_orders(fulfilment.add_order_times(order_data, logistics))
         order_data, customers = marketing.add_marketing_columns(order_data, customers, day_calendar, campaigns,
                                                                 own_effects, marketing_stream)
-        tables["customer_data"] = customers
+        customers = tables["customer_data"] = behaviour.add_churn_truth(customers, customer_behaviour, annual_rate)
         extra["session_data"], session_of_order = marketing.build_sessions(order_data, rng.stream("sessions"))
         order_data = marketing.add_session_ids(order_data, session_of_order)
         order_data, extra["experiment_data"], extra["experiment_assignment_data"] = experiments.run_experiments(
             order_data, extra["session_data"], day_calendar, rng.stream("experiments"))
         order_data = fulfilment.add_unit_prices(order_data, price_book)
         order_data, bulky_orders = fulfilment.fit_delivery_to_products(order_data, products, logistics)
-        extra["shipment_data"] = fulfilment.build_shipments(order_data, day_calendar, bulky_orders, logistics)
-        extra["return_data"], spikes = fulfilment.build_returns(order_data, products, customers,
-                                                                extra["shipment_data"], rng.stream("returns"))
+        status_stream = rng.stream("order_status")
+        order_data = fulfilment.draw_order_status(order_data, status_stream)
+        planned_shipments = fulfilment.build_shipments(order_data, day_calendar, bulky_orders, logistics)
+        extra["return_data"], spikes = fulfilment.build_returns(order_data, products, customers, planned_shipments,
+                                                                rng.stream("returns"))
+        order_data, extra["shipment_data"] = fulfilment.finish_order_status(order_data, planned_shipments,
+                                                                            extra["return_data"], status_stream)
+        extra["review_data"] = reviews.build_reviews(order_data, extra["shipment_data"], extra["return_data"],
+                                                     spikes, rng.stream("reviews"))
         tables["order_data"] = order_data
         extra["anomaly_data"] = anomaly.anomaly_frame(anomalies + spikes)
 

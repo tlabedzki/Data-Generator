@@ -15,6 +15,8 @@ RETURN_COLUMNS = ["return_id", "order_id", "order_line_id", "product_id", "custo
                   "returned_quantity", "return_reason", "refund_amount", "return_status"]
 NON_WORKING_EVENTS = {"christmas_eve", "christmas", "new_year", "easter_monday", "easter_sunday"}
 REJECTED_RETURN_SHARE = 0.04
+STATUS_COLUMNS = ["order_status", "payment_status", "cancel_reason", "cancelled_at"]
+NOT_SHIPPED = ("cancelled", "payment_failed")
 
 
 def order_level(order_data):
@@ -61,6 +63,77 @@ def fit_delivery_to_products(order_data, product_data, generator):
     return order_data, set(bulky_orders)
 
 
+def draw_order_status(order_data, generator):
+    """
+    Decide how every order ends before it ships: payment_failed (by payment method), cancelled (with a reason) or
+    on its way to delivery. Adds order_status, payment_status, cancel_reason and an empty cancelled_at, filled in by
+    finish_order_status once the planned dispatch times are known. Fraud orders always go through.
+    """
+    orders = order_level(order_data)
+    count = len(orders)
+    method = orders["payment_method"].to_numpy()
+    fraud = orders["is_fraud"].to_numpy() if "is_fraud" in orders else np.zeros(count, dtype=bool)
+    peak = np.isin(orders["order_date"].dt.month.to_numpy(), cs.peak_months)
+    cod = method == "COD"
+
+    fail_p = np.array([cs.payment_failure_rate.get(m, cs.default_payment_failure_rate) for m in method])
+    failed = (generator.random(count) < fail_p) & ~fraud
+    cancel_p = (cs.cancellation_rate * np.where(cod, cs.cod_cancellation_multiplier, 1.0)
+                * np.where(peak, cs.peak_cancellation_multiplier, 1.0))
+    cancelled = (generator.random(count) < cancel_p) & ~failed & ~fraud
+
+    reasons = list(cs.cancel_reasons)
+    base = np.array([cs.cancel_reasons[r] for r in reasons], dtype=float)
+    in_peak = base * np.where(np.array(reasons) == "out_of_stock", cs.peak_out_of_stock_multiplier, 1.0)
+    u = generator.random(count)
+    names, last = np.asarray(reasons, dtype=object), len(reasons) - 1
+    reason = np.where(peak, names[np.minimum(np.searchsorted(np.cumsum(in_peak / in_peak.sum()), u), last)],
+                      names[np.minimum(np.searchsorted(np.cumsum(base / base.sum()), u), last)])
+
+    status = np.where(failed, "payment_failed", np.where(cancelled, "cancelled", "delivered")).astype(object)
+    refund = np.where(cod, "unpaid", "refunded")
+    payment = np.where(failed, "failed", np.where(cancelled, refund, "paid")).astype(object)
+    frame = pd.DataFrame({"order_status": status, "payment_status": payment,
+                          "cancel_reason": np.where(cancelled, reason, None)}, index=orders["order_id"].to_numpy())
+    for column in ("order_status", "payment_status", "cancel_reason"):
+        order_data[column] = order_data["order_id"].map(frame[column]).to_numpy()
+    order_data["cancelled_at"] = pd.NaT
+    return order_data
+
+
+def finish_order_status(order_data, planned_shipments, return_data, generator):
+    """
+    Complete the order status once shipments and returns are drawn: cancelled orders get cancelled_at between the
+    order and its planned dispatch, and orders whose every line came back in full and was refunded become returned.
+    Shipments of orders that never left the warehouse are dropped.
+
+    Returns:
+    tuple: (order_data, shipment_data of the orders that shipped).
+    """
+    orders = order_level(order_data).set_index("order_id")
+    dispatch = planned_shipments.set_index("order_id")["shipped_at"].reindex(orders.index)
+    cancelled = orders["order_status"].eq("cancelled").to_numpy()
+    span = (dispatch - orders["order_datetime"]).dt.total_seconds().to_numpy()
+    offset = np.floor((0.05 + 0.9 * generator.random(len(orders))) * span).astype("timedelta64[s]")
+    cancelled_at = pd.Series(orders["order_datetime"].to_numpy() + offset, index=orders.index).where(cancelled)
+    order_data["cancelled_at"] = order_data["order_id"].map(cancelled_at).to_numpy()
+
+    lines = order_data[["order_id", "order_line_id", "quantity"]].merge(
+        return_data.loc[return_data["return_status"] == "refunded", ["order_line_id", "returned_quantity"]],
+        on="order_line_id", how="left")
+    full = lines["returned_quantity"].fillna(0).to_numpy() >= lines["quantity"].to_numpy()
+    all_back = pd.Series(full).groupby(lines["order_id"].to_numpy()).all()
+    returned = (order_data["order_id"].isin(all_back.index[all_back.to_numpy()]).to_numpy()
+                & (order_data["order_status"] == "delivered").to_numpy())
+    order_data.loc[returned, "order_status"] = "returned"
+    order_data.loc[returned, "payment_status"] = "refunded"
+
+    shipped = ~planned_shipments["order_id"].map(orders["order_status"]).isin(NOT_SHIPPED).to_numpy()
+    shipments = planned_shipments[shipped].reset_index(drop=True)
+    shipments["shipment_id"] = np.arange(1, len(shipments) + 1)
+    return order_data, shipments
+
+
 def next_working_days(days, holidays):
     """Move every date forward to the nearest working day (Monday-Friday, not a shop holiday)."""
     return np.busday_offset(days.astype("datetime64[D]"), 0, roll="forward", holidays=holidays)
@@ -69,6 +142,8 @@ def next_working_days(days, holidays):
 def build_shipments(order_data, calendar, bulky_orders, generator):
     """
     One shipment per order: cost, dispatch from the warehouse, delivery and whether it came later than promised.
+    Drawn for every order (also those cancelled later, whose planned dispatch bounds cancelled_at), so the order
+    status never shifts the random numbers of the shipments that do happen.
     """
     orders = order_level(order_data)
     value = (order_data["quantity"] * order_data["unit_price_gross"] * (1 - order_data["discount_rate"])
@@ -143,6 +218,9 @@ def build_returns(order_data, product_data, customer_data, shipments, generator)
     probability = return_probability(lines, segments)
     if "is_fraud" in lines:
         probability = np.where(lines["is_fraud"].to_numpy(), 0.0, probability)
+    shipped = (~lines["order_status"].isin(NOT_SHIPPED).to_numpy() if "order_status" in lines
+               else np.ones(len(lines), dtype=bool))
+    probability = np.where(shipped, probability, 0.0)
 
     records, spike = [], np.zeros(len(lines), dtype=bool)
     for _ in range(cs.return_spikes if qs.inject_anomalies else 0):
@@ -150,12 +228,13 @@ def build_returns(order_data, product_data, customer_data, shipments, generator)
         if product is None:
             continue
         end = start + pd.Timedelta(days=cs.return_spike_days - 1)
-        window = (lines["product_id"] == product).to_numpy() & lines["order_date"].between(start, end).to_numpy()
+        window = ((lines["product_id"] == product).to_numpy() & lines["order_date"].between(start, end).to_numpy()
+                  & shipped)
         probability = np.where(window, np.maximum(probability, cs.return_spike_rate), probability)
         spike |= window
         records.append({
             "anomaly_type": "return_spike", "start_date": start, "end_date": end, "table_name": "return_data",
-            "affected_rows": int(window.sum()), "customer_id": pd.NA,
+            "affected_rows": int(window.sum()), "customer_id": pd.NA, "product_id": product,
             "description": f"Defective batch of product {product}: lines ordered in these days are returned "
                            f"{cs.return_spike_rate:.0%} of the time.",
         })

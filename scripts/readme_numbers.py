@@ -8,11 +8,15 @@ import re
 import textwrap
 from pathlib import Path
 
+import pandas as pd
+
 import func.charts as ch
 import func.number_format as nf
 import settings.main_settings as s
 
-SAMPLE_COLUMNS = ["order_date", "order_id", "category", "product_name", "quantity", "revenue_gross", "city"]
+SAMPLE_COLUMNS = ["order_date", "order_id", "category", "product_name", "quantity", "revenue_gross", "order_status",
+                  "city"]
+LANGUAGE_NAMES = {"en": "English", "pl": "Polish"}
 CHARTS = [  # file name stem, function that gives the takeaway sentence under the chart
     ("monthly-revenue", lambda sales, weights: monthly_takeaway(sales)),
     ("weekday-profile", lambda sales, weights: weekday_takeaway(sales, weights)),
@@ -36,11 +40,51 @@ def sample_block(datasets):
     lines = ["| " + " | ".join(SAMPLE_COLUMNS) + " |", "|" + "---|" * len(SAMPLE_COLUMNS)]
     for _, row in rows.iterrows():
         cells = [f"{row['order_date']:%Y-%m-%d}", str(row["order_id"]), row["category"], row["product_name"],
-                 str(row["quantity"]), nf.number(row["revenue_gross"], 2), row["city"]]
+                 str(row["quantity"]), nf.number(row["revenue_gross"], 2), row["order_status"], row["city"]]
         lines.append("| " + " | ".join(cells) + " |")
     lines += ["", wrap(f"Three of the {nf.number(len(sales))} rows of `sales_data` ({len(sales.columns)} columns: each "
-                       "order line joined with its customer and product) from the default run with English values.")]
+                       "order line joined with its customer and product), exactly as `python main.py` writes them "
+                       f"with the default {LANGUAGE_NAMES[s.data_language]} values.")]
     return "\n".join(lines)
+
+
+def metrics_block(datasets):
+    """Numbers of the default run that the tables support without any hidden answer: money, funnel and accounts."""
+    sales, orders = datasets["sales_data"], datasets["order_data"].drop_duplicates("order_id")
+    paid = ch.realised(sales)
+    net = (paid["quantity"] * paid["unit_price_net"] * (1 - paid["discount_rate"])).sum()
+    cost = (paid["quantity"] * paid["net_purchase_price"]).sum()
+    refunds = datasets["return_data"]["refund_amount"].sum() / paid["revenue_gross"].sum()
+    lost = 1 - paid["revenue_gross"].sum() / sales["revenue_gross"].sum()
+    campaigns = datasets["campaign_data"]
+    attributed = paid.groupby("campaign_id")["revenue_gross"].sum().reindex(campaigns["campaign_id"]).fillna(0)
+    roas = (attributed.groupby(campaigns["channel"].to_numpy()).sum()
+            / campaigns.groupby("channel")["total_cost"].sum()).sort_values()
+    sessions = datasets["session_data"]
+    abandoned = (sessions["added_to_cart"] & sessions["order_id"].isna()).sum() / sessions["added_to_cart"].sum()
+    voucher = orders["voucher_code"].notna().mean()
+    free = (datasets["shipment_data"]["shipping_cost"] == 0).mean()
+    products, customers = datasets["product_data"], datasets["customer_data"]
+    start = pd.Timestamp(s.start_year, 1, 1)
+    launched = (products["launch_date"] >= start).mean()
+    discontinued = products["discontinued_date"].notna().mean()
+    buyers = orders["customer_id"].nunique()
+    earlier = (customers["signup_date"] < start).mean()
+    names = {"affiliate": "affiliate", "email": "e-mail", "paid_search": "paid search", "social": "social"}
+    return "\n".join([
+        wrap(f"The same run keeps the money side of every order. Lines carry the purchase price, so the gross margin "
+             f"of shipped orders is {pct(1 - cost / net)}; refunds take {pct(refunds, 1)} off revenue, and cancelled "
+             f"or unpaid orders hold {pct(lost, 1)} of the value ordered. Campaign costs with "
+             f"`acquisition_channel` give CAC and ROAS, which runs from {nf.number(roas.iloc[0], 1)} "
+             f"({names.get(roas.index[0], roas.index[0])}) to {nf.number(roas.iloc[-1], 1)} "
+             f"({names.get(roas.index[-1], roas.index[-1])})."),
+        "",
+        wrap(f"{pct(abandoned)} of carts are abandoned, {pct(voucher)} of orders use a campaign voucher code and "
+             f"{pct(free)} of shipments go free (above the free-delivery threshold or picked up in store). "
+             f"{pct(launched)} of products launch during the period and {pct(discontinued)} are discontinued, and "
+             f"{nf.number(buyers)} of the {nf.number(len(customers))} accounts order in it: {pct(earlier)} signed up "
+             "earlier, so their cohorts start before the data does."),
+    ])
 
 
 def picture(stem, alt):
@@ -76,16 +120,17 @@ def category_takeaway(sales):
 
 PACK_NAMES = {"E": "Dirty data and anomalies", "A": "Customer behaviour",
               "D": "Prices, promotions, returns and shipping", "B": "Basket and preferences",
-              "C": "Marketing and traffic", "F": "A/B experiments"}
+              "C": "Marketing and traffic", "F": "A/B experiments", "G": "Order status, reviews and churn"}
 HEADLINES = [  # (pack, start of the check label in scripts/check_realism.py, wording in the README)
     ("A", "order growth first to last year", "Orders grow year over year (setting: 20% a year)"),
     ("D", f"Black Friday {s.end_year}", f"Black Friday {s.end_year} against an average November day"),
-    ("D", f"25 December {s.end_year}", f"Christmas Day {s.end_year} against an average December day"),
+    ("G", "failed payments, deferred payment / BLIK", "Failed payments, deferred payment against BLIK (setting: "
+                                                         "10% / 1.2%)"),
     ("A", "revenue share of the top 10% customers", "Revenue from the top 10% of customers"),
     ("A", "cohort retention month 1 / month 12", "Cohort retention after 1 and 12 months"),
     ("B", "lift Laptop + Wireless Mouse", "Lift of laptop and wireless mouse in one basket (orders)"),
     ("D", "return rate Clothing / Electronics", "Return rate, Clothing against Electronics"),
-    ("C", "social share of orders on social campaign days", "Social orders on social campaign days against other days"),
+    ("G", "average rating on time / late", "Average rating: on time / late / defective or damaged"),
     ("F", "checkout_redesign: conversion lift", "A/B test with a true +10% lift: measured lift and 95% CI"),
     ("E", "fraud order value / other orders", "Labelled fraud orders: value against other orders (orders)"),
 ]
@@ -148,8 +193,9 @@ def cli_block(datasets):
     period = f"{years[0]} and {years[-1]}" if len(years) == 2 else f"{years[0]} to {years[-1]}"
     return wrap(f"`python main.py` writes {nf.number(len(datasets['customer_data']))} customers, "
             f"{nf.number(len(datasets['product_data']))} products and {nf.number(len(sales))} order lines "
-            f"({nf.number(sales['order_id'].nunique())} orders in {period}) with seed 42 and Polish values, and saves "
-            f"{len(s.generated_files)} tables as {s.saving_format.capitalize()} files in `export/`.")
+            f"({nf.number(sales['order_id'].nunique())} orders in {period}) with seed 42 and "
+            f"{LANGUAGE_NAMES[s.data_language]} values, and saves {len(s.generated_files)} tables as "
+            f"{s.saving_format.capitalize()} files in `export/`.")
 
 
 def update_readme(path, blocks):

@@ -6,15 +6,15 @@ saving_format = "parquet"
 
 # Choose which files should be generated and saved.
 # Available options (see docs/settings.md, "Output Files"): "customer_data", "product_data", "order_data",
-# "sales_data", "price_history", "shipment_data", "return_data", "campaign_data", "session_data", "experiment_data",
-# "experiment_assignment_data", "anomaly_data", "quality_issue_data". Source tables needed by a selected file are
-# always generated, but only selected files are saved. Examples:
+# "sales_data", "price_history", "shipment_data", "return_data", "review_data", "campaign_data", "session_data",
+# "experiment_data", "experiment_assignment_data", "anomaly_data", "quality_issue_data". Source tables needed by a
+# selected file are always generated, but only selected files are saved. Examples:
 # - ["customer_data"] generates only the customer file.
 # - ["customer_data", "product_data", "order_data"] generates three separate files without joining them.
 # - ["sales_data"] saves only the joined sales lines.
 generated_files = [
     "customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data", "return_data",
-    "campaign_data", "session_data", "experiment_data", "experiment_assignment_data", "anomaly_data",
+    "review_data", "campaign_data", "session_data", "experiment_data", "experiment_assignment_data", "anomaly_data",
     "quality_issue_data",
 ]
 
@@ -23,8 +23,9 @@ random_state = 42
 
 # Choose generated data language. Available options: "en" and "pl".
 # This affects display values saved in output files, for example categories, product types, colors,
-# payment methods, delivery methods, and generated product names.
-data_language = "pl"
+# payment methods, delivery methods, generated product names and review comments. English is the default of the
+# command line, the app and the realism checks; "pl" saves the same data with Polish values.
+data_language = "en"
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sales settings:

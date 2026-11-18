@@ -321,6 +321,25 @@ gender_translations = {
     "Female": "Kobieta",
 }
 
+review_comment_translations = {
+    "Great product, I recommend it.": "Świetny produkt, polecam.",
+    "Exactly as described.": "Dokładnie taki jak w opisie.",
+    "Good value for the price.": "Dobry stosunek jakości do ceny.",
+    "Very happy with it.": "Jestem bardzo zadowolony.",
+    "It is fine, nothing special.": "W porządku, nic szczególnego.",
+    "Okay for the price.": "Jak na tę cenę może być.",
+    "Does the job, but the quality could be better.": "Spełnia swoje zadanie, ale jakość mogłaby być lepsza.",
+    "Not worth the money.": "Nie jest wart swojej ceny.",
+    "Disappointed with the quality.": "Jakość mnie rozczarowała.",
+    "Not what I expected.": "Nie tego się spodziewałem.",
+    "The parcel came late.": "Paczka przyszła z opóźnieniem.",
+    "Delivery took much longer than promised.": "Dostawa trwała dużo dłużej, niż obiecano.",
+    "Good product, but the courier was late.": "Dobry produkt, ale kurier się spóźnił.",
+    "Arrived damaged.": "Przyszedł uszkodzony.",
+    "Stopped working after a few days.": "Przestał działać po kilku dniach.",
+    "Faulty item, very disappointed.": "Wadliwy egzemplarz, bardzo się zawiodłem.",
+}
+
 translations = {
     "pl": {
         "category": category_translations,
@@ -334,6 +353,7 @@ translations = {
         "payment_provider": payment_provider_translations,
         "delivery_method": delivery_method_translations,
         "gender": gender_translations,
+        "review_comment": review_comment_translations,
     },
     "en": {},
 }

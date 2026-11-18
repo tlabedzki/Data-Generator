@@ -24,6 +24,8 @@ STREAMS = {
     "sessions": 12,
     "experiments": 13,
     "products": 14,
+    "order_status": 15,
+    "reviews": 16,
 }
 
 

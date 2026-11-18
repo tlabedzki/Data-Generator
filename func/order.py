@@ -80,7 +80,8 @@ def draw_order_customers(behaviour, calendar, order_count, generator):
     Decide who places each order and on which day.
 
     Returns:
-    tuple: (day index per order, customer row index per order).
+    tuple: (day index per order, customer row index per order, expected repeat orders a year of every customer while
+    active, at an average time of the year).
     """
     first_rows = np.flatnonzero(behaviour["first_order_day"].to_numpy() >= 0)
     cap = int(MAX_FIRST_ORDER_SHARE * order_count)
@@ -99,6 +100,7 @@ def draw_order_customers(behaviour, calendar, order_count, generator):
     eligible = np.flatnonzero((behaviour["window_start"] <= behaviour["window_end"]).to_numpy()
                               & (behaviour["purchase_rate"].to_numpy() > 0))
     cumulative = segment_intensity(weights, multipliers, base)
+    annual_rate = np.zeros(len(behaviour))
     if repeat_count > 0 and len(eligible):
         expected = np.zeros(len(behaviour))
         segment_of = behaviour["customer_segment"].to_numpy()
@@ -107,6 +109,7 @@ def draw_order_customers(behaviour, calendar, order_count, generator):
             rows = eligible[segment_of[eligible] == name]
             expected[rows] = behaviour["purchase_rate"].to_numpy()[rows] * (c[end[rows] + 1] - c[start[rows]])
         if expected.sum() > 0:
+            annual_rate = annual_repeat_rate(behaviour, cumulative, repeat_count / expected.sum(), len(weights))
             counts = generator.multinomial(repeat_count, expected / expected.sum())
             repeat_rows = np.repeat(np.arange(len(behaviour)), counts)
             repeat_days = draw_repeat_days(repeat_rows, behaviour, cumulative, generator)
@@ -129,7 +132,21 @@ def draw_order_customers(behaviour, calendar, order_count, generator):
         corrected = segment_intensity(weights * factor, multipliers, base)
         days[free] = draw_repeat_days(rows[free], behaviour, corrected, generator)
     order = np.lexsort((generator.random(len(days)), days))
-    return days[order], rows[order]
+    return days[order], rows[order], annual_rate
+
+
+def annual_repeat_rate(behaviour, cumulative, scale, days):
+    """
+    Expected repeat orders a year of every customer while active: repeat orders are allocated in proportion to
+    purchase_rate x the segment's intensity over the active window, times scale (repeat orders / total expectation),
+    so a full year at the average intensity gives purchase_rate x scale x mean daily intensity x 365.
+    """
+    rate = behaviour["purchase_rate"].to_numpy(dtype=float)
+    segment_of = behaviour["customer_segment"].to_numpy()
+    mean_intensity = np.zeros(len(behaviour))
+    for name, c in cumulative.items():
+        mean_intensity[segment_of == name] = c[-1] / days
+    return rate * scale * mean_intensity * 365
 
 
 def segment_intensity(weights, multipliers, base):
@@ -370,12 +387,13 @@ def generate_order_data(num_rows, params, behaviour, calendar, price_book, gener
     progress (callable, optional): Called with the completed fraction (0-1).
 
     Returns:
-    pd.DataFrame: Order lines sorted by date with order_id, order_date, product_id, quantity, customer_id,
-    payment_method, payment_provider, delivery_method and discount_rate.
+    tuple: (order lines sorted by date with order_id, order_date, product_id, quantity, customer_id, payment_method,
+    payment_provider, delivery_method and discount_rate; expected repeat orders a year of every customer in
+    behaviour while active).
     """
     lines_per_order = count_orders(num_rows, generator)
     order_count = len(lines_per_order)
-    order_day, order_row = draw_order_customers(behaviour, calendar, order_count, generator)
+    order_day, order_row, annual_rate = draw_order_customers(behaviour, calendar, order_count, generator)
     d.report_progress(progress, 1, 3, steps=3)
 
     line_order = np.repeat(np.arange(order_count), lines_per_order)
@@ -425,4 +443,4 @@ def generate_order_data(num_rows, params, behaviour, calendar, price_book, gener
         "discount_rate": discount,
     })
     d.report_progress(progress, 3, 3, steps=3)
-    return data
+    return data, annual_rate

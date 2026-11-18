@@ -134,3 +134,62 @@ return_reasons = {
 return_spikes = 1
 return_spike_rate = 0.55
 return_spike_days = 30
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Order status (order_data):
+
+# Every order ends as delivered, returned (every line sent back and refunded), cancelled or payment_failed. Cancelled
+# and failed orders never ship, so they have no shipment, return or review, and they bring no revenue: revenue_gross
+# keeps the value of the order as placed, so filter on order_status for the money the shop made. Fraud orders always
+# go through (their stolen cards pay).
+# Share of orders whose payment fails, by payment method: deferred payments are refused after a credit check, cards
+# get declined, cash on delivery cannot fail at checkout.
+default_payment_failure_rate = 0.02
+payment_failure_rate = {
+    "BLIK": 0.012,
+    "Card": 0.035,
+    "Fast transfer": 0.02,
+    "Deferred payment": 0.10,
+    "COD": 0.0,
+    "Wallet": 0.015,
+    "Bank transfer": 0.03,
+}
+
+# Share of paid orders cancelled before dispatch, more often with cash on delivery (nothing paid yet) and in the peak
+# months, when products run out. Cancelled orders keep the time of the cancellation (cancelled_at, always before the
+# planned dispatch) and a reason; out_of_stock weighs peak_out_of_stock_multiplier times more in peak_months.
+cancellation_rate = 0.025
+cod_cancellation_multiplier = 3.0
+peak_cancellation_multiplier = 1.5
+cancel_reasons = {"customer_request": 0.50, "out_of_stock": 0.20, "duplicate_order": 0.15, "address_problem": 0.15}
+peak_out_of_stock_multiplier = 3.0
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Reviews (review_data):
+
+# Customers rate delivered order lines from 1 to 5 stars, more often after a bad experience. The experience of a line
+# is "defect" when it came back as defective or damaged or belongs to the defective batch of the return spike (the
+# customers who kept it rate it low too), "late" when the shipment came after the promised date, else "on_time".
+# These settings are the answer: how much a late delivery and a defect lower the rating and the chance to review.
+defect_return_reasons = ["defective", "damaged"]
+review_rate = {"on_time": 0.22, "late": 0.35, "defect": 0.55}
+review_score_weights = {
+    "on_time": {5: 0.60, 4: 0.23, 3: 0.08, 2: 0.04, 1: 0.05},
+    "late":    {5: 0.30, 4: 0.25, 3: 0.17, 2: 0.12, 1: 0.16},
+    "defect":  {5: 0.04, 4: 0.06, 3: 0.12, 2: 0.23, 1: 0.55},
+}
+
+# Days from delivery to the review (geometric, at least one day, with this mean) and the share of reviews with a
+# comment, which is one of the ready sentences below. Low ratings after a late delivery or a defect name the cause.
+review_delay_mean_days = 5
+review_comment_share = {"on_time": 0.35, "late": 0.60, "defect": 0.80}
+review_comments = {
+    "positive": ["Great product, I recommend it.", "Exactly as described.", "Good value for the price.",
+                 "Very happy with it."],
+    "neutral": ["It is fine, nothing special.", "Okay for the price.",
+                "Does the job, but the quality could be better."],
+    "negative": ["Not worth the money.", "Disappointed with the quality.", "Not what I expected."],
+    "late": ["The parcel came late.", "Delivery took much longer than promised.",
+             "Good product, but the courier was late."],
+    "defect": ["Arrived damaged.", "Stopped working after a few days.", "Faulty item, very disappointed."],
+}

@@ -5,8 +5,8 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 [![Release](https://img.shields.io/github/v/release/tlabedzki/Data-Generator)](https://github.com/tlabedzki/Data-Generator/releases)
 
-Generates a fully fictional Polish online shop as 13 linked tables, from orders to web sessions, returns and A/B
-tests, for analytics practice.
+Generates a fully fictional Polish online shop as 14 linked tables, from orders and reviews to web sessions, returns
+and A/B tests, for analytics practice.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/app-demo-dark.svg">
@@ -19,7 +19,8 @@ tests, for analytics practice.
 
 Real shop data is private, and public sets are small, too clean or missing the answer. Data Generator gives
 analysts, trainers and BI teams a shop that behaves like a real one: customers who come back or churn, Black Friday
-peaks, baskets of products bought together, campaigns that move traffic and A/B tests with a known true effect.
+peaks, baskets of products bought together, cancelled orders, late parcels that cost stars, campaigns that move
+traffic and A/B tests with a known true effect.
 Truth columns hold the right answer, so you can check your analysis, and a Large dataset takes about 5 seconds.
 
 ## What you can analyse
@@ -29,9 +30,11 @@ Each row starts with a question a shop asks; the last column says where the true
 | Question | Method and tables | Answer to check against |
 |---|---|---|
 | How fast do sales grow, and how big is the November peak? | Seasonality and forecasting on `sales_data` | `annual_growth_rate`, `base_monthly_seasonality`, `special_days` in `settings/` |
-| Which customers come back, and which churn and when? | Cohort retention, RFM and customer value on `customer_data`, `sales_data` | `customer_segment` |
+| Which customers come back, and which churn and when? | Cohort retention, RFM, churn and customer value models (BG/NBD) on `customer_data`, `order_data` | `customer_segment`, `true_churn_date`, `true_purchase_rate` |
 | Which products are bought together? | Market basket analysis (support, confidence, lift) on `sales_data` | `complements` in `settings/basket_settings.py` |
 | Which channel brings the orders, and did the campaign pay for itself? | Funnel, attribution and ROAS on `session_data`, `campaign_data`, `order_data` | `true_daily_lift` per campaign |
+| Which orders never turn into revenue, and which payment methods fail? | Cancellation and payment failure rates by method, month and reason on `order_data` | `payment_failure_rate`, `cancellation_rate` in `settings/` |
+| Do late parcels and faulty products cost stars? | Rating analysis on `review_data` with `shipment_data` (`is_late`) and `return_data` (reasons) | `review_score_weights` in `settings/` |
 | Is the A/B test result real? | Significance test, confidence interval, sample ratio mismatch and A/A test on `experiment_data`, `experiment_assignment_data`, `session_data` | `true_effect`, `has_sample_ratio_mismatch` |
 | Do discounts sell more, and what drives returns and late deliveries? | Price elasticity, promotion uplift, return and delivery rates on `sales_data`, `price_history`, `return_data`, `shipment_data` | settings in `docs/settings.md` |
 | Which orders are fraud, and when did the shop go down? | Fraud and anomaly detection on `order_data`, `anomaly_data` | `is_fraud`, `anomaly_data` |
@@ -39,33 +42,46 @@ Each row starts with a question a shop asks; the last column says where the true
 
 ## What it does
 
-- Generates 13 linked tables: customers, products, order lines, sales lines, price history, shipments, returns,
-  campaigns, web sessions, experiments, experiment assignments, anomalies and data quality issues.
-- Models customers over time: signup cohorts, segments, churn, preferred categories, replenishment and products
-  bought together.
+- Generates 14 linked tables: customers, products, order lines, sales lines, price history, shipments, returns,
+  reviews, campaigns, web sessions, experiments, experiment assignments, anomalies and data quality issues.
+- Models customers over time: signup cohorts, accounts that never order, segments, churn with its true date and
+  purchase rate, preferred categories, replenishment and products bought together.
 - Shapes demand with monthly and weekday seasonality, special days, hours of the day, price changes, discounts that
-  sell more units, returns and late deliveries in the peak season.
+  sell more units, cancellations, failed payments, returns and late deliveries in the peak season.
 - Adds channels, campaigns, devices, a session funnel and randomized A/B tests, plus labelled fraud, shop outages and
   optional dirty data.
 - Saves CSV or Parquet with values in English or Polish; the same seed gives identical files.
 
 <!-- generated:sample -->
 
-| order_date | order_id | category | product_name | quantity | revenue_gross | city |
-|---|---|---|---|---|---|---|
-| 2023-01-01 | 100001 | Clothing | T-Shirt H&M Basic Cotton | 1 | 179.00 | Iława |
-| 2023-11-11 | 118441 | Clothing | Dress Reserved Elegant Floral | 1 | 523.02 | Gdańsk |
-| 2024-06-28 | 136911 | Health | Vitamin Supplement Olimp Labs Gold Vita-Min | 2 | 282.30 | Pobiedziska |
+| order_date | order_id | category | product_name | quantity | revenue_gross | order_status | city |
+|---|---|---|---|---|---|---|---|
+| 2023-01-01 | 100001 | Clothing | T-Shirt H&M Basic Cotton | 1 | 179.00 | delivered | Iława |
+| 2023-11-11 | 118441 | Clothing | Dress Reserved Elegant Floral | 1 | 523.02 | delivered | Gdańsk |
+| 2024-06-28 | 136911 | Health | Vitamin Supplement Olimp Labs Gold Vita-Min | 2 | 282.30 | delivered | Pobiedziska |
 
-Three of the 80,326 rows of `sales_data` (53 columns: each order line joined with its customer and product) from the
-default run with English values.
+Three of the 80,326 rows of `sales_data` (59 columns: each order line joined with its customer and product), exactly
+as `python main.py` writes them with the default English values.
 
 <!-- /generated:sample -->
 
+<!-- generated:metrics -->
+
+The same run keeps the money side of every order. Lines carry the purchase price, so the gross margin of shipped
+orders is 35%; refunds take 10.7% off revenue, and cancelled or unpaid orders hold 5.5% of the value ordered. Campaign
+costs with `acquisition_channel` give CAC and ROAS, which runs from 4.9 (affiliate) to 19.5 (e-mail).
+
+72% of carts are abandoned, 15% of orders use a campaign voucher code and 71% of shipments go free (above the
+free-delivery threshold or picked up in store). 30% of products launch during the period and 15% are discontinued, and
+23,172 of the 40,000 accounts order in it: 45% signed up earlier, so their cohorts start before the data does.
+
+<!-- /generated:metrics -->
+
 ## Results
 
-Every chart and number below comes from the default run (seed 42). `python scripts/make_charts.py` regenerates the
-data, redraws the charts in light and dark versions and rewrites the numbers in this README and in `docs/`;
+Every chart and number below comes from the default run (seed 42); revenue leaves out cancelled orders and orders
+with a failed payment. `python scripts/make_charts.py` regenerates the data, redraws the charts in light and dark
+versions and rewrites the numbers in this README and in `docs/`;
 `python scripts/make_demo_svg.py` builds the animated demo at the top from screenshots of the app.
 
 <!-- generated:results -->
@@ -75,7 +91,7 @@ data, redraws the charts in light and dark versions and rewrites the numbers in 
   <img alt="Sales grow 23% a year, peaking in November" src="docs/img/monthly-revenue.png">
 </picture>
 
-Revenue grows 23% a year and peaks at 5.2M PLN in November 2024, the Black Friday month.
+Revenue grows 23% a year and peaks at 4.9M PLN in November 2024, the Black Friday month.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/weekday-profile-dark.png">
@@ -93,19 +109,19 @@ weekly e-mail campaigns on Tuesdays or Thursdays move it, as they would in a rea
 Category revenue lands within 3.1 percentage points of the target mix: the generator corrects for average price, so
 expensive categories do not take over revenue just because their unit prices are high.
 
-Beyond the charts, 52 of 52 realism criteria pass on the same run. The table shows ten of them;
+Beyond the charts, 65 of 65 realism criteria pass on the same run. The table shows ten of them;
 [docs/realism.md](docs/realism.md) lists all with their values.
 
 | What a real shop does | Default run |
 |---|---|
 | Orders grow year over year (setting: 20% a year) | **19%** |
 | Black Friday 2024 against an average November day | **3.4x** |
-| Christmas Day 2024 against an average December day | **0.23x** |
+| Failed payments, deferred payment against BLIK (setting: 10% / 1.2%) | **9.3% / 1.2%** |
 | Revenue from the top 10% of customers | **68%** |
 | Cohort retention after 1 and 12 months | **11.4% / 5.6%** |
 | Lift of laptop and wireless mouse in one basket (orders) | **16.3 (60 orders)** |
-| Return rate, Clothing against Electronics | **27.0% / 5.7%** |
-| Social orders on social campaign days against other days | **2.85x** |
+| Return rate, Clothing against Electronics | **27.0% / 5.5%** |
+| Average rating: on time / late / defective or damaged | **4.29 / 3.42 / 1.84** |
 | A/B test with a true +10% lift: measured lift and 95% CI | **+11.3% [+4.6%, +18.4%]** |
 | Labelled fraud orders: value against other orders (orders) | **13.9x (221 fraud orders)** |
 
@@ -144,12 +160,13 @@ stop it.
 <!-- generated:cli -->
 
 `python main.py` writes 40,000 customers, 50,000 products and 80,326 order lines (55,568 orders in 2023 and 2024) with
-seed 42 and Polish values, and saves 13 tables as Parquet files in `export/`.
+seed 42 and English values, and saves 14 tables as Parquet files in `export/`.
 
 <!-- /generated:cli -->
 
 It takes about 7 seconds on a laptop. Every option lives in `settings/` and [docs/settings.md](docs/settings.md)
-describes it; `data_quality_level` in `settings/quality_settings.py` turns on dirty data.
+describes it: `data_language = "pl"` in `settings/main_settings.py` writes the same data with Polish values, and
+`data_quality_level` in `settings/quality_settings.py` turns on dirty data.
 
 ### App
 
@@ -160,9 +177,10 @@ as a ZIP.
 
 ## Data
 
-All people, e-mails, phone numbers, bank account numbers, products, prices and sales are synthetic: generated by
-`func/` with [Faker](https://faker.readthedocs.io/) (`pl_PL`) and NumPy, seed 42. E-mail addresses use the reserved
-domains `example.com`, `example.org` and `example.net`. [docs/data-model.md](docs/data-model.md) shows how the 13
+All people, e-mails, phone numbers, bank account numbers, products, prices, sales and reviews are synthetic:
+generated by `func/` with [Faker](https://faker.readthedocs.io/) (`pl_PL`) and NumPy, seed 42; review comments come
+from a short list of ready sentences. E-mail addresses use the reserved
+domains `example.com`, `example.org` and `example.net`. [docs/data-model.md](docs/data-model.md) shows how the 14
 tables link, and [docs/columns.md](docs/columns.md) describes every column and marks the truth columns.
 
 Brand, payment and delivery names (for example Samsung, H&M, PayU, BLIK and InPost) are used only as labels to make
@@ -207,8 +225,9 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-178 pytest tests (about 30 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour,
-prices and returns, marketing, experiments, dirty data, exports and the app's callbacks and figures on small samples.
+200 pytest tests (about 40 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
+and churn, prices, order status, returns and ratings, marketing, experiments, dirty data, exports and the app's
+callbacks and figures on small samples.
 `ruff check .` lints the code and CI runs both on every push; `python scripts/check_realism.py` checks the realism
 criteria on the full default run.
 

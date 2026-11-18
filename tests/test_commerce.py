@@ -85,7 +85,9 @@ def test_bulky_goods_never_go_to_lockers(data):
 
 def test_shipments(data):
     shipments, orders = data["shipment_data"], data["order_data"].drop_duplicates("order_id").set_index("order_id")
-    assert len(shipments) == len(orders) and shipments["order_id"].is_unique
+    shipped = orders[orders["order_status"].isin(["delivered", "returned"])]
+    assert set(shipments["order_id"]) == set(shipped.index) and shipments["order_id"].is_unique
+    assert shipments["shipment_id"].tolist() == list(range(1, len(shipments) + 1))
     placed = shipments["order_id"].map(orders["order_datetime"])
     assert (shipments["shipped_at"] > placed).all()
     assert (shipments["delivered_at"] > shipments["shipped_at"]).all()

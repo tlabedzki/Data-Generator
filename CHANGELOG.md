@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.4.0 - Unreleased
+Added:
+- Order status in `order_data`: `order_status` (`delivered`, `returned`, `cancelled`, `payment_failed`), `payment_status` (`paid`, `refunded`, `failed`, `unpaid`), `cancel_reason` and `cancelled_at`. Payments fail by method (deferred payment 10%, card 3.5%, BLIK 1.2%, cash on delivery never), and about 2.5% of the other orders are cancelled before dispatch, more often with cash on delivery and in November and December, when `out_of_stock` grows. An order is `returned` when every line came back in full and was refunded. Cancelled and failed orders have no shipment, return or review. Settings in `settings/commerce_settings.py`, section Order status.
+- `review_data`, the 14th table: 1 to 5 stars for delivered order lines, with a date after delivery and an optional comment from ready sentences (translated to Polish with `data_language = "pl"`). A late delivery and a defect (returned as defective or damaged, or bought in the defective batch of the return spike) lower the rating and make a review more likely; `review_rate` and `review_score_weights` hold the true effect.
+- Truth columns for churn and customer value models in `customer_data`: `true_purchase_rate` (repeat orders a year while active, at an average time of the year) and `true_churn_date` (the last day the customer can buy). Repeat orders in the default run match `true_purchase_rate` × active years within 1%.
+- 13 realism criteria in a new pack G (order status, reviews and churn) of `scripts/check_realism.py`, 65 in all, and 18 tests in `tests/test_orders_reviews.py`, among them negative ones: no shipment, return or review for a cancelled order, no order after `true_churn_date`, no rating gap once the rating settings are equal.
+- README: what the default run already holds besides the analyses (margin, refunds, value of cancelled orders, CAC and ROAS, abandoned carts, vouchers, free delivery, product launches, accounts that never order), as generated numbers under the sample; two rows in What you can analyse (order status, ratings) and the churn truth in the customer row.
+
+Changed:
+- The command line writes English values by default (`data_language = "en"`), like the app, the README and the realism checks; `data_language = "pl"` writes Polish ones. The README sample is now exactly what `python main.py` writes.
+- Revenue in the charts, the app's key numbers, the README and the realism criteria counts only orders that shipped. `revenue_gross` keeps the value of every order as placed, so cancelled orders stay visible.
+- Return rates in the realism criteria are measured on shipped lines. The README criteria table shows failed payments and average ratings instead of Christmas Day and social campaign days, which stay in `docs/realism.md`.
+- Seed 42 gives different data than in 1.3.1: shipments, returns and revenue leave out cancelled and failed orders. The other tables and random streams stay as they were.
+
 ### 1.3.1 - 2026-11-19
 Removed:
 - `notebooks/worked_example.ipynb` and `scripts/make_notebook.py` that built it, with their `nbformat`, `nbclient` and `ipykernel` dev dependencies. Analyses of the generated data will live in separate projects; this repository covers the generator.

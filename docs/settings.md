@@ -6,7 +6,7 @@ The settings live in the `settings/` package:
 - `settings/behaviour_settings.py` controls the demand calendar, customer segments, churn, demographics and habits.
 - `settings/basket_settings.py` controls products bought together, customer preferences and replenishment.
 - `settings/commerce_settings.py` controls special days, product life cycle, price changes, price elasticity, order
-  times, shipping and returns.
+  times, shipping, returns, order status (cancellations and failed payments) and reviews.
 - `settings/experiment_settings.py` controls A/B experiments.
 - `settings/marketing_settings.py` controls channels, campaigns, devices and web sessions.
 - `settings/quality_settings.py` controls dirty data (data quality issues) and labelled anomalies.
@@ -30,13 +30,13 @@ Set a number to make generated data repeatable. Set `None` to generate different
 Use `data_language` in `settings/main_settings.py`.
 
 ```python
-data_language = "pl"
+data_language = "en"
 ```
 
 Available values:
 
+- `"en"` saves display values in English (the default of the command line, the app and the realism checks).
 - `"pl"` saves display values in Polish.
-- `"en"` saves display values in English.
 
 The translation dictionaries are in `settings/localization.py`. They currently cover:
 
@@ -49,7 +49,11 @@ The translation dictionaries are in `settings/localization.py`. They currently c
 - payment methods,
 - payment providers,
 - delivery methods,
-- gender.
+- gender,
+- review comments.
+
+Codes such as `order_status`, `payment_status`, `cancel_reason`, `return_reason` and `channel` stay in English in
+both languages, so filters and joins work the same way.
 
 Market logic still uses English technical keys internally. This keeps category weights, brand weights, margins,
 discounts, seasonality, and order generation stable. Translation is applied only to the output datasets.
@@ -64,7 +68,7 @@ Use `generated_files` in `settings/main_settings.py`.
 ```python
 generated_files = [
     "customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data", "return_data",
-    "campaign_data", "session_data", "experiment_data", "experiment_assignment_data", "anomaly_data",
+    "review_data", "campaign_data", "session_data", "experiment_data", "experiment_assignment_data", "anomaly_data",
     "quality_issue_data",
 ]
 ```
@@ -73,13 +77,14 @@ Available values:
 
 | File | One row is | Notes |
 |---|---|---|
-| `customer_data` | a customer account | |
+| `customer_data` | a customer account | truth for churn models: `true_purchase_rate`, `true_churn_date` |
 | `product_data` | a product | |
-| `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line |
+| `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line; `order_status` per order |
 | `sales_data` | an order line joined with its product and customer | revenue columns added |
 | `price_history` | a list price of a product with its validity period | the last price equals `sales_price_gross` |
-| `shipment_data` | the shipment of an order | cost, dispatch, delivery, late or not |
+| `shipment_data` | the shipment of an order | only orders that shipped; cost, dispatch, delivery, late or not |
 | `return_data` | a returned order line | reason, quantity, refund |
+| `review_data` | a rating of a delivered order line | 1-5 stars, date, optional comment |
 | `campaign_data` | a marketing campaign | channel, dates, cost, voucher, true effect |
 | `session_data` | a web session | about 12 per order; the converting one has `order_id` |
 | `experiment_data` | an A/B experiment | unit, metric, window, planned split, true effect |
@@ -99,7 +104,8 @@ generated_files = ["sales_data"]
 
 ## Random Streams
 
-Every step (customers, products, orders, behaviour, prices, sessions, experiments, anomalies, dirty data and so on)
+Every step (customers, products, orders, behaviour, prices, sessions, experiments, order status, reviews,
+anomalies, dirty data and so on)
 draws from its own random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for
 example the dirty data level, does not change the random numbers of the other steps. Names, phone numbers and bank
 account numbers come from Faker, seeded with `random_state` too.
@@ -203,6 +209,12 @@ Customers follow a "buy till you die" model (`func/behaviour.py`, settings in `s
    gamma-distributed inside a segment (`purchase_rate_shape`; lower means more "whales"); lifetimes are exponential.
 5. The generator rescales all rates so the total number of order lines matches `order_data_rows`, and divides the
    calendar by the active customer base of each month, so seasonality and growth stay as set while customers churn.
+6. Two truth columns in `customer_data` hold the answer for churn and customer value models (BG/NBD, Pareto/NBD):
+   `true_purchase_rate` is the number of repeat orders a year the customer places while active, after the
+   rescaling and at an average time of the year (0 for one-time buyers); `true_churn_date` is the last day the
+   customer can buy. It falls before the period for accounts that were already gone, after it for customers still
+   active at the end, and on the signup day for accounts that never order. Shop outages move a few orders by up to
+   two days, so an order can land just after it.
 
 ```python
 customer_segments = {
@@ -346,7 +358,48 @@ and `revenue_gross` from them.
 | `return_reasons` | reason mix for Clothing (mostly `wrong_size`) and the other categories |
 | `return_spikes`, `return_spike_rate`, `return_spike_days` | a defective batch: one popular product is returned 55% of the time for a month, labelled in `anomaly_data` as `return_spike` |
 
-Fraud lines are never returned. 4% of returns are `rejected` with a refund of 0.
+Fraud lines are never returned. 4% of returns are `rejected` with a refund of 0. Lines of cancelled orders and
+orders with a failed payment never ship, so they are never returned either.
+
+## Order Status
+
+Every order in `order_data` ends with one `order_status` (the same on all its lines):
+
+| `order_status` | `payment_status` | What happened |
+|---|---|---|
+| `delivered` | `paid` | shipped and kept, at least in part |
+| `returned` | `refunded` | every line came back in full and was refunded |
+| `cancelled` | `refunded`, or `unpaid` for cash on delivery | cancelled before dispatch, with `cancel_reason` and `cancelled_at` |
+| `payment_failed` | `failed` | the payment did not go through, nothing shipped |
+
+| Setting | Meaning |
+|---|---|
+| `payment_failure_rate`, `default_payment_failure_rate` | share of orders whose payment fails, by method: deferred payment 10% (credit check), card 3.5%, BLIK 1.2%, cash on delivery 0 |
+| `cancellation_rate` | share of the other orders cancelled before dispatch (2.5%) |
+| `cod_cancellation_multiplier`, `peak_cancellation_multiplier` | cash on delivery is cancelled 3 times as often, November and December 1.5 times |
+| `cancel_reasons`, `peak_out_of_stock_multiplier` | reason mix; `out_of_stock` weighs 3 times more in the peak months |
+
+`cancelled_at` lies between `order_datetime` and the planned dispatch. Cancelled and failed orders have no shipment,
+return or review. `revenue_gross` keeps the value of every order as placed, so the realised revenue is the sum over
+orders whose `order_status` is `delivered` or `returned` (the README charts and the app count only those), and the
+net revenue subtracts `refund_amount` of `return_data`. Fraud orders always go through.
+
+## Reviews
+
+`review_data` has one row per rated order line. Customers rate lines that reached them (not cancelled, not failed,
+not fraud), and a bad experience lowers the rating and makes a review more likely. These settings are the answer to
+check a rating analysis against.
+
+| Setting | Meaning |
+|---|---|
+| `defect_return_reasons` | return reasons that make a line `defect` (`defective`, `damaged`); lines of the return spike's defective batch count too, also when kept |
+| `review_rate` | chance to review a line by experience: on time 22%, late 35%, defect 55% |
+| `review_score_weights` | star mix by experience; on time averages 4.3, late 3.4, defect 1.8 |
+| `review_delay_mean_days` | days from delivery to the review (geometric, mean 5) |
+| `review_comment_share`, `review_comments` | share of reviews with a comment and the ready sentences; low ratings after a late delivery or a defect name the cause |
+
+A line is `late` when its shipment has `is_late`, `defect` wins over `late`, and the rest is `on_time`. The rating
+does not change what the customer buys later.
 
 ## Marketing And Traffic
 

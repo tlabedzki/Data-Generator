@@ -15,6 +15,7 @@ TABLE_ROWS = {
     "price_history": "a list price of a product with its validity period",
     "shipment_data": "the shipment of an order",
     "return_data": "a returned order line",
+    "review_data": "a rating of a delivered order line",
     "campaign_data": "a marketing campaign",
     "session_data": "a web session",
     "experiment_data": "an A/B experiment",
@@ -24,8 +25,8 @@ TABLE_ROWS = {
 }
 
 # Columns that hold the answer an analysis should find (hide them before you analyse).
-TRUTH = {"customer_segment", "preferred_category", "price_tier", "is_fraud", "true_daily_lift", "true_effect",
-         "has_sample_ratio_mismatch", "anomaly_type", "clean_value"}
+TRUTH = {"customer_segment", "preferred_category", "price_tier", "true_purchase_rate", "true_churn_date", "is_fraud",
+         "true_daily_lift", "true_effect", "has_sample_ratio_mismatch", "anomaly_type", "clean_value"}
 
 # The same column name means the same thing in every table; a (table, column) key overrides it for one table.
 NOTES = {
@@ -44,6 +45,8 @@ NOTES = {
     "preferred_category": "category the customer buys most from",
     "price_tier": "budget, standard or premium: how expensive the products they keep are",
     "acquisition_channel": "channel that brought the customer",
+    "true_purchase_rate": "repeat orders a year while active, at an average time of the year (0 for one-time buyers)",
+    "true_churn_date": "last day the customer can buy; can lie outside the period, signup day if never ordering",
     "product_id": "product key (from 200001)",
     "net_purchase_price": "purchase price without VAT, PLN",
     "sales_margin": "gross margin of the list price (0.30 = 30%)",
@@ -79,15 +82,19 @@ NOTES = {
     "campaign_id": "campaign credited with the order or session; empty without one",
     "voucher_code": "campaign voucher used; empty without one",
     "session_id": "session key; in order_data, the session that converted",
+    "order_status": "delivered, returned (every line refunded in full), cancelled or payment_failed",
+    "payment_status": "paid, refunded, failed, or unpaid for a cancelled cash-on-delivery order",
+    "cancel_reason": "customer_request, out_of_stock, duplicate_order or address_problem; empty unless cancelled",
+    "cancelled_at": "cancellation time, before the planned dispatch; empty unless cancelled",
     "sales_price_gross_after_discount": "unit_price_gross after discount_rate, PLN",
     "sales_price_net_after_discount": "unit_price_net after discount_rate, PLN",
-    "revenue_gross": "quantity × sales_price_gross_after_discount, PLN",
+    "revenue_gross": "quantity × sales_price_gross_after_discount, PLN, as ordered: also for cancelled orders",
     "valid_from": "first day of this list price",
     "valid_to": "last day of this list price; empty for the current price",
     "change_type": "initial, increase or decrease",
     ("price_history", "sales_price_gross"): "list price with VAT in this period, PLN",
     ("price_history", "sales_price_net"): "list price without VAT in this period, PLN",
-    "shipment_id": "shipment key",
+    "shipment_id": "shipment key; only orders that shipped have one",
     "is_bulky": "furniture or other goods too large for a parcel locker",
     "shipping_cost": "delivery fee paid by the customer, PLN",
     "shipped_at": "dispatch time",
@@ -100,6 +107,10 @@ NOTES = {
     "return_reason": "for example wrong_size, changed_mind or defective",
     "refund_amount": "money refunded, PLN",
     "return_status": "refunded or rejected",
+    "review_id": "review key",
+    "review_date": "day of the review, after delivery",
+    "review_score": "rating from 1 to 5 stars",
+    "review_comment": "one of the ready sentences; empty without a comment",
     "campaign_name": "channel and start date",
     ("campaign_data", "channel"): "paid_search, social, email or affiliate",
     "start_date": "first day",

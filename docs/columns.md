@@ -25,6 +25,8 @@ One row is a customer account. 40,000 rows in the default run.
 | `preferred_category` | text | Beauty | category the customer buys most from | yes |
 | `price_tier` | text | budget | budget, standard or premium: how expensive the products they keep are | yes |
 | `acquisition_channel` | text | paid_search | channel that brought the customer |  |
+| `true_purchase_rate` | float | 0.831 | repeat orders a year while active, at an average time of the year (0 for one-time buyers) | yes |
+| `true_churn_date` | datetime | 2020-01-17 | last day the customer can buy; can lie outside the period, signup day if never ordering | yes |
 
 ## product_data
 
@@ -76,18 +78,22 @@ One row is an order line. 80,326 rows in the default run.
 | `campaign_id` | int (nullable) | 1 | campaign credited with the order or session; empty without one |  |
 | `voucher_code` | text | EML23010350 | campaign voucher used; empty without one |  |
 | `session_id` | int | 4 | session key; in order_data, the session that converted |  |
+| `order_status` | text | delivered | delivered, returned (every line refunded in full), cancelled or payment_failed |  |
+| `payment_status` | text | paid | paid, refunded, failed, or unpaid for a cancelled cash-on-delivery order |  |
+| `cancel_reason` | text | duplicate_order | customer_request, out_of_stock, duplicate_order or address_problem; empty unless cancelled |  |
+| `cancelled_at` | datetime | 2023-01-09 09:45 | cancellation time, before the planned dispatch; empty unless cancelled |  |
 
 ## sales_data
 
 One row is an order line joined with its product and customer. 80,326 rows in the default run.
 
-All 50 columns of `order_data`, `product_data` and `customer_data` (joined on `product_id` and `customer_id`), plus:
+All 56 columns of `order_data`, `product_data` and `customer_data` (joined on `product_id` and `customer_id`), plus:
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
 | `sales_price_gross_after_discount` | float | 179 | unit_price_gross after discount_rate, PLN |  |
 | `sales_price_net_after_discount` | float | 134.8 | unit_price_net after discount_rate, PLN |  |
-| `revenue_gross` | float | 179 | quantity × sales_price_gross_after_discount, PLN |  |
+| `revenue_gross` | float | 179 | quantity × sales_price_gross_after_discount, PLN, as ordered: also for cancelled orders |  |
 
 ## price_history
 
@@ -104,11 +110,11 @@ One row is a list price of a product with its validity period. 146,183 rows in t
 
 ## shipment_data
 
-One row is the shipment of an order. 55,568 rows in the default run.
+One row is the shipment of an order. 52,452 rows in the default run.
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
-| `shipment_id` | int | 1 | shipment key |  |
+| `shipment_id` | int | 1 | shipment key; only orders that shipped have one |  |
 | `order_id` | int | 100001 | order key; one order has 1-5 lines |  |
 | `delivery_method` | text | InPost courier | carrier or pickup |  |
 | `is_bulky` | bool | False | furniture or other goods too large for a parcel locker |  |
@@ -120,20 +126,35 @@ One row is the shipment of an order. 55,568 rows in the default run.
 
 ## return_data
 
-One row is a returned order line. 9,424 rows in the default run.
+One row is a returned order line. 8,878 rows in the default run.
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
 | `return_id` | int | 1 | return key |  |
-| `order_id` | int | 100016 | order key; one order has 1-5 lines |  |
-| `order_line_id` | int | 1000024 | order line key |  |
-| `product_id` | int | 222443 | product key (from 200001) |  |
-| `customer_id` | int | 128565 | customer key (from 100001) |  |
-| `return_date` | datetime | 2023-01-06 | day the return was registered |  |
-| `returned_quantity` | int | 1 | units returned |  |
-| `return_reason` | text | defective | for example wrong_size, changed_mind or defective |  |
-| `refund_amount` | float | 349 | money refunded, PLN |  |
+| `order_id` | int | 100039 | order key; one order has 1-5 lines |  |
+| `order_line_id` | int | 1000064 | order line key |  |
+| `product_id` | int | 211159 | product key (from 200001) |  |
+| `customer_id` | int | 130598 | customer key (from 100001) |  |
+| `return_date` | datetime | 2023-01-05 | day the return was registered |  |
+| `returned_quantity` | int | 3 | units returned |  |
+| `return_reason` | text | changed_mind | for example wrong_size, changed_mind or defective |  |
+| `refund_amount` | float | 537 | money refunded, PLN |  |
 | `return_status` | text | refunded | refunded or rejected |  |
+
+## review_data
+
+One row is a rating of a delivered order line. 18,102 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `review_id` | int | 1 | review key |  |
+| `order_id` | int | 100009 | order key; one order has 1-5 lines |  |
+| `order_line_id` | int | 1000013 | order line key |  |
+| `product_id` | int | 240735 | product key (from 200001) |  |
+| `customer_id` | int | 120166 | customer key (from 100001) |  |
+| `review_date` | datetime | 2023-01-06 | day of the review, after delivery |  |
+| `review_score` | int | 4 | rating from 1 to 5 stars |  |
+| `review_comment` | text | Okay for the price. | one of the ready sentences; empty without a comment |  |
 
 ## campaign_data
 

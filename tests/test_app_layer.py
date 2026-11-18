@@ -134,7 +134,9 @@ def test_headline_numbers(generated):
     numbers = ch.headline_numbers(datasets)
     sales = datasets["sales_data"]
     assert numbers["orders"] == sales["order_id"].nunique()
-    assert numbers["revenue"] == pytest.approx(sales["revenue_gross"].sum())
+    paid = ~sales["order_status"].isin(["cancelled", "payment_failed"])
+    assert numbers["revenue"] == pytest.approx(sales.loc[paid, "revenue_gross"].sum())
+    assert numbers["revenue"] < sales["revenue_gross"].sum()  # cancelled orders bring no revenue
     assert 0 <= numbers["discounted_line_share"] <= 1
 
 
@@ -147,7 +149,7 @@ def test_chart_data_shares_sum_to_one(generated):
     assert weekdays["configured"].sum() == pytest.approx(1.0)
     assert categories["share"].sum() == pytest.approx(1.0)
     assert categories["is_top"].sum() == 1 and categories.iloc[0]["is_top"]
-    assert ch.monthly_revenue_data(sales)["revenue"].sum() == pytest.approx(sales["revenue_gross"].sum())
+    assert ch.monthly_revenue_data(sales)["revenue"].sum() == pytest.approx(ch.realised(sales)["revenue_gross"].sum())
 
 
 def test_polish_category_targets_are_translated():

@@ -36,7 +36,8 @@ def draw_customer_behaviour(customer_data, calendar, generator, category_weights
     Returns:
     pd.DataFrame: One row per customer with customer_id, customer_segment, signup_date, first_order_day (calendar
     index or -1), window_start and window_end (calendar indexes of the period in which repeat orders can happen,
-    empty when start > end), purchase_rate, usual_payment, usual_delivery, preferred_category, price_tier,
+    empty when start > end), purchase_rate, churn_day (calendar index of the last day the customer can buy; can lie
+    outside the period), usual_payment, usual_delivery, preferred_category, price_tier,
     replenishment_type and replenishment_cycle.
     """
     count = len(customer_data)
@@ -60,7 +61,8 @@ def draw_customer_behaviour(customer_data, calendar, generator, category_weights
     delay = np.where(generator.random((~existing).sum()) < bs.first_order_same_day_share, 0,
                      generator.geometric(1 / max(bs.first_order_delay_mean_days, 1), (~existing).sum()))
     candidate = new_signup_day + delay
-    buys = (generator.random((~existing).sum()) >= bs.no_order_share) & (candidate < days)
+    orders_ever = generator.random((~existing).sum()) >= bs.no_order_share
+    buys = orders_ever & (candidate < days)
     new_first = np.where(buys, candidate, NO_DAY)
     first_order_day[~existing] = new_first
 
@@ -76,6 +78,12 @@ def draw_customer_behaviour(customer_data, calendar, generator, category_weights
     window_start = np.where(existing, 0, np.where(first_order_day >= 0, first_order_day + 1, days))
     lifetime_end = np.where(existing, signup_index, first_order_day) + np.floor(lifetime).astype(int)
     window_end = np.minimum(lifetime_end, days - 1)
+    # The day the customer stops buying (truth): the end of the lifetime, also when it falls before or after the
+    # period; new customers who never order are gone from their signup day, customers whose first order would fall
+    # after the period keep the end of the lifetime they would have had.
+    churn_day = lifetime_end.copy()
+    new_churn = np.where(orders_ever, candidate + np.floor(lifetime[~existing]).astype(int), new_signup_day)
+    churn_day[~existing] = new_churn
     window_end = np.where(rate > 0, window_end, -1)
     window_start = np.where(window_end >= window_start, window_start, days)
 
@@ -97,6 +105,7 @@ def draw_customer_behaviour(customer_data, calendar, generator, category_weights
         "window_start": window_start,
         "window_end": window_end,
         "purchase_rate": rate,
+        "churn_day": churn_day,
         "usual_payment": usual_payment,
         "usual_delivery": usual_delivery,
         "age": ages,
@@ -164,6 +173,7 @@ def promo_multiplier(calendar, power):
 
 
 TRUTH_COLUMNS = ["customer_segment", "preferred_category", "price_tier"]
+CHURN_TRUTH_COLUMNS = ["true_purchase_rate", "true_churn_date"]
 
 
 def add_behaviour_columns(customer_data, behaviour):
@@ -175,4 +185,22 @@ def add_behaviour_columns(customer_data, behaviour):
     customer_data["signup_date"] = behaviour["signup_date"].to_numpy()
     for column in TRUTH_COLUMNS:
         customer_data[column] = behaviour[column].to_numpy()
+    return customer_data
+
+
+def add_churn_truth(customer_data, behaviour, annual_rate):
+    """
+    Add the answers for churn and customer value models to the customer table:
+
+    - true_purchase_rate: repeat orders a year the customer places while active, at an average time of the year
+      (the lambda of a BG/NBD or Pareto/NBD model; 0 for one-time buyers),
+    - true_churn_date: the last day the customer can buy; before the period for accounts that were already gone,
+      after it for customers still active at the end, the signup day for accounts that never order.
+    """
+    customer_data = customer_data.copy()
+    first_day = pd.Timestamp(s.start_year, 1, 1)
+    churn = pd.Series(behaviour["churn_day"].to_numpy(), index=behaviour["customer_id"].to_numpy())
+    rate = pd.Series(np.round(annual_rate, 4), index=behaviour["customer_id"].to_numpy())
+    customer_data["true_purchase_rate"] = customer_data["customer_id"].map(rate).to_numpy()
+    customer_data["true_churn_date"] = first_day + pd.to_timedelta(customer_data["customer_id"].map(churn), unit="D")
     return customer_data

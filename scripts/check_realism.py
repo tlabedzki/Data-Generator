@@ -3,7 +3,7 @@ Check the realism criteria of the generated data on the default command-line vol
 
 Usage (from the repository root):
     python scripts/check_realism.py            # all packs
-    python scripts/check_realism.py E A        # selected packs
+    python scripts/check_realism.py E A        # selected packs (E A D B C F G)
 
 Each criterion prints PASS or FAIL with the measured number. The exit code is 1 when any criterion fails.
 """
@@ -21,6 +21,11 @@ import settings.quality_settings as qs  # noqa: E402
 from func import service  # noqa: E402
 
 RESULTS = []
+
+
+def realised(lines):
+    """Lines of orders that were paid and shipped: cancelled and failed orders bring no revenue."""
+    return lines[~lines["order_status"].isin(["cancelled", "payment_failed"])]
 
 
 def check(pack, label, value, passed):
@@ -108,7 +113,7 @@ def check_a(data):
     per_customer = sales.groupby("customer_id")["order_id"].nunique().reindex(customers["customer_id"], fill_value=0)
     ratio = per_customer.var() / per_customer.mean()
     check("A", "orders per customer: variance / mean", f"{ratio:.2f}", ratio > 2)
-    revenue = sales.groupby("customer_id")["revenue_gross"].sum().sort_values(ascending=False)
+    revenue = realised(sales).groupby("customer_id")["revenue_gross"].sum().sort_values(ascending=False)
     top = revenue.head(int(len(customers) * 0.1)).sum() / revenue.sum()
     check("A", "revenue share of the top 10% customers", f"{top:.0%}", top >= 0.35)
     by_segment = revenue.reindex(customers["customer_id"], fill_value=0).groupby(
@@ -159,9 +164,9 @@ def check_d(data):
     check("D", "units per line with / without discount", f"{discounted:.2f} / {full_price:.2f}",
           discounted >= 1.1 * full_price)
     returns = data["return_data"].merge(data["product_data"][["product_id", "category"]], on="product_id")
-    rate = returns.groupby("category").size() / lines.groupby("category").size()
-    check("D", "return rate Clothing / Electronics", f"{rate['Clothing']:.1%} / {rate['Electronics']:.1%}",
-          rate["Clothing"] >= 3 * rate["Electronics"])
+    rate = returns.groupby("category").size() / realised(lines).groupby("category").size()
+    check("D", "return rate Clothing / Electronics (shipped lines)",
+          f"{rate['Clothing']:.1%} / {rate['Electronics']:.1%}", rate["Clothing"] >= 3 * rate["Electronics"])
     shipments = data["shipment_data"]
     bulky_in_locker = shipments.loc[shipments["is_bulky"], "delivery_method"].isin(
         ["InPost parcel locker", "Orlen Paczka", "Allegro One", "Poczta Polska"]).mean()
@@ -262,7 +267,7 @@ def check_c(data):
     total = orders.groupby("order_date").size().reindex(days.index, fill_value=0)
     ratio = (per_day[days] / total[days]).mean() / (per_day[~days] / total[~days]).mean()
     check("C", "social share of orders on social campaign days / other days", f"{ratio:.2f}x", ratio >= 1.3)
-    revenue = data["sales_data"].groupby("campaign_id")["revenue_gross"].sum()
+    revenue = realised(data["sales_data"]).groupby("campaign_id")["revenue_gross"].sum()
     attributed = revenue.reindex(campaigns["campaign_id"]).fillna(0).groupby(campaigns["channel"].to_numpy()).sum()
     roas = attributed / campaigns.groupby("channel")["total_cost"].sum()
     check("C", "ROAS by channel (attributed revenue / cost)", ", ".join(f"{k} {v:.1f}" for k, v in roas.items()),
@@ -319,7 +324,100 @@ def check_f(data):
                   diff - 1.96 * se <= row.true_effect <= diff + 1.96 * se)
 
 
-PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f}
+# ---------------------------------------------------------------------------------------------------------------- #
+# Pack G: order status, reviews and churn truth
+
+EXPECTED_PAYMENT = {"delivered": {"paid"}, "returned": {"refunded"}, "payment_failed": {"failed"},
+                    "cancelled": {"refunded", "unpaid"}}
+
+
+def check_g(data):
+    import settings.commerce_settings as cs
+    import settings.quality_settings as qs
+    lines, shipments, returns, reviews = (data["order_data"], data["shipment_data"], data["return_data"],
+                                          data["review_data"])
+    orders = lines.drop_duplicates("order_id").set_index("order_id")
+
+    failed = orders.groupby("payment_method")["order_status"].apply(lambda status: (status == "payment_failed").mean())
+    check("G", "failed payments, deferred payment / BLIK (setting 10% / 1.2%)",
+          f"{failed['Deferred payment']:.1%} / {failed['BLIK']:.1%}", failed["Deferred payment"] >= 3 * failed["BLIK"])
+    lost = orders["order_status"].isin(["cancelled", "payment_failed"])
+    check("G", "orders cancelled or with a failed payment (settings give about 5%)", f"{lost.mean():.1%}",
+          0.03 <= lost.mean() <= 0.08)
+    lost_ids = orders.index[lost]
+    leaks = int(shipments["order_id"].isin(lost_ids).sum() + returns["order_id"].isin(lost_ids).sum()
+                + reviews["order_id"].isin(lost_ids).sum())
+    check("G", "cancelled or failed orders with a shipment, return or review", leaks, leaks == 0)
+    cancelled = orders[orders["order_status"] == "cancelled"]
+    wrong = sum(int((~orders.loc[orders["order_status"] == status, "payment_status"].isin(allowed)).sum())
+                for status, allowed in EXPECTED_PAYMENT.items())
+    wrong += int((cancelled["cancelled_at"] <= cancelled["order_datetime"]).sum()
+                 + cancelled["cancel_reason"].isna().sum()
+                 + orders.loc[orders["order_status"] != "cancelled", "cancelled_at"].notna().sum())
+    check("G", "payment status, cancel time or reason that contradicts the order status", wrong, wrong == 0)
+    refunded = returns[returns["return_status"] == "refunded"].set_index("order_line_id")["returned_quantity"]
+    full = lines["order_line_id"].map(refunded).fillna(0).to_numpy() >= lines["quantity"].to_numpy()
+    all_back = pd.Series(full).groupby(lines["order_id"].to_numpy()).all()
+    shipped = orders.index[orders["order_status"].isin(["delivered", "returned"])]
+    expected_returned = set(all_back[all_back].index) & set(shipped)
+    actual_returned = set(orders.index[orders["order_status"] == "returned"])
+    check("G", "returned orders / shipped orders refunded in full, line by line",
+          f"{len(actual_returned)} / {len(expected_returned)}", actual_returned == expected_returned)
+    peak = cancelled["order_date"].dt.month.isin(cs.peak_months)
+    stock = cancelled.groupby(peak)["cancel_reason"].apply(lambda reason: (reason == "out_of_stock").mean())
+    check("G", "out_of_stock share of cancellations, November-December / other months",
+          f"{stock[True]:.0%} / {stock[False]:.0%}", stock[True] >= 1.5 * stock[False])
+
+    reached = lines[lines["order_id"].isin(shipments["order_id"]) & ~lines["is_fraud"]]
+    late = reached["order_id"].map(shipments.set_index("order_id")["is_late"]).to_numpy(dtype=bool)
+    defect = reached["order_line_id"].isin(
+        returns.loc[returns["return_reason"].isin(cs.defect_return_reasons), "order_line_id"]).to_numpy()
+    experience = pd.Series(np.where(defect, "defect", np.where(late, "late", "on_time")),
+                           index=reached["order_line_id"].to_numpy())
+    rated = reviews.assign(experience=reviews["order_line_id"].map(experience))
+    mean = rated.groupby("experience")["review_score"].mean()
+    check("G", "average rating on time / late / returned as defective or damaged",
+          f"{mean['on_time']:.2f} / {mean['late']:.2f} / {mean['defect']:.2f}",
+          mean["on_time"] - mean["late"] >= 0.5 and mean["late"] - mean["defect"] >= 0.5)
+    share = rated.groupby("experience").size() / experience.value_counts()
+    check("G", "lines reviewed, late / on time (bad experiences get more reviews)",
+          f"{share['late']:.0%} / {share['on_time']:.0%}", share["late"] >= 1.3 * share["on_time"])
+    delivered = reviews["order_id"].map(shipments.set_index("order_id")["delivered_at"]).dt.normalize()
+    early = int((reviews["review_date"] <= delivered).sum() + delivered.isna().sum())
+    check("G", "reviews dated on or before delivery, or of lines never delivered", early, early == 0)
+    stars = reviews["review_score"].value_counts(normalize=True)
+    check("G", "ratings with 5 / 1 / 2 stars (J-shaped, as in real shops)",
+          f"{stars[5]:.0%} / {stars[1]:.0%} / {stars[2]:.0%}", stars.idxmax() == 5 and stars[1] > stars[2])
+
+    customers = data["customer_data"].set_index("customer_id")
+    legit = orders[~orders["is_fraud"]]
+    after = (legit["order_date"] - legit["customer_id"].map(customers["true_churn_date"])).dt.days
+    beyond = int((after > qs.outage_recovery_days).sum())
+    check("G", f"orders more than {qs.outage_recovery_days} days after true_churn_date (outages move orders "
+               f"by up to {qs.outage_recovery_days} days)", f"{beyond} ({int((after > 0).sum())} moved by an outage)",
+          beyond == 0)
+    start, end = pd.Timestamp(s.start_year, 1, 1), pd.Timestamp(s.end_year, 12, 31)
+    first = legit.groupby("customer_id")["order_date"].min().reindex(customers.index)
+    count = legit.groupby("customer_id").size().reindex(customers.index, fill_value=0)
+    existing = customers["signup_date"] < start
+    window_start = first.where(~existing, start)
+    window_end = customers["true_churn_date"].clip(upper=end)
+    years = ((window_end - window_start).dt.days.clip(lower=0) + existing.astype(int)) / 365
+    repeats = (count - (~existing).astype(int)).clip(lower=0)
+    active = existing | first.notna()
+    ratio = repeats[active].sum() / (customers["true_purchase_rate"] * years)[active].sum()
+    check("G", "repeat orders in the period / true_purchase_rate x active years", f"{ratio:.3f}",
+          abs(ratio - 1) <= 0.05)
+    last = legit.groupby("customer_id")["order_date"].max().reindex(customers.index)
+    churned = customers["true_churn_date"] <= end
+    silent = last.notna() & (last < end - pd.Timedelta(days=180))
+    recent = last.notna() & ~silent
+    check("G", "churned by the end: buyers silent for the last 180 days / recent buyers",
+          f"{churned[silent].mean():.0%} / {churned[recent].mean():.0%}",
+          churned[silent].mean() >= 2 * churned[recent].mean())
+
+
+PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f, "G": check_g}
 
 
 def main(selected):
