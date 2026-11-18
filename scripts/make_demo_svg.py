@@ -9,11 +9,12 @@ the preview with the charts, the month weights) and the preset cards before the 
 CSS animations. The script starts the app on 127.0.0.1 with English number notation, takes the
 screenshots with headless Chrome or Edge (CDP) and stops the app. Then it embeds the screenshots as WebP and draws
 the moving parts as vectors: the cursor, the clicks, the progress bar and the November point of the seasonality
-chart, dragged up with its line and value. The story: pick Large, generate, glide through the preview to the charts,
-then drag November up to reshape the season. The loop ends on its first frame, so the seam does not jump.
+chart, dragged up with its line and value. The story opens on the result: the key numbers of the generated shop and
+the revenue chart, then November dragged up to reshape the season, then the parameters (pick Large, generate),
+which lead back to the result. The loop ends on its first frame, so the seam does not jump.
 
 Only CSS inside the SVG, no script: GitHub shows README images through <img>. With prefers-reduced-motion the image
-shows the end state without motion. The two files differ only in the browser frame (light and dark GitHub theme).
+shows the revenue chart without motion. The two files differ only in the browser frame (light and dark GitHub theme).
 --shots keeps the screenshots and their geometry in DIR; --reuse builds from them without starting the app.
 """
 import argparse
@@ -209,8 +210,9 @@ def stop_app(app):
 class Motion:
     """CSS keyframes on one timeline. Each track: (seconds, value, easing to the next stop)."""
 
-    def __init__(self, total):
+    def __init__(self, total, start=0.0):
         self.total = total
+        self.start = start  # second of the timeline shown first: a negative delay starts every track there
         self.css = []
         self.count = 0
 
@@ -226,7 +228,8 @@ class Motion:
         frames = "".join(f"{s / self.total * 100:.3f}%{{{prop}:{value};animation-timing-function:{ease}}}"
                          for s, value, ease in stops)
         self.css.append(f"@keyframes {name}{{{frames}}}"
-                        f".{name}{{{prop}:{rest};animation:{name} {self.total:g}s linear infinite both}}")
+                        f".{name}{{{prop}:{rest};"
+                        f"animation:{name} {self.total:g}s linear -{self.start:g}s infinite both}}")
         return name
 
 
@@ -277,11 +280,13 @@ def build(shots, quality):
     # weights above it, and the loop slides back up to the parameters.
     slide = 0.9
     t_large, t_scroll, t_generate, t_results = 1.35, 1.9, 3.3, 4.6
-    t_charts, t_weights = 6.4, 9.2
-    t_grab, t_drag, drag_len, t_out = 10.85, 10.95, 1.3, 13.2
+    t_charts, t_weights = 7.6, 10.8
+    t_grab, t_drag, drag_len, t_out = 12.45, 12.55, 1.3, 14.8
     t_release = t_drag + drag_len
     T = t_out + slide  # loop length
-    m = Motion(T)
+    # The loop is shown from the moment the preview is in place: the README opens on the result (key numbers, then
+    # the revenue chart), then the weights, then the parameters and Generate, which lead back to the result.
+    m = Motion(T, start=t_results + 1.35)
     images = {name: webp(shots / f"{name}.png", quality) for name in ("parameters", "presets-medium", "results",
                                                                       "weights")}
     size = {name: Image.open(shots / f"{name}.png").size for name in images}
@@ -337,7 +342,7 @@ def build(shots, quality):
             f'<g class="{results_fade}">{image("results", 0, at_preview)}</g></g>')
     # it leaves downwards when the weights come in from above and comes back from above at the end of the loop
     scene1 = scene(page, [(t_weights, 0, EASE), (t_weights + slide, vh, "linear"), (hidden, vh, "linear"),
-                          (hidden + 0.01, -vh, "linear"), (t_out, -vh, EASE), (T, 0, "linear")], vh)
+                          (hidden + 0.01, -vh, "linear"), (t_out, -vh, EASE), (T, 0, "linear")], 0)
 
     # Scene 3: month weights, sliding down from above. The cursor grabs November and drags it up to the ceiling.
     xs = [x * k for x in wei["x"]]
@@ -403,7 +408,7 @@ def build(shots, quality):
               f'<g font-family="DgNum, Inter, \'Segoe UI\', sans-serif" font-size="{11 * k:.2f}" text-anchor="middle" '
               f'fill="{t.TEXT}">{"".join(labels)}</g></g>')
     scene3 = scene(page3, [(0, -vh, "linear"), (t_weights, -vh, EASE), (t_weights + slide, 0, "linear"),
-                           (t_out, 0, EASE), (T, vh, "linear")], 0)
+                           (t_out, 0, EASE), (T, vh, "linear")], -vh)
 
     # The cursor: one track for its position, one for its visibility and one for the press
     grab = (nx, ny)
@@ -435,8 +440,8 @@ def build(shots, quality):
               f'<path d="{CURSOR}" transform="scale(1.15)" fill="#14232a" stroke="#ffffff" stroke-width="1.3" '
               f'stroke-linejoin="round" filter="url(#shadow)"/></g></g></g>')
 
-    alt = ("Data Generator app, illustrated: pick the Large preset, click Generate data, glide through the preview "
-           "and the monthly revenue chart, then drag November up on the month weights to reshape the season.")
+    alt = ("Data Generator app, illustrated: the generated shop's key numbers and monthly revenue chart, then November "
+           "dragged up on the month weights to reshape the season, then the Large preset and Generate data.")
     css = (font_face() + "".join(m.css)
            + "@media (prefers-reduced-motion:reduce){*{animation:none!important}}")
     host = "127.0.0.1:8050"

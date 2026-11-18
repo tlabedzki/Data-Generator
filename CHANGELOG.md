@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Added:
 - `notebooks/worked_example.ipynb`, saved with its outputs: three questions answered from the raw tables and then checked against the truth columns (an A/B test with a sample ratio check, cohort retention and RFM against `customer_segment`, fraud rules scored with precision and recall against `is_fraud`). `scripts/make_notebook.py` writes and runs it; two runs give the same file.
 
+- `docs/columns.md`: every column of every table with its type, an example, its meaning and whether it holds the truth; `docs/realism.md`: all realism criteria with their values; `docs/data-model.md`: the table diagram. `scripts/make_charts.py` writes the first two from the default run.
+
+Changed:
+- README: shorter (about 6,700 px on github.com instead of 8,000). The table diagram, the full list of realism criteria and the column details moved to `docs/`; the postal code numbers and the largest city's share of customers are generated like the other numbers.
+- README demo: the animation opens on the result, the shop's key numbers and the revenue chart, then the month weights and the parameters; with reduced motion it shows the revenue chart.
+
 Removed:
 - The exploratory notebook `generated_data_analysis.ipynb` (in Polish, without outputs) and its `itables` dependency.
 

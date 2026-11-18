@@ -38,9 +38,8 @@ def sample_block(datasets):
         cells = [f"{row['order_date']:%Y-%m-%d}", str(row["order_id"]), row["category"], row["product_name"],
                  str(row["quantity"]), nf.number(row["revenue_gross"], 2), row["city"]]
         lines.append("| " + " | ".join(cells) + " |")
-    lines += ["", wrap(f"Three of the {nf.number(len(sales))} rows of `sales_data` from the default run with English "
-                       f"values. The table has {len(sales.columns)} columns: each order line joined with its customer "
-                       "and product.")]
+    lines += ["", wrap(f"Three of the {nf.number(len(sales))} rows of `sales_data` ({len(sales.columns)} columns: each "
+                       "order line joined with its customer and product) from the default run with English values.")]
     return "\n".join(lines)
 
 
@@ -108,7 +107,7 @@ def realism_checks(datasets):
 
 
 def realism_block(rows):
-    """Headline criteria as a table, then every criterion in a collapsed list."""
+    """Headline criteria as a table; docs/realism.md lists all of them."""
     passed = sum(row[3] for row in rows)
     found = {}
     for pack, label, value, _ in rows:
@@ -117,27 +116,30 @@ def realism_block(rows):
     for pack, prefix, wording in HEADLINES:
         value = next(v for (p, label), v in found.items() if p == pack and label.startswith(prefix))
         lines.append(f"| {wording} | **{value}** |")
-    lines += ["", f"<details><summary>All {len(rows)} realism criteria ({passed} pass)</summary>", ""]
-    for pack, name in PACK_NAMES.items():
-        lines += [f"**{name}**", ""]
-        lines += [f"- {'✅' if ok else '❌'} {label}: {value}" for p, label, value, ok in rows if p == pack]
-        lines.append("")
-    lines += ["`python scripts/check_realism.py` runs the same criteria and exits with 1 when any of them fails.", "",
-              "</details>"]
     return "\n".join(lines), passed, len(rows)
 
 
-def results_block(datasets, weights):
+def results_block(datasets, weights, rows):
     sales = datasets["sales_data"]
     texts = {"monthly-revenue": ch.monthly_revenue_text(sales), "weekday-profile": ch.weekday_text(sales, weights),
              "category-mix": ch.category_text(sales)}
     parts = []
     for stem, takeaway in CHARTS:
         parts += [picture(stem, texts[stem][0]), "", wrap(takeaway(sales, weights)), ""]
-    table, passed, total = realism_block(realism_checks(datasets))
+    table, passed, total = realism_block(rows)
     parts += [wrap(f"Beyond the charts, {passed} of {total} realism criteria pass on the same run. The table shows ten "
-                   "of them; the list under it shows all."), "", table]
+                   "of them; [docs/realism.md](docs/realism.md) lists all with their values."), "", table]
     return "\n".join(parts)
+
+
+def data_block(datasets, postal_codes):
+    """Postal code source numbers and how customers spread over localities."""
+    city_share = datasets["customer_data"]["city"].value_counts(normalize=True)
+    return wrap(f"Customer addresses take a real postal code and its main locality from `source/pl_postal_code.csv` "
+                f"({nf.number(len(postal_codes))} Polish postal codes, {nf.number(postal_codes['city'].nunique())} "
+                "localities), drawn with a weight equal to the number of addresses. Addresses count buildings rather "
+                "than residents, so cities with large apartment blocks get fewer customers than their population "
+                f"would suggest: {city_share.index[0]} has {pct(city_share.iloc[0], 1)} of customers.")
 
 
 def cli_block(datasets):

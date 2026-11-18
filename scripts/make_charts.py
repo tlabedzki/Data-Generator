@@ -23,12 +23,13 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_DIR))
 
-import readme_numbers  # noqa: E402  (scripts/ is on sys.path when this file runs)
+import data_dictionary  # noqa: E402  (scripts/ is on sys.path when this file runs)
+import readme_numbers  # noqa: E402
 
 import func.charts as ch  # noqa: E402
 import func.number_format as nf  # noqa: E402
 import settings.main_settings as s  # noqa: E402
-from func import service  # noqa: E402
+from func import customer, service  # noqa: E402
 from ui import figures  # noqa: E402
 from ui import theme as t  # noqa: E402
 
@@ -129,12 +130,17 @@ def main():
             save_png(browser, chart_page(text, figure, css), height, f"{name}{suffix}.png")
             print(f"{name}{suffix}.png: {text[0]} | {' '.join(text[1])}")
     print(f"Charts saved to {IMG_DIR}")
+    rows = readme_numbers.realism_checks(datasets)
     with nf.notation("en"):
         blocks = {"sample": readme_numbers.sample_block(datasets),
-                  "results": readme_numbers.results_block(datasets, weights),
-                  "cli": readme_numbers.cli_block(datasets)}
+                  "results": readme_numbers.results_block(datasets, weights, rows),
+                  "cli": readme_numbers.cli_block(datasets),
+                  "data": readme_numbers.data_block(datasets, customer.code_df)}
     readme_numbers.update_readme(PROJECT_DIR / "README.md", blocks)
-    print("README.md numbers updated")
+    data_dictionary.write(PROJECT_DIR / "docs" / "columns.md", data_dictionary.columns_markdown(datasets))
+    data_dictionary.write(PROJECT_DIR / "docs" / "realism.md",
+                          data_dictionary.realism_markdown(rows, readme_numbers.PACK_NAMES))
+    print("README.md numbers, docs/columns.md and docs/realism.md updated")
 
 
 if __name__ == "__main__":
