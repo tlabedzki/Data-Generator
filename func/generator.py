@@ -73,11 +73,12 @@ def run_generation_pipeline(progress=None):
     if "order_data" in needed:
         customers, products = tables["customer_data"], tables["product_data"]
         calendar = cal.build_calendar(rng.stream("calendar"))
-        behaviour = b.draw_customer_behaviour(customers, calendar, rng.stream("behaviour"))
+        order_params = get_order_generation_params(products)
+        behaviour = b.draw_customer_behaviour(customers, calendar, rng.stream("behaviour"),
+                                              order_params["product_category_weights"])
         customers = tables["customer_data"] = b.add_behaviour_columns(customers, behaviour)
         extra["price_history"] = pr.build_price_history(products, rng.stream("prices"))
         price_book = pr.PriceBook(products, extra["price_history"], calendar)
-        order_params = get_order_generation_params(products)
         order_data = o.generate_order_data(s.order_data_rows, order_params, behaviour, calendar, price_book,
                                            rng.stream("orders"), stage_progress("order_data"))
         order_data, anomalies = an.inject_anomalies(order_data, customers, products)
@@ -200,7 +201,17 @@ def get_order_generation_params(product_data):
     dict: Product IDs and sales weights by category, category probabilities and gross prices by product.
     """
     params = get_product_selection_params(product_data)
-    params["price_by_product"] = product_data.set_index("product_id")["sales_price_gross"]
+    by_type = product_data.groupby("product_type")
+    params["product_ids_by_type"] = {name: group["product_id"].to_numpy() for name, group in by_type}
+    params["product_weights_by_type"] = {
+        name: group["product_popularity"].astype(float).to_numpy() * np.power(
+            group["brand"].map(ms.category_brand_weights[group["category"].iloc[0]]).fillna(1).astype(float).to_numpy(),
+            ms.brand_sales_weight_power)
+        for name, group in by_type}
+    params["category_by_type"] = by_type["category"].first().to_dict()
+    indexed = product_data.set_index("product_id")
+    params["product_type_by_id"] = indexed["product_type"]
+    params["category_by_id"] = indexed["category"]
     return params
 
 def get_product_selection_params(product_data):

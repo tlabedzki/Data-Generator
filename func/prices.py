@@ -132,6 +132,8 @@ class PriceBook:
         lowest = price_history.groupby("product_id")["sales_price_gross"].min()
         self.lowest = lowest.reindex(products).to_numpy()
         self.elasticity = np.array([price_elasticity(c) for c in product_data["category"]])
+        median = product_data.groupby("category")["sales_price_gross"].transform("median")
+        self.relative_price = (product_data["sales_price_gross"] / median).to_numpy()
 
     def positions(self, product_ids):
         return self.product_position.reindex(product_ids).to_numpy()
@@ -148,9 +150,15 @@ class PriceBook:
         days = np.asarray(days)
         return (self.launch_day[position] <= days) & (days < self.stop_day[position])
 
-    def acceptance(self, product_ids, days):
-        """Chance to keep a drawn product: 0 when not on sale, else (price / lowest price) ** -elasticity."""
+    def acceptance(self, product_ids, days, tier_exponent=None):
+        """
+        Chance to keep a drawn product: 0 when not on sale, else (price / lowest price) ** -elasticity, times
+        min(1, (price / category median) ** tier_exponent) for the customer's price tier.
+        """
         gross, _ = self.lookup(product_ids, days)
         position = self.positions(product_ids)
         ratio = gross / self.lowest[position]
-        return np.where(self.available(product_ids, days), ratio ** -self.elasticity[position], 0.0)
+        chance = ratio ** -self.elasticity[position]
+        if tier_exponent is not None:
+            chance = chance * np.minimum(1.0, self.relative_price[position] ** np.asarray(tier_exponent))
+        return np.where(self.available(product_ids, days), chance, 0.0)

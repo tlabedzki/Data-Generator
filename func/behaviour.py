@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 import func.data as d
+import settings.basket_settings as bk
 import settings.behaviour_settings as bs
 import settings.main_settings as s
 import settings.market_settings as ms
@@ -22,7 +23,7 @@ def segment_table():
     return table
 
 
-def draw_customer_behaviour(customer_data, calendar, generator):
+def draw_customer_behaviour(customer_data, calendar, generator, category_weights=None):
     """
     Draw the behaviour of every customer.
 
@@ -30,11 +31,13 @@ def draw_customer_behaviour(customer_data, calendar, generator):
     customer_data (pd.DataFrame): Customers (customer_id, age, gender).
     calendar (pd.DataFrame): Daily calendar from func.calendar.build_calendar.
     generator (np.random.Generator): Random stream.
+    category_weights (dict, optional): Base category probabilities of order lines, for the favourite category.
 
     Returns:
     pd.DataFrame: One row per customer with customer_id, customer_segment, signup_date, first_order_day (calendar
     index or -1), window_start and window_end (calendar indexes of the period in which repeat orders can happen,
-    empty when start > end), purchase_rate, usual_payment and usual_delivery.
+    empty when start > end), purchase_rate, usual_payment, usual_delivery, preferred_category, price_tier,
+    replenishment_type and replenishment_cycle.
     """
     count = len(customer_data)
     days = len(calendar)
@@ -79,6 +82,12 @@ def draw_customer_behaviour(customer_data, calendar, generator):
     usual_payment = draw_from(ms.payment_method_with_probabilities, generator, count)
     usual_delivery = draw_from(ms.delivery_method_with_probabilities, generator, count)
 
+    ages, genders = customer_data["age"].to_numpy(), customer_data["gender"].to_numpy()
+    preferred = draw_preferred_categories(ages, genders, category_weights, generator)
+    tiers = pd.Series({name: tier["share"] for name, tier in bk.price_tiers.items()})
+    price_tier = generator.choice(tiers.index.to_numpy(), size=count, p=(tiers / tiers.sum()).to_numpy())
+    replenishment_type, replenishment_cycle = draw_replenishment(segment, ages, generator)
+
     return pd.DataFrame({
         "customer_id": customer_data["customer_id"].to_numpy(),
         "customer_segment": segment,
@@ -90,9 +99,51 @@ def draw_customer_behaviour(customer_data, calendar, generator):
         "purchase_rate": rate,
         "usual_payment": usual_payment,
         "usual_delivery": usual_delivery,
-        "age": customer_data["age"].to_numpy(),
-        "gender": customer_data["gender"].to_numpy(),
+        "age": ages,
+        "gender": genders,
+        "preferred_category": preferred,
+        "price_tier": price_tier,
+        "replenishment_type": replenishment_type,
+        "replenishment_cycle": replenishment_cycle,
     })
+
+
+def draw_preferred_categories(ages, genders, category_weights, generator):
+    """Favourite category of every customer: base category mix × age and gender affinity."""
+    weights = category_weights or ms.category_revenue_target_weights
+    categories, base = d.get_param_list_and_normalized_probabilities(weights)
+    preferred = np.empty(len(ages), dtype=object)
+    limits = sorted(bs.age_category_affinity)
+    group = np.minimum(np.searchsorted(limits, ages, side="left"), len(limits) - 1)
+    for g, limit in enumerate(limits):
+        for gender in ("Female", "Male"):
+            slots = (group == g) & (genders == gender)
+            if not slots.any():
+                continue
+            p = np.asarray(base) * np.array([bs.age_category_affinity[limit].get(c, 1.0) for c in categories]) \
+                * np.array([bs.gender_category_affinity.get(gender, {}).get(c, 1.0) for c in categories])
+            preferred[slots] = np.asarray(categories, dtype=object)[
+                generator.choice(len(categories), size=slots.sum(), p=p / p.sum())]
+    return preferred
+
+
+def draw_replenishment(segment, ages, generator):
+    """Consumable product type some loyal and regular customers buy on a cycle ("" for nobody)."""
+    count = len(segment)
+    kinds = list(bk.replenishment_products)
+    shares = np.array([bk.replenishment_products[k][1] for k in kinds])
+    baby = np.array([k in ("Diapers", "Baby Formula") for k in kinds])
+    young_parent = (ages >= 25) & (ages <= 44)
+    p = np.tile(shares, (count, 1))
+    p[:, baby] *= np.where(young_parent, 2.0, 0.2)[:, None]
+    p[~np.isin(segment, bk.replenishment_segments)] = 0.0
+    none = np.clip(1 - p.sum(axis=1), 0, None)
+    cumulative = np.cumsum(np.column_stack([p, none]), axis=1)
+    cumulative /= cumulative[:, -1:]
+    choice = (cumulative < generator.random(count)[:, None]).sum(axis=1)
+    kind = np.array(kinds + [""], dtype=object)[np.minimum(choice, len(kinds))]
+    cycle = np.array([bk.replenishment_products[k][0] if k else 0 for k in kind])
+    return kind, cycle
 
 
 def draw_days_from(calendar, generator, size):
@@ -112,9 +163,16 @@ def promo_multiplier(calendar, power):
     return multiplier[months - 1] ** power
 
 
+TRUTH_COLUMNS = ["customer_segment", "preferred_category", "price_tier"]
+
+
 def add_behaviour_columns(customer_data, behaviour):
-    """Add signup_date and customer_segment to the customer table (after customer_id and personal data)."""
+    """
+    Add signup_date and the hidden truth columns (customer_segment, preferred_category, price_tier) to the
+    customer table. The truth columns are the answers for segmentation and recommendation exercises.
+    """
     customer_data = customer_data.copy()
     customer_data["signup_date"] = behaviour["signup_date"].to_numpy()
-    customer_data["customer_segment"] = behaviour["customer_segment"].to_numpy()
+    for column in TRUTH_COLUMNS:
+        customer_data[column] = behaviour[column].to_numpy()
     return customer_data

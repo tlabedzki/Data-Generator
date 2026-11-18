@@ -4,6 +4,7 @@ The settings live in the `settings/` package:
 
 - `settings/main_settings.py` controls the generation process.
 - `settings/behaviour_settings.py` controls the demand calendar, customer segments, churn, demographics and habits.
+- `settings/basket_settings.py` controls products bought together, customer preferences and replenishment.
 - `settings/commerce_settings.py` controls special days, product life cycle, price changes, price elasticity, order
   times, shipping and returns.
 - `settings/quality_settings.py` controls dirty data (data quality issues) and labelled anomalies.
@@ -172,7 +173,7 @@ over its days, so the weekday profile follows `base_weekday_seasonality`.
 Customers follow a "buy till you die" model (`func/behaviour.py`, settings in `settings/behaviour_settings.py`):
 
 1. Every customer gets a hidden segment, saved in `customer_data.customer_segment` as the answer for checking a
-   segmentation (drop it before clustering).
+   segmentation (drop it, `preferred_category` and `price_tier` before clustering).
 2. `existing_customer_share` (45%) signed up before the period, spread over `existing_customer_years` (4). The rest
    sign up during the period following the demand calendar; `signup_date` is in `customer_data`.
 3. New customers place their first order on the signup day (`first_order_same_day_share`, 60%) or after a short
@@ -215,6 +216,31 @@ more electronics and clothing, older ones more health, home and DIY products.
 Customers keep habits: `usual_payment_share` (70%) of orders are paid with the customer's usual method and
 `usual_delivery_share` (60%) delivered the usual way. Orders above `high_value_order_threshold` (2000 PLN gross) use
 `high_value_payment_multipliers`, so expensive orders are paid more often with deferred payment or card.
+
+## Market Basket And Preferences
+
+Settings in `settings/basket_settings.py`.
+
+**Products bought together.** `complements` maps a product type to the types bought with it. In an order with more
+than one line, every further line becomes a complement of the first line's type with the given probability:
+
+```python
+complements = {
+    "Laptop": {"Wireless Mouse": 0.35, "Headphones": 0.12, "Backpack": 0.10},
+    "Cat Food": {"Pet Litter": 0.45, "Pet Toy": 0.15},
+}
+```
+
+**Favourite category.** Every customer has `preferred_category` (drawn with the age and gender affinities);
+`category_loyalty` (30%) of their lines come from it. **Price tier.** `price_tier` is `budget`, `standard` or
+`premium` (`price_tiers`: share and exponent); the chance to keep a drawn product is multiplied by
+`min(1, (price / category median) ** exponent)`, so premium customers buy dearer products. Both columns are hidden
+truth in `customer_data` for recommendation and segmentation exercises.
+
+**Replenishment.** `replenishment_products` lists consumables with their cycle in days and the share of loyal and
+regular customers who buy them again and again (baby products mostly for customers aged 25-44). Their repeat orders
+follow the cycle (±`replenishment_jitter`) and start with the same product. The other repeat orders fill up every
+day, so the totals still follow the calendar.
 
 ## Special Days
 

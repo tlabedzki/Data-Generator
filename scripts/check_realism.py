@@ -190,7 +190,47 @@ def check_d(data):
           late[True] > late[False])
 
 
-PACKS = {"E": check_e, "A": check_a, "D": check_d}
+# ---------------------------------------------------------------------------------------------------------------- #
+# Pack B: basket and preferences
+
+def pair_lift(lines, first, second):
+    baskets = lines.groupby("order_id")["product_type"].agg(set)
+    has_first = baskets.map(lambda types: first in types)
+    has_second = baskets.map(lambda types: second in types)
+    both = (has_first & has_second).mean()
+    return both / (has_first.mean() * has_second.mean()), int((has_first & has_second).sum())
+
+
+def check_b(data):
+    lines = data["sales_data"][~data["sales_data"]["is_fraud"]]
+    for first, second in [("Laptop", "Wireless Mouse"), ("Smartphone", "Headphones"), ("Office Desk", "Office Chair")]:
+        lift, together = pair_lift(lines, first, second)
+        check("B", f"lift {first} + {second}", f"{lift:.1f} ({together} orders)", lift > 3)
+    lift, together = pair_lift(lines, "Cat Food", "Pet Litter")
+    check("B", "lift Cat Food + Pet Litter (litter is bought by cat owners anyway)", f"{lift:.1f} ({together} orders)",
+          lift > 1.5)
+    orders = lines.sort_values("order_datetime").groupby("order_id").agg(
+        customer=("customer_id", "first"), category=("category", "first"))
+    previous = orders.groupby("customer")["category"].shift()
+    repeat = orders[previous.notna()]
+    same = (repeat["category"] == previous[previous.notna()]).mean()
+    share = orders["category"].value_counts(normalize=True)
+    random_same = (share ** 2).sum()
+    check("B", "same first category as the previous order / at random", f"{same:.1%} / {random_same:.1%}",
+          same >= random_same + 0.10)
+    pet = lines[lines["product_type"].isin(["Dog Food", "Cat Food"])].drop_duplicates(["order_id", "product_id"])
+    pet = pet.sort_values("order_date")
+    gaps = pet.groupby(["customer_id", "product_id"])["order_date"].diff().dt.days.dropna()
+    check("B", "median days between repeat purchases of the same pet food", f"{gaps.median():.0f} ({len(gaps)} repeats)",
+          25 <= gaps.median() <= 45)
+    tier_price = lines.groupby("price_tier")["unit_price_gross"].median()
+    check("B", "median unit price premium / budget customers",
+          f"{tier_price['premium']:.0f} / {tier_price['budget']:.0f} PLN", tier_price["premium"] >= 1.5 * tier_price["budget"])
+    favourite = (lines["category"] == lines["preferred_category"]).mean()
+    check("B", "lines from the customer's preferred category", f"{favourite:.0%}", favourite >= 0.35)
+
+
+PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b}
 
 
 def main(selected):

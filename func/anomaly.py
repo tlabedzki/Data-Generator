@@ -76,7 +76,7 @@ def shop_outage_days(generator):
     return [pd.Timestamp(day) for day in days]
 
 
-def apply_shop_outages(order_data, generator):
+def apply_shop_outages(order_data, generator, product_data=None):
     """
     Move most orders of each outage day to the following days (customers come back once the shop works again).
 
@@ -92,6 +92,13 @@ def apply_shop_outages(order_data, generator):
         new_dates = pd.Series([min(day + pd.Timedelta(days=int(n)), last_day) for n in shift_days], index=moved,
                               dtype="datetime64[ns]")
         lines = order_data["order_id"].isin(moved)
+        if product_data is not None and "discontinued_date" in product_data:
+            # An order whose product is withdrawn before the new date stays on the outage day.
+            stop = order_data.loc[lines, "product_id"].map(product_data.set_index("product_id")["discontinued_date"])
+            blocked = order_data.loc[lines, "order_id"][stop <= order_data.loc[lines, "order_id"].map(new_dates)]
+            new_dates = new_dates.drop(blocked.unique())
+            moved = new_dates.index.to_numpy()
+            lines = order_data["order_id"].isin(moved)
         order_data.loc[lines, "order_date"] = order_data.loc[lines, "order_id"].map(new_dates)
         records.append({
             "anomaly_type": "shop_outage",
@@ -214,7 +221,7 @@ def inject_anomalies(order_data, customer_data, product_data):
         order_data = add_shipping_postal_codes(order_data, customer_data, generator)
     records = []
     if qs.inject_anomalies:
-        order_data, outage_records = apply_shop_outages(order_data, generator)
+        order_data, outage_records = apply_shop_outages(order_data, generator, product_data)
         blocked = [record["start_date"] for record in outage_records]
         order_data, fraud_records = add_fraud_rings(order_data, customer_data, product_data, generator, blocked)
         records = outage_records + fraud_records
