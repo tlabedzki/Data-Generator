@@ -3,6 +3,7 @@
 venv/
 __pycache__/
 .pytest_cache/
+.ruff_cache/
 .ipynb_checkpoints/
 .idea/
 .env
@@ -10,9 +11,5 @@ __pycache__/
 # Generated data (reproducible with main.py, not stored in the repo):
 export/*
 
-# Local assistant instructions:
-CODEX.local.md
-
-# Temporary files used to prepare postal codes:
-source/postal_code_original.csv
-func/postal_code.py
+# Raw postal code download (scripts/build_postal_codes.py turns it into source/pl_postal_code.csv):
+kody-pocztowe.csv

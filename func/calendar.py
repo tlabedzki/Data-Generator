@@ -91,7 +91,7 @@ def easter_sunday(year):
     g = (b - f + 1) // 3
     h = (19 * a + b - d - g + 15) % 30
     i, k = c // 4, c % 4
-    l = (32 + 2 * e + 2 * i - h - k) % 7
+    l = (32 + 2 * e + 2 * i - h - k) % 7  # noqa: E741 (letters follow the published algorithm)
     m = (a + 11 * h + 22 * l) // 451
     month = (h + l - 7 * m + 114) // 31
     day = (h + l - 7 * m + 114) % 31 + 1
@@ -131,26 +131,3 @@ def special_day_names(dates):
             days = [day for day in days if day in names.index]
             names.loc[days] = name
     return names.to_numpy()
-
-
-def draw_days(calendar, generator, size, low=None, high=None, weights=None):
-    """
-    Draw day indexes from the calendar weights, optionally restricted to [low, high] per draw.
-
-    Parameters:
-    calendar (pd.DataFrame): Calendar from build_calendar.
-    generator (np.random.Generator): Random stream.
-    size (int): Number of draws.
-    low, high (np.array, optional): Inclusive day index bounds per draw.
-    weights (np.array, optional): Day weights to use instead of calendar["weight"].
-
-    Returns:
-    np.array: Day indexes.
-    """
-    weights = calendar["weight"].to_numpy() if weights is None else weights
-    cumulative = np.concatenate([[0.0], np.cumsum(weights)])
-    low = np.zeros(size, dtype=int) if low is None else np.asarray(low)
-    high = np.full(size, len(weights) - 1) if high is None else np.asarray(high)
-    u = cumulative[low] + generator.random(size) * (cumulative[high + 1] - cumulative[low])
-    days = np.searchsorted(cumulative, u, side="right") - 1
-    return np.clip(days, low, high)

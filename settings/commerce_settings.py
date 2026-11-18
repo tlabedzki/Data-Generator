@@ -124,7 +124,8 @@ discounted_return_multiplier = 1.2
 return_delay_days = (1, 30)
 return_within_14_days_share = 0.85
 return_reasons = {
-    "Clothing": {"wrong_size": 0.55, "not_as_described": 0.15, "changed_mind": 0.20, "damaged": 0.05, "defective": 0.05},
+    "Clothing": {"wrong_size": 0.55, "not_as_described": 0.15, "changed_mind": 0.20, "damaged": 0.05,
+                 "defective": 0.05},
     "default": {"changed_mind": 0.35, "not_as_described": 0.20, "damaged": 0.15, "defective": 0.25, "wrong_item": 0.05},
 }
 

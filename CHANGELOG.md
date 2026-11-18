@@ -73,7 +73,7 @@ Added:
 - Added brand share profiles, category revenue mix, seasonality, product popularity, quantity profiles, and discount controls.
 - Added professional Polish logging with log levels and richer dataset summaries.
 - Added Jupyter notebook for generated data analysis, including `itables`, standardized chart styling, and TOP20 product tables.
-- Added local Codex instructions to avoid reading large files from the `export` directory.
+- Added local assistant instructions to avoid reading large files from the `export` directory.
 
 Changed:
 - Reworked the generation pipeline into clearer stages for customers, products, orders, and assembled sales data.

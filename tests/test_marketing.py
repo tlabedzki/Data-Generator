@@ -1,9 +1,9 @@
 """Pack C: campaigns, channels, devices and web sessions."""
 import pandas as pd
 import pytest
+from conftest import generate
 
 import settings.marketing_settings as mk
-from conftest import generate
 
 
 @pytest.fixture(scope="module")

@@ -1,99 +1,77 @@
+"""
+Console logging through the standard `logging` module.
+
+The generator logs to the "data_generator" logger, which has no output of its own (a NullHandler), so the web app,
+tests and scripts stay quiet. The command line calls configure() once to print timestamped, coloured lines.
+"""
 import logging
-from colorama import init
-from colorama import Fore, Style
-init()
+import sys
 
-import func.time as fti
+from colorama import Fore, Style, just_fix_windows_console
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Functions:
+logger = logging.getLogger("data_generator")
+logger.addHandler(logging.NullHandler())
 
-LOG_LEVEL_WIDTH = 7
+LEVEL_WIDTH = 7
+SUCCESS = 25  # between INFO and WARNING
+logging.addLevelName(SUCCESS, "SUCCESS")
+LEVEL_COLORS = {logging.INFO: Fore.WHITE, SUCCESS: Fore.GREEN, logging.WARNING: Fore.YELLOW,
+                logging.ERROR: Fore.LIGHTRED_EX}
+METRIC_LABEL_WIDTH = 42
 
 
-def log_time_print():
+class ConsoleFormatter(logging.Formatter):
+    """`  12:34:56  INFO     message`, with the level (and section titles) in colour when the stream is a terminal."""
+
+    def __init__(self, color: bool) -> None:
+        super().__init__(datefmt="%H:%M:%S")
+        self.color = color
+
+    def paint(self, text: str, color: str) -> str:
+        return f"{color}{text}{Style.RESET_ALL}" if self.color else text
+
+    def format(self, record: logging.LogRecord) -> str:
+        time = self.paint(self.formatTime(record, self.datefmt), Fore.LIGHTBLACK_EX)
+        level = self.paint(f"{record.levelname:<{LEVEL_WIDTH}}", LEVEL_COLORS.get(record.levelno, Fore.WHITE))
+        message = record.getMessage()
+        if getattr(record, "section", False):
+            message = self.paint(message, Fore.CYAN)
+        return f"  {time}  {level}  {message}"
+
+
+def configure(level: int = logging.INFO, stream=None) -> logging.Handler:
     """
-    Returns the current time formatted with light black color and reset style.
+    Print the generator's log to a stream (stdout by default). Calling it again replaces the handler, so every line
+    is printed once.
+
     Returns:
-        str: The formatted current time string.
+    logging.Handler: The handler that was added.
     """
-    return f'  {Fore.LIGHTBLACK_EX}{fti.get_current_time()}  {Style.RESET_ALL}'
+    stream = stream or sys.stdout
+    just_fix_windows_console()
+    for handler in [h for h in logger.handlers if not isinstance(h, logging.NullHandler)]:
+        logger.removeHandler(handler)
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(ConsoleFormatter(color=hasattr(stream, "isatty") and stream.isatty()))
+    logger.addHandler(handler)
+    logger.setLevel(level)
+    logger.propagate = False
+    return handler
 
-def log_level_print(level, color):
-    """
-    Returns the formatted log level.
-    Args:
-        level (str): The log level name.
-        color (str): Colorama foreground color.
-    Returns:
-        str: Formatted log level string.
-    """
-    return f'{color}{level:<{LOG_LEVEL_WIDTH}}{Style.RESET_ALL}'
 
-def print_log_line(level, message, color=Style.RESET_ALL, indent=0):
-    """
-    Prints a single formatted log line.
-    Args:
-        level (str): The log level name.
-        message (str): The message to print.
-        color (str): Colorama foreground color.
-        indent (int): Number of spaces before the message.
-    """
-    indentation = " " * indent
-    print(f'{log_time_print()}{log_level_print(level, color)}  {indentation}{message}')
+def log_info(message: str) -> None:
+    logger.info(message)
 
-def log_info(i):
-    """
-    Logs an informational message and prints it with a timestamp.
-    Args:
-        i (str): The informational message to log and print.
-    """
-    logging.info(i)
-    print_log_line('INFO', i, Fore.WHITE)
 
-def log_error(e):
-    """
-    Logs an error message and prints it with a timestamp in red color.
-    Args:
-        e (str): The error message to log and print.
-    """
-    logging.error(e)
-    print_log_line('BŁĄD', e, Fore.LIGHTRED_EX)
+def log_success(message: str) -> None:
+    logger.log(SUCCESS, message)
 
-def log_warning(w):
-    """
-    Logs a warning message and prints it with a timestamp and log level.
-    Args:
-        w (str): The warning message to log and print.
-    """
-    logging.warning(w)
-    print_log_line('OSTRZ', w, Fore.YELLOW)
 
-def log_success(i):
-    """
-    Logs a success message and prints it with a timestamp in green color.
-    Args:
-        i (str): The success message to log and print.
-    """
-    logging.info(i)
-    print_log_line('SUKCES', i, Fore.GREEN)
+def log_section(title: str) -> None:
+    """A section title, shown in colour."""
+    logger.info(title, extra={"section": True})
 
-def log_section(title):
-    """
-    Logs a visible section title.
-    Args:
-        title (str): The section title.
-    """
-    logging.info(title)
-    print_log_line('INFO', title, Fore.CYAN)
 
-def log_metric(label, value, field_width=42):
-    """
-    Logs a formatted metric line.
-    Args:
-        label (str): The metric label.
-        value (str): The metric value.
-        field_width (int): Width used to align labels.
-    """
-    logging.info(f'{label}: {value}')
-    print_log_line('INFO', f'{label + ":":<{field_width}} {value}', Fore.WHITE, indent=2)
+def log_metric(label: str, value: object) -> None:
+    """One aligned `label: value` line under a section."""
+    logger.info(f"  {label + ':':<{METRIC_LABEL_WIDTH}} {value}")

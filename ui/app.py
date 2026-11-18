@@ -7,10 +7,9 @@ Run locally (from the repository root):
 import os
 import random
 
-import pandas as pd
-
 import dash._dash_renderer
 import dash_mantine_components as dmc
+import pandas as pd
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 
 from func import charts as ch
@@ -84,7 +83,7 @@ WEIGHT_GRAPH_CONFIG = {"displayModeBar": False, "scrollZoom": False, "doubleClic
 def weights_readout(labels, values):
     """All weights as text ("Jan 0,06"), shown under the chart on narrow screens where point labels would overlap."""
     return [html.Span([html.Span(label, className="dg-readout-label"), nf.number(float(value or 0), 2)],
-                      className="dg-readout-item") for label, value in zip(labels, values)]
+                      className="dg-readout-item") for label, value in zip(labels, values, strict=True)]
 
 
 def weights_block(kind, title, labels, values):
@@ -148,7 +147,8 @@ def generate_row():
     return [
         dmc.Group([
             dmc.Button("Generate data", id="generate", size="lg", radius="sm", color="petrol", className="dg-generate"),
-            html.Div([dmc.Progress(id="progress", value=0, size=3, color="petrol", radius="xl", className="dg-progress"),
+            html.Div([dmc.Progress(id="progress", value=0, size=3, color="petrol", radius="xl",
+                                   className="dg-progress"),
                       dmc.Text(id="progress-text", className="dg-caption", mt=6)], id="progress-wrap",
                      className="dg-progress-wrap", style={"visibility": "hidden"}),
         ], gap="xl", align="center", mt="xl", wrap="wrap"),
@@ -158,7 +158,8 @@ def generate_row():
 
 def preset_card(name):
     if name == "custom":
-        body = [html.Span("Custom", className="dg-preset-name"), html.Span("your own sizes", className="dg-preset-time")]
+        body = [html.Span("Custom", className="dg-preset-name"),
+                html.Span("your own sizes", className="dg-preset-time")]
     else:
         preset = PRESETS[name]
         body = [html.Span(preset["label"], className="dg-preset-name"),
@@ -216,7 +217,8 @@ def page():
                        "promotions and optional dirty data. 100% fictional, reproducible with a seed, ready as CSV or "
                        "Parquet.", className="dg-lead"),
             ], className="dg-hero"),
-            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds the seed, dirty data and seasonality weights.",
+            section(1, "Parameters", "Pick a size, set the period, then generate. Advanced holds the seed, "
+                                     "dirty data and seasonality weights.",
                     parameters(), "parameters"),
             section(2, "Preview", "Key numbers and the first rows of each table.",
                     placeholder("Generate data to see the preview."), "preview"),
@@ -411,7 +413,8 @@ def weekdays_readout(values):
 
 
 @app.callback(
-    Output("weights-month-drag", "data", allow_duplicate=True), Output("weights-day-drag", "data", allow_duplicate=True),
+    Output("weights-month-drag", "data", allow_duplicate=True),
+    Output("weights-day-drag", "data", allow_duplicate=True),
     Output("weights-month-graph", "figure"), Output("weights-day-graph", "figure"),
     Input("weights-reset", "n_clicks"), prevent_initial_call=True,
 )
@@ -492,7 +495,11 @@ def show_result(run_id):
 
 app.clientside_callback(
     """function (runId) {
-        if (runId) { setTimeout(function () { document.getElementById('preview').scrollIntoView({behavior: 'smooth'}); }, 150); }
+        if (runId) {
+            setTimeout(function () {
+                document.getElementById('preview').scrollIntoView({behavior: 'smooth'});
+            }, 150);
+        }
         return window.dash_clientside.no_update;
     }""",
     Output("preview", "className"), Input("result-id", "data"), prevent_initial_call=True,

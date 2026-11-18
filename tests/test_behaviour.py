@@ -2,12 +2,12 @@
 import numpy as np
 import pandas as pd
 import pytest
+from conftest import generate
 
 import func.calendar as cal
 import func.rng as rng
 import settings.behaviour_settings as bs
 import settings.main_settings as s
-from conftest import generate
 
 
 @pytest.fixture(scope="module")

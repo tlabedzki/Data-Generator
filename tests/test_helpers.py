@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 import func.data as d
-import func.format as f
 from func.customer import make_unique_emails
 
 
@@ -34,8 +33,3 @@ def test_make_unique_emails_adds_numbers_to_repeats():
     assert unique[1] == "jan.nowak3@example.com"
     assert unique[2] == "jan.nowak2@example.com"
 
-
-def test_format_number():
-    assert f.format_number(1234567) == "1 234 567"
-    with pytest.raises(ValueError):
-        f.format_number("12")

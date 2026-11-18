@@ -22,7 +22,8 @@ def _layout(fig, height, **extra):
         separators=nf.plotly_separators(),
         height=height, margin=margin, paper_bgcolor=t.PAGE, plot_bgcolor=t.PAGE,
         font={"family": t.SANS_STACK, "size": 13, "color": t.TEXT}, showlegend=False,
-        hoverlabel={"bgcolor": t.PAGE, "bordercolor": t.LINE, "font": {"family": t.SANS_STACK, "color": t.INK, "size": 13}},
+        hoverlabel={"bgcolor": t.PAGE, "bordercolor": t.LINE,
+                    "font": {"family": t.SANS_STACK, "color": t.INK, "size": 13}},
         barcornerradius=4, dragmode=False, **{"bargap": 0.32, **extra},
     )
     return fig
@@ -63,7 +64,8 @@ def weekday_profile(sales, configured_weights):
     data = ch.weekday_data(sales, configured_weights)
     colors = [t.ACCENT if top else t.MIST for top in data["is_top"]]
     fig = go.Figure()
-    fig.add_bar(x=data["weekday"], y=data["share"], marker={"color": colors}, customdata=data[["day_name", "configured"]],
+    fig.add_bar(x=data["weekday"], y=data["share"], marker={"color": colors},
+                customdata=data[["day_name", "configured"]],
                 hovertemplate="%{customdata[0]}<br><b>%{y:.1%}</b> of orders<br>configured %{customdata[1]:.1%}"
                               "<extra></extra>")
     _target_marks(fig, data["weekday"], data["configured"], horizontal=False, size=30)
@@ -103,8 +105,9 @@ WEIGHT_STEP = 0.01
 
 def weights_figure(values, labels):
     """
-    Draggable seasonality weights: one teal point per month or weekday with its value above it. ui/assets/drag_weights.js
-    moves the points vertically; the y range stays fixed so a dragged point never rescales the chart.
+    Draggable seasonality weights: one teal point per month or weekday with its value above it.
+    ui/assets/drag_weights.js moves the points vertically; the y range stays fixed so a dragged point never rescales
+    the chart.
     """
     values = [max(0.0, min(WEIGHT_MAX, float(v or 0))) for v in values]
     top = max(0.4, max(values) * 1.3)

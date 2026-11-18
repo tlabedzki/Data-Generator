@@ -7,9 +7,6 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 FINGERPRINT = """
 import hashlib
-import func.log as l
-for name in ("log_info", "log_success", "log_section", "log_metric"):
-    setattr(l, name, lambda *args, **kwargs: None)
 import pandas as pd
 from func import service
 data = service.generate(service.GenerationParams(customers=500, products=500, order_lines=1000, seed=7,

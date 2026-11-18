@@ -99,7 +99,8 @@ def campaign_costs(campaigns, own_effects, calendar, generator):
         rows = np.flatnonzero(campaigns["channel"].to_numpy() == channel)
         if not len(rows):
             continue
-        reach = np.array([(own_effects[i] * weights).sum() + weights[campaigns.at[i, "start"]:campaigns.at[i, "end"] + 1].sum() * 0.2
+        reach = np.array([(own_effects[i] * weights).sum()
+                          + weights[campaigns.at[i, "start"]:campaigns.at[i, "end"] + 1].sum() * 0.2
                           for i in rows])
         reach = reach * generator.uniform(0.7, 1.3, len(rows))
         costs[rows] = budget * share * reach / reach.sum()
@@ -169,13 +170,15 @@ def add_marketing_columns(order_data, customer_data, calendar, campaigns, own_ef
         for index, row in campaigns.iterrows():
             active = (campaign_id == 0) & (channel == row["channel"]) & (own_effects[index][day] > 0)
             campaign_id[active] = row["campaign_id"]
-    voucher_share = campaigns["channel"].map(lambda c: mk.campaign_plans[c]["voucher_share"]) if len(campaigns) else None
+    voucher_share = (campaigns["channel"].map(lambda c: mk.campaign_plans[c]["voucher_share"])
+                     if len(campaigns) else None)
     voucher = np.full(count, None, dtype=object)
     if len(campaigns):
         lookup = campaigns.set_index("campaign_id")
         has = campaign_id > 0
         codes = lookup["voucher_code"].reindex(campaign_id[has]).to_numpy()
-        shares = pd.Series(voucher_share.to_numpy(), index=campaigns["campaign_id"]).reindex(campaign_id[has]).to_numpy()
+        shares = (pd.Series(voucher_share.to_numpy(), index=campaigns["campaign_id"])
+                  .reindex(campaign_id[has]).to_numpy())
         use = generator.random(has.sum()) < shares
         voucher[np.flatnonzero(has)[use]] = codes[use]
 
@@ -184,7 +187,8 @@ def add_marketing_columns(order_data, customer_data, calendar, campaigns, own_ef
     campaign_id = np.where(fraud, 0, campaign_id)
     voucher = np.where(fraud, None, voucher)
 
-    devices = {name: share * mk.device_conversion_multipliers.get(name, 1.0) for name, share in mk.device_shares.items()}
+    devices = {name: share * mk.device_conversion_multipliers.get(name, 1.0)
+               for name, share in mk.device_shares.items()}
     device = draw_from(devices, generator, count)
 
     columns = pd.DataFrame({"channel": channel, "device": device,
@@ -242,7 +246,8 @@ def build_sessions(order_data, generator):
         "customer_id": np.where(known, orders["customer_id"].to_numpy()[parent], -1),
         "channel": channel[parent], "device": device[parent],
         "campaign_id": orders["campaign_id"].to_numpy()[parent],
-        "pages_viewed": np.where(cart, 2 + generator.geometric(0.25, len(parent)), generator.geometric(0.45, len(parent))),
+        "pages_viewed": np.where(cart, 2 + generator.geometric(0.25, len(parent)),
+                                 generator.geometric(0.45, len(parent))),
         "added_to_cart": cart, "reached_checkout": checkout,
         "order_id": -1,
     })

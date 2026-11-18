@@ -16,13 +16,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import func.log as l  # noqa: E402
-from func import service  # noqa: E402
 import settings.main_settings as s  # noqa: E402
 import settings.quality_settings as qs  # noqa: E402
-
-for name in ("log_info", "log_success", "log_section", "log_metric"):
-    setattr(l, name, lambda *args, **kwargs: None)
+from func import service  # noqa: E402
 
 RESULTS = []
 
@@ -51,7 +47,8 @@ def check_e(data):
     base_rows = s.customer_data_rows
     rate = qs.data_quality_rates["medium"]
     for column in ("phone_number", "city", "age"):
-        multiplier = next(m for t, c, i, m in qs.data_quality_issues if (t, c, i) == ("customer_data", column, "missing"))
+        multiplier = next(m for t, c, i, m in qs.data_quality_issues
+                          if (t, c, i) == ("customer_data", column, "missing"))
         expected = rate * multiplier * base_rows
         missing = int(customers[column].isna().sum())
         check("E", f"missing {column} at medium (expected {expected:.0f})", missing,
@@ -221,11 +218,13 @@ def check_b(data):
     pet = lines[lines["product_type"].isin(["Dog Food", "Cat Food"])].drop_duplicates(["order_id", "product_id"])
     pet = pet.sort_values("order_date")
     gaps = pet.groupby(["customer_id", "product_id"])["order_date"].diff().dt.days.dropna()
-    check("B", "median days between repeat purchases of the same pet food", f"{gaps.median():.0f} ({len(gaps)} repeats)",
+    check("B", "median days between repeat purchases of the same pet food",
+          f"{gaps.median():.0f} ({len(gaps)} repeats)",
           25 <= gaps.median() <= 45)
     tier_price = lines.groupby("price_tier")["unit_price_gross"].median()
     check("B", "median unit price premium / budget customers",
-          f"{tier_price['premium']:.0f} / {tier_price['budget']:.0f} PLN", tier_price["premium"] >= 1.5 * tier_price["budget"])
+          f"{tier_price['premium']:.0f} / {tier_price['budget']:.0f} PLN",
+          tier_price["premium"] >= 1.5 * tier_price["budget"])
     favourite = (lines["category"] == lines["preferred_category"]).mean()
     check("B", "lines from the customer's preferred category", f"{favourite:.0%}", favourite >= 0.35)
 
@@ -263,7 +262,8 @@ def check_c(data):
     ratio = (per_day[days] / total[days]).mean() / (per_day[~days] / total[~days]).mean()
     check("C", "social share of orders on social campaign days / other days", f"{ratio:.2f}x", ratio >= 1.3)
     revenue = data["sales_data"].groupby("campaign_id")["revenue_gross"].sum()
-    roas = revenue.reindex(campaigns["campaign_id"]).fillna(0).groupby(campaigns["channel"].to_numpy()).sum() /         campaigns.groupby("channel")["total_cost"].sum()
+    attributed = revenue.reindex(campaigns["campaign_id"]).fillna(0).groupby(campaigns["channel"].to_numpy()).sum()
+    roas = attributed / campaigns.groupby("channel")["total_cost"].sum()
     check("C", "ROAS by channel (attributed revenue / cost)", ", ".join(f"{k} {v:.1f}" for k, v in roas.items()),
           bool((roas > 1).all()))
     cost_per_order = campaigns["total_cost"].sum() / len(orders)
@@ -291,8 +291,9 @@ def check_f(data):
         observed = np.array([counts.get("A", 0), counts.get("B", 0)])
         chi2 = float(((observed - expected) ** 2 / expected).sum())
         p_value = math.erfc(math.sqrt(chi2 / 2))  # chi-square with one degree of freedom
-        srm_ok = p_value < 0.001 if row.has_sample_ratio_mismatch else p_value > 0.01
-        check("F", f"{row.experiment_name}: sample ratio test p-value (mismatch planted: {row.has_sample_ratio_mismatch})",
+        srm_ok = p_value < 0.001 if row.has_sample_ratio_mismatch else p_value > 0.05
+        check("F", f"{row.experiment_name}: sample ratio test p-value "
+                   f"(mismatch planted: {row.has_sample_ratio_mismatch})",
               f"{p_value:.2g} (B {counts.get('B', 0) / counts.sum():.1%})", srm_ok)
         if row.metric == "conversion_rate":
             converted = sessions.loc[units["unit_id"], "order_id"].notna().to_numpy()

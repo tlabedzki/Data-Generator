@@ -65,7 +65,8 @@ def active_base(behaviour, calendar, multipliers):
     days = len(calendar)
     base = np.zeros(days)
     for segment, multiplier in multipliers.items():
-        rows = behaviour[(behaviour["customer_segment"] == segment) & (behaviour["window_start"] <= behaviour["window_end"])]
+        active = behaviour["window_start"] <= behaviour["window_end"]
+        rows = behaviour[(behaviour["customer_segment"] == segment) & active]
         diff = np.zeros(days + 1)
         np.add.at(diff, rows["window_start"].to_numpy(), rows["purchase_rate"].to_numpy())
         np.add.at(diff, rows["window_end"].to_numpy() + 1, -rows["purchase_rate"].to_numpy())
@@ -89,7 +90,8 @@ def draw_order_customers(behaviour, calendar, order_count, generator):
     repeat_count = order_count - len(first_rows)
 
     segments = b.segment_table()
-    multipliers = {name: b.promo_multiplier(calendar, float(row["promo_month_power"])) for name, row in segments.iterrows()}
+    multipliers = {name: b.promo_multiplier(calendar, float(row["promo_month_power"]))
+                   for name, row in segments.iterrows()}
     base = active_base(behaviour, calendar, multipliers)
     weights = calendar["weight"].to_numpy()
 

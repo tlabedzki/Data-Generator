@@ -132,7 +132,8 @@ def validate_category_hierarchy(product_catalog, subcategory_map):
 
         extra_product_types = set(subcategory_map[category]) - set(product_types)
         if extra_product_types:
-            raise ValueError(f"Unknown product type in subcategory mapping for {category}: {sorted(extra_product_types)}")
+            raise ValueError(f"Unknown product type in subcategory mapping for {category}: "
+                             f"{sorted(extra_product_types)}")
 
         for product_type, subcategory in subcategory_map[category].items():
             if not subcategory:

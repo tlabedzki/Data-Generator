@@ -74,8 +74,9 @@ def category_takeaway(sales):
             "their unit prices are high.")
 
 
-PACK_NAMES = {"E": "Dirty data and anomalies", "A": "Customer behaviour", "D": "Prices, promotions, returns and shipping",
-              "B": "Basket and preferences", "C": "Marketing and traffic", "F": "A/B experiments"}
+PACK_NAMES = {"E": "Dirty data and anomalies", "A": "Customer behaviour",
+              "D": "Prices, promotions, returns and shipping", "B": "Basket and preferences",
+              "C": "Marketing and traffic", "F": "A/B experiments"}
 HEADLINES = [  # (pack, start of the check label in scripts/check_realism.py, wording in the README)
     ("A", "order growth first to last year", "Orders grow year over year (setting: 20% a year)"),
     ("D", f"Black Friday {s.end_year}", f"Black Friday {s.end_year} against an average November day"),
@@ -155,5 +156,5 @@ def update_readme(path, blocks):
         pattern = re.compile(rf"(<!-- generated:{name} -->\n).*?(<!-- /generated:{name} -->)", re.S)
         if not pattern.search(text):
             raise SystemExit(f"README.md has no <!-- generated:{name} --> block")
-        text = pattern.sub(lambda m: f"{m.group(1)}\n{content}\n\n{m.group(2)}", text)
+        text = pattern.sub(lambda m, body=content: f"{m.group(1)}\n{body}\n\n{m.group(2)}", text)
     Path(path).write_text(text, encoding="utf-8", newline="\n")

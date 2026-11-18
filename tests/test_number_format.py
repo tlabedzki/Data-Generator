@@ -27,7 +27,7 @@ def test_number(value, decimals, expected):
 def test_percent_compact_and_plotly_separators():
     assert nf.percent(0.334, 1) == "33,4%" and nf.percent(0.24) == "24%"
     assert nf.compact(6_600_000) == "6,6M" and nf.compact(672_100) == "672,1k" and nf.compact(961) == "961"
-    assert nf.PLOTLY_SEPARATORS == f",{NBSP}" and nf.plotly_separators() == f",{NBSP}"
+    assert f",{NBSP}" == nf.PLOTLY_SEPARATORS and nf.plotly_separators() == f",{NBSP}"
 
 
 def _texts(component):
@@ -86,9 +86,8 @@ def test_english_notation_for_readme_images_is_temporary():
         assert nf.number(55_123) == "55,123" and nf.compact(5_100_000) == "5.1M" and nf.percent(0.347, 1) == "34.7%"
         assert nf.plotly_separators() == ".,"
     assert nf.number(55_123) == f"55{NBSP}123"  # back to the app's Polish notation
-    with pytest.raises(ValueError):
-        with nf.notation("de"):
-            pass
+    with pytest.raises(ValueError), nf.notation("de"):
+        pass
 
 
 def test_default_notation_switch_for_recordings():

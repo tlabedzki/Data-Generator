@@ -1,8 +1,8 @@
 """Pack B: products bought together, customer preferences and replenishment."""
 import pytest
+from conftest import generate
 
 import settings.basket_settings as bk
-from conftest import generate
 
 
 @pytest.fixture(scope="module")

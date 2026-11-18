@@ -23,13 +23,14 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_DIR))
 
+import readme_numbers  # noqa: E402  (scripts/ is on sys.path when this file runs)
+
 import func.charts as ch  # noqa: E402
 import func.number_format as nf  # noqa: E402
 import settings.main_settings as s  # noqa: E402
 from func import service  # noqa: E402
 from ui import figures  # noqa: E402
 from ui import theme as t  # noqa: E402
-import readme_numbers  # noqa: E402  (scripts/ is on sys.path when this file runs)
 
 IMG_DIR = PROJECT_DIR / "docs" / "img"
 ASSETS = PROJECT_DIR / "ui" / "assets"

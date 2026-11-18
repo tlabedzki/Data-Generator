@@ -1,10 +1,10 @@
 import pandas as pd
 
-import settings.main_settings as s
 import settings.localization as loc
+import settings.main_settings as s
 
 
-def localize_dataset(data):
+def localize_dataset(data: pd.DataFrame) -> pd.DataFrame:
     """
     Translate display values in a generated dataset according to settings.main_settings.data_language.
 
@@ -16,7 +16,7 @@ def localize_dataset(data):
     """
     language = getattr(s, "data_language", "en")
     if language not in loc.supported_languages:
-        raise ValueError(f"Nieobsługiwany data_language: {language}. Dostępne opcje: {sorted(loc.supported_languages)}")
+        raise ValueError(f"Unsupported data_language: {language}. Use one of {sorted(loc.supported_languages)}.")
 
     if language == "en":
         return data.copy()
@@ -31,28 +31,12 @@ def localize_dataset(data):
     for column_name, value_translations in columns:
         if column_name in localized_data.columns:
             localized_data[column_name] = localized_data[column_name].map(
-                lambda value: value_translations.get(value, value)
+                lambda value, translations=value_translations: translations.get(value, value)
             )
 
     localized_data = rebuild_product_name(localized_data)
 
     return localized_data
-
-
-def localize_generated_data(generated_data):
-    """
-    Translate all generated output datasets.
-
-    Parameters:
-    generated_data (dict): Dataset names mapped to DataFrames.
-
-    Returns:
-    dict: Dataset names mapped to localized DataFrames.
-    """
-    return {
-        dataset_name: localize_dataset(dataset)
-        for dataset_name, dataset in generated_data.items()
-    }
 
 
 def rebuild_product_name(data):

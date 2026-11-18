@@ -21,7 +21,7 @@ def test_all_datasets_are_generated(small_data):
 def test_customer_data(small_data):
     customers = small_data["customer_data"]
     assert len(customers) == 300
-    assert CUSTOMER_COLUMNS <= set(customers.columns)
+    assert set(customers.columns) >= CUSTOMER_COLUMNS
     assert customers["customer_id"].is_unique
     assert customers["email"].is_unique
     assert customers["email"].str.fullmatch(r"[a-z0-9.\-]+@example\.(com|org|net)").all()
@@ -56,7 +56,7 @@ def test_prices_and_margins_follow_catalog(small_data):
 
 def test_order_data(small_data):
     orders = small_data["order_data"]
-    assert ORDER_COLUMNS <= set(orders.columns)
+    assert set(orders.columns) >= ORDER_COLUMNS
     assert len(orders) >= 1200
     first_day, last_day = pd.Timestamp(s.start_year, 1, 1), pd.Timestamp(s.end_year, 12, 31)
     assert orders["order_date"].between(first_day, last_day).all()

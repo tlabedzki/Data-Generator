@@ -10,9 +10,13 @@
 #   - "units_per_line": absolute change of the mean quantity per order line (0.12 = +0.12 units),
 # - planned_split_b: the share of units meant for variant B,
 # - actual_split_b: the share they really get; a different value is a sample ratio mismatch (a bug to detect).
+# Variants are assigned at random within strata (day, channel and device for sessions), so A and B have the same
+# traffic mix; the effect is added afterwards (func/experiments.py). checkout_redesign runs 9 weeks: with about 8%
+# conversion that is roughly the length needed to detect +10% with 80% power at a 5% significance level. The other
+# tests are shorter and underpowered on purpose (free_shipping_banner also has a sample ratio mismatch).
 experiments = {
     "checkout_redesign": {
-        "start_share": 0.12, "duration_days": 42, "unit": "session", "metric": "conversion_rate",
+        "start_share": 0.12, "duration_days": 63, "unit": "session", "metric": "conversion_rate",
         "true_effect": 0.10, "planned_split_b": 0.5, "actual_split_b": 0.5,
     },
     "recommendation_widget": {

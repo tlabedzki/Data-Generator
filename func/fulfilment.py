@@ -8,7 +8,6 @@ import pandas as pd
 import func.data as d
 import settings.commerce_settings as cs
 import settings.quality_settings as qs
-import settings.market_settings as ms
 
 SHIPMENT_COLUMNS = ["shipment_id", "order_id", "delivery_method", "is_bulky", "shipping_cost", "shipped_at",
                     "delivered_at", "promised_delivery_date", "is_late"]

@@ -256,7 +256,8 @@ product_name_translations = {
     "Znak Beksinscy. Portret podwojny": "Znak Beksińscy. Portret podwójny",
     "Helion Python. Kurs dla nauczycieli i studentow": "Helion Python. Kurs dla nauczycieli i studentów",
     "Egmont Kajko i Kokosz Szkola latania": "Egmont Kajko i Kokosz Szkoła latania",
-    "Egmont Akademia Madrego Dziecka Pierwsze slowa. Zwierzeta": "Egmont Akademia Mądrego Dziecka Pierwsze słowa. Zwierzęta",
+    "Egmont Akademia Madrego Dziecka Pierwsze slowa. Zwierzeta":
+        "Egmont Akademia Mądrego Dziecka Pierwsze słowa. Zwierzęta",
     "Mlekovita Maslo Polskie 200 g": "Mlekovita Masło Polskie 200 g",
     "Kotlin Ketchup Lagodny 450 g": "Kotlin Ketchup Łagodny 450 g",
     "Doppelherz Aktiv Magnez B6 30 tabletek": "Doppelherz Aktiv Magnez B6 30 tabletek",

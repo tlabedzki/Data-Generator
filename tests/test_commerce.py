@@ -1,11 +1,11 @@
 """Pack D: special days, product life cycle, price history, discounts, shipping and returns."""
 import pandas as pd
 import pytest
+from conftest import generate
 
 import func.calendar as cal
 import settings.commerce_settings as cs
 import settings.main_settings as s
-from conftest import generate
 
 
 @pytest.fixture(scope="module")
@@ -56,7 +56,8 @@ def test_price_history_is_consistent(data):
     history, products = data["price_history"], data["product_data"]
     assert set(history["product_id"]) == set(products["product_id"])
     last = history.groupby("product_id").tail(1).set_index("product_id")["sales_price_gross"]
-    pd.testing.assert_series_equal(last.sort_index(), products.set_index("product_id")["sales_price_gross"].sort_index(),
+    current = products.set_index("product_id")["sales_price_gross"].sort_index()
+    pd.testing.assert_series_equal(last.sort_index(), current,
                                    check_names=False)
     assert (history["sales_price_gross"] % 10 == 9).all()
     gaps = history.groupby("product_id")["valid_from"].diff().dropna()
@@ -118,6 +119,7 @@ def test_return_spike_is_labelled(data):
     assert spike["affected_rows"] > 0
     product = int(spike["description"].split("product ")[1].split(":")[0])
     lines = data["sales_data"]
-    window = lines[(lines["product_id"] == product) & lines["order_date"].between(spike["start_date"], spike["end_date"])]
+    in_spike = lines["order_date"].between(spike["start_date"], spike["end_date"])
+    window = lines[(lines["product_id"] == product) & in_spike]
     returned = window["order_line_id"].isin(data["return_data"]["order_line_id"]).mean()
     assert returned > 0.3

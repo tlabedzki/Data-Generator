@@ -4,6 +4,8 @@ In-memory exports of generated datasets for downloads: one table as CSV or Parqu
 import io
 import zipfile
 
+import pandas as pd
+
 FORMATS = {
     "csv": {"label": "CSV", "mime": "text/csv"},
     "parquet": {"label": "Parquet", "mime": "application/vnd.apache.parquet"},
@@ -15,7 +17,7 @@ CSV_SEPARATOR = ";"
 CSV_ENCODING = "utf-8-sig"
 
 
-def dataframe_to_bytes(data, file_format):
+def dataframe_to_bytes(data: pd.DataFrame, file_format: str) -> bytes:
     """
     Serialize one DataFrame.
 
@@ -35,11 +37,11 @@ def dataframe_to_bytes(data, file_format):
     raise ValueError(f"Unsupported format: {file_format}. Use one of {sorted(FORMATS)}.")
 
 
-def file_name(dataset_name, file_format):
+def file_name(dataset_name: str, file_format: str) -> str:
     return f"{dataset_name}.{file_format}"
 
 
-def files_to_zip(files):
+def files_to_zip(files: dict[str, bytes]) -> bytes:
     """
     Pack already serialized files into one ZIP file.
 
@@ -56,7 +58,7 @@ def files_to_zip(files):
     return buffer.getvalue()
 
 
-def datasets_to_zip(datasets, file_format):
+def datasets_to_zip(datasets: dict[str, pd.DataFrame], file_format: str) -> bytes:
     """
     Pack several DataFrames into one ZIP file.
 

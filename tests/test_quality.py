@@ -1,10 +1,10 @@
 """Pack E: dirty data. Issue shares follow the level and every issue is listed with its clean value."""
 import pandas as pd
 import pytest
+from conftest import generate
 
 import func.quality as q
 import settings.quality_settings as qs
-from conftest import generate
 
 LEVEL = "medium"
 RATE = qs.data_quality_rates[LEVEL]

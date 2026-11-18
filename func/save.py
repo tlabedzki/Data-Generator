@@ -1,51 +1,32 @@
-import func.log as l
+"""Save generated tables as CSV (semicolon-separated) or Parquet files."""
+from pathlib import Path
+
+import pandas as pd
+
 import settings.main_settings as s
+from func import log
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Settings:
+SAVING_FORMATS = ("csv", "parquet")
 
-dataset_display_names = {
-    "customer_data": "dane klientów",
-    "product_data": "dane produktów",
-    "order_data": "dane zamówień",
-    "sales_data": "dane sprzedaży",
-    "anomaly_data": "anomalie",
-    "quality_issue_data": "błędy jakości danych",
-}
 
-def save_file_as_chosen_format(data, data_name, saving_path):
+def save_table(data: pd.DataFrame, name: str, path: Path, saving_format: str | None = None) -> None:
     """
-    Save the generated data to a file in the chosen format.
+    Save one table in the given format (settings.main_settings.saving_format by default).
 
-    This function performs the following steps:
-    1. Logs the start of the file save operation.
-    2. Saves the generated data to a file in the chosen format.
-    3. Logs the success of the file save operation.
+    Raises:
+    ValueError: When the format is not csv or parquet.
     """
-    # Log the start of the file save operation:
-    dataset_display_name = dataset_display_names.get(data_name, data_name)
-    l.log_info(f'Zapisuję {dataset_display_name} ("{data_name}") do pliku: {saving_path}')
-
-    # Save the generated data to a file in the chosen format:
-    if s.saving_format == "csv":
-        data.to_csv(saving_path, sep=';', index=False)
-    elif s.saving_format == "parquet":
-        data.to_parquet(saving_path, index=False)
+    saving_format = saving_format or s.saving_format
+    if saving_format == "csv":
+        data.to_csv(path, sep=";", index=False)
+    elif saving_format == "parquet":
+        data.to_parquet(path, index=False)
     else:
-        error_message = f"Nieobsługiwany format pliku: {s.saving_format}"
-        l.log_error(error_message)
-        raise ValueError(error_message)
+        raise ValueError(f"Unsupported saving_format: {saving_format}. Use one of {list(SAVING_FORMATS)}.")
+    log.log_success(f"Saved {name} ({len(data):,} rows) to {path.parent.name}/{path.name}")
 
-    # Log the success of the file save operation:
-    l.log_success(f'Zapisano {dataset_display_name} ("{data_name}") pomyślnie.')
 
-def save_generated_outputs(generated_data, saving_paths):
-    """
-    Save all generated datasets using their configured output paths.
-
-    Parameters:
-    generated_data (dict): Dataset names mapped to generated DataFrames.
-    saving_paths (dict): Dataset names mapped to target file paths.
-    """
-    for data_name, dataframe in generated_data.items():
-        save_file_as_chosen_format(dataframe, data_name, saving_paths[data_name])
+def save_generated_outputs(generated_data: dict[str, pd.DataFrame], saving_paths: dict[str, Path]) -> None:
+    """Save every generated table to its path."""
+    for name, frame in generated_data.items():
+        save_table(frame, name, saving_paths[name])

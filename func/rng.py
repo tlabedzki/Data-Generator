@@ -1,9 +1,9 @@
 """
 Independent random number streams.
 
-Every generation step that was added after the first version draws from its own NumPy Generator seeded with
-(random_state, stream number). A change in one step (for example the dirty-data level) then never shifts the random
-numbers of another step, and the same seed still gives the same data.
+Every generation step draws from its own NumPy Generator seeded with (random_state, stream number). A change in one
+step (for example the dirty-data level) then never shifts the random numbers of another step, and the same seed
+still gives the same data. Names, phone numbers and bank accounts come from Faker, seeded separately.
 """
 import numpy as np
 
@@ -23,10 +23,11 @@ STREAMS = {
     "marketing": 11,
     "sessions": 12,
     "experiments": 13,
+    "products": 14,
 }
 
 
-def stream(name):
+def stream(name: str) -> np.random.Generator:
     """
     Return a NumPy Generator for one named step.
 

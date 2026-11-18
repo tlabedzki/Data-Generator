@@ -1,5 +1,6 @@
-import numpy as np
 import unicodedata
+
+import numpy as np
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:

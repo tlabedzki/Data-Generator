@@ -19,8 +19,9 @@ FIRST_ORDER_LINE_ID = 1000001
 
 
 def empty_anomaly_data():
-    return pd.DataFrame({column: pd.Series(dtype=dtype) for column, dtype in zip(
-        ANOMALY_COLUMNS, ["int64", "object", "datetime64[ns]", "datetime64[ns]", "object", "int64", "Int64", "object"])})
+    dtypes = ["int64", "object", "datetime64[ns]", "datetime64[ns]", "object", "int64", "Int64", "object"]
+    return pd.DataFrame({column: pd.Series(dtype=dtype)
+                         for column, dtype in zip(ANOMALY_COLUMNS, dtypes, strict=True)})
 
 
 def draw_postal_codes(generator, size):
@@ -152,7 +153,6 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
     days = pd.date_range(first_day, last_day - pd.Timedelta(days=qs.fraud_burst_days), freq="D")
     days = days[~days.isin(list(blocked_days))]
     next_order_id = int(order_data["order_id"].max()) + 1
-    template = order_data.iloc[0]
     rows, records = [], []
     created = 0
     while created < target:
@@ -169,7 +169,7 @@ def add_fraud_rings(order_data, customer_data, product_data, generator, blocked_
         products = fraud_products(product_data, generator, int(line_counts.sum()), start)
         offsets = np.sort(generator.integers(0, qs.fraud_burst_days, size=orders))
         product_index = 0
-        for order_offset, lines in zip(offsets, line_counts):
+        for order_offset, lines in zip(offsets, line_counts, strict=True):
             delivery = generator.choice(["InPost courier", "DPD"])
             for _ in range(lines):
                 rows.append({

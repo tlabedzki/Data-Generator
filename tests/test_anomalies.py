@@ -1,9 +1,8 @@
 """Pack E: labelled anomalies. Fraud rings and shop outages are in anomaly_data and visible in the orders."""
-import pandas as pd
 import pytest
+from conftest import generate
 
 import settings.quality_settings as qs
-from conftest import generate
 
 
 @pytest.fixture(scope="module")

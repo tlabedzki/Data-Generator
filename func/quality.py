@@ -121,17 +121,17 @@ def duplicate_customers(customer_data, order_data, rows, generator):
     customer_data = pd.concat([customer_data, originals], ignore_index=True)
 
     if order_data is not None:
-        mapping = dict(zip(original_ids, new_ids))
+        mapping = dict(zip(original_ids, new_ids, strict=True))
         orders = order_data.drop_duplicates("order_id")[["order_id", "customer_id"]]
         orders = orders[orders["customer_id"].isin(mapping)]
         later = orders[orders.duplicated("customer_id")]
         moved = later[generator.random(len(later)) < 0.5]
-        moved_ids = dict(zip(moved["order_id"], moved["customer_id"].map(mapping)))
+        moved_ids = dict(zip(moved["order_id"], moved["customer_id"].map(mapping), strict=True))
         lines = order_data["order_id"].isin(moved_ids)
         order_data.loc[lines, "customer_id"] = order_data.loc[lines, "order_id"].map(moved_ids)
 
     records = [("customer_data", "customer_id", str(new_id), "customer_id", "duplicate_customer", str(new_id),
-                str(original_id)) for new_id, original_id in zip(new_ids, original_ids)]
+                str(original_id)) for new_id, original_id in zip(new_ids, original_ids, strict=True)]
     return customer_data, order_data, records
 
 

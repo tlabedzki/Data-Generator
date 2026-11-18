@@ -6,8 +6,12 @@ one run, calls the existing pipeline and restores the previous values afterwards
 sessions from mixing settings or the global random state.
 """
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
+from types import ModuleType
+
+import pandas as pd
 
 import func.generator as g
 import settings.main_settings as s
@@ -51,13 +55,13 @@ class GenerationParams:
     start_year: int = s.start_year
     end_year: int = s.end_year
     annual_growth_rate: float = s.annual_growth_rate
-    monthly_seasonality: tuple = DEFAULT_MONTHLY_SEASONALITY
-    weekday_seasonality: tuple = DEFAULT_WEEKDAY_SEASONALITY
+    monthly_seasonality: tuple[float, ...] = DEFAULT_MONTHLY_SEASONALITY
+    weekday_seasonality: tuple[float, ...] = DEFAULT_WEEKDAY_SEASONALITY
     seed: int | None = 42
     language: str = "en"
     data_quality_level: str = qs.data_quality_level
 
-    def errors(self):
+    def errors(self) -> list[str]:
         """Return a list of readable validation errors; an empty list means the parameters are valid."""
         problems = []
         for name in ("customers", "products", "order_lines", "start_year", "end_year", "annual_growth_rate"):
@@ -84,7 +88,7 @@ class GenerationParams:
         problems += _weights_errors("weekday_seasonality", self.weekday_seasonality, 7)
         return problems
 
-    def to_settings(self):
+    def to_settings(self) -> dict[str, object]:
         """Map the parameters to the names used in settings.main_settings."""
         return {
             "customer_data_rows": self.customers,
@@ -100,15 +104,15 @@ class GenerationParams:
             "generated_files": list(DATASET_NAMES),
         }
 
-    def to_quality_settings(self):
+    def to_quality_settings(self) -> dict[str, object]:
         """Map the parameters to the names used in settings.quality_settings."""
         return {"data_quality_level": self.data_quality_level}
 
-    def as_dict(self):
+    def as_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
-def _weights_errors(name, weights, length):
+def _weights_errors(name: str, weights: tuple[float, ...], length: int) -> list[str]:
     if len(weights) != length:
         return [f"{name} needs {length} values."]
     if any(weight < 0 for weight in weights) or sum(weights) <= 0:
@@ -117,7 +121,7 @@ def _weights_errors(name, weights, length):
 
 
 @contextmanager
-def overridden_settings(values, module=s):
+def overridden_settings(values: dict[str, object], module: ModuleType = s) -> Iterator[None]:
     """Temporarily set attributes of a settings module (settings.main_settings by default) and restore them."""
     missing = object()
     previous = {name: getattr(module, name, missing) for name in values}
@@ -133,7 +137,7 @@ def overridden_settings(values, module=s):
                 setattr(module, name, value)
 
 
-def generate(params, progress=None):
+def generate(params: GenerationParams, progress: g.ProgressCallback | None = None) -> dict[str, pd.DataFrame]:
     """
     Generate all datasets for the given parameters.
 
@@ -143,6 +147,9 @@ def generate(params, progress=None):
 
     Returns:
     dict: Dataset names mapped to DataFrames.
+
+    Raises:
+    ValueError: When the parameters are not valid (all problems in one message).
     """
     problems = params.errors()
     if problems:

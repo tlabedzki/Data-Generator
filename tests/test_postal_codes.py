@@ -25,13 +25,12 @@ def test_source_file_matches_generator_contract():
 
 def test_customers_get_postal_codes_from_source(small_data):
     customers = small_data["customer_data"]
-    pairs = set(zip(c.code_df["postal_code"], c.code_df["city"]))
-    assert set(zip(customers["postal_code"], customers["city"])) <= pairs
+    pairs = set(zip(c.code_df["postal_code"], c.code_df["city"], strict=True))
+    assert set(zip(customers["postal_code"], customers["city"], strict=True)) <= pairs
 
 
 def test_postal_code_draw_follows_weights():
-    np.random.seed(0)
-    drawn = c.draw_postal_code_ids(5000, [10, 20, 30], [0, 1, 3])
+    drawn = c.draw_postal_code_ids(5000, [10, 20, 30], [0, 1, 3], np.random.default_rng(0))
     assert 10 not in drawn
     share_30 = (drawn == 30).mean()
     assert 0.70 < share_30 < 0.80

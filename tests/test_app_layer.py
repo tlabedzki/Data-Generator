@@ -5,8 +5,8 @@ import pandas as pd
 import pytest
 
 import func.charts as ch
-import func.generator as g
 import func.export as ex
+import func.generator as g
 import settings.main_settings as s
 from func import service
 
@@ -91,7 +91,8 @@ def test_language_and_years_are_applied():
 
 def test_progress_is_reported_and_ends_at_one():
     calls = []
-    service.generate(service.GenerationParams(**SMALL), progress=lambda fraction, stage: calls.append((fraction, stage)))
+    service.generate(service.GenerationParams(**SMALL),
+                     progress=lambda fraction, stage: calls.append((fraction, stage)))
     fractions = [fraction for fraction, _ in calls]
     assert fractions == sorted(fractions)
     assert fractions[-1] == pytest.approx(1.0)

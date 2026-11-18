@@ -100,7 +100,8 @@ async def capture(browser, url, shots):
 
         async def rect(selector):
             """Page rectangle (CSS px, scroll included) of the first element matching selector."""
-            return await js(f"(() => {{ const r = document.querySelector({json.dumps(selector)}).getBoundingClientRect();"
+            return await js(f"(() => {{ const r = document.querySelector({json.dumps(selector)})"
+                            ".getBoundingClientRect();"
                             " return {x: r.left, y: r.top + scrollY, w: r.width, h: r.height}; })()")
 
         async def shot(name, x, y, w, h):
@@ -393,8 +394,10 @@ def build(shots, quality):
               f'<g transform="translate({nx:.1f} {zero:.1f})"><rect class="{column}" x="{-17 * k:.1f}" '
               f'y="{-column_h:.1f}" width="{34 * k:.1f}" height="{column_h:.1f}" rx="{4 * k:.1f}" '
               f'fill="{t.PRIMARY}" fill-opacity="0.09"/></g>'
-              f'<g transform="translate({xs[9]:.1f} {ys[9]:.1f})"><line class="{left}" x2="{nx - xs[9]:.1f}" {line}/></g>'
-              f'<g transform="translate({xs[11]:.1f} {ys[11]:.1f})"><line class="{right}" x2="{nx - xs[11]:.1f}" {line}/></g>'
+              f'<g transform="translate({xs[9]:.1f} {ys[9]:.1f})">'
+              f'<line class="{left}" x2="{nx - xs[9]:.1f}" {line}/></g>'
+              f'<g transform="translate({xs[11]:.1f} {ys[11]:.1f})">'
+              f'<line class="{right}" x2="{nx - xs[11]:.1f}" {line}/></g>'
               f'<circle cx="{xs[9]:.1f}" cy="{ys[9]:.1f}" {dot}/><circle cx="{xs[11]:.1f}" cy="{ys[11]:.1f}" {dot}/>'
               f'<g class="{point}"><circle cx="{nx:.1f}" cy="{ny:.1f}" {dot}/>'
               f'<g font-family="DgNum, Inter, \'Segoe UI\', sans-serif" font-size="{11 * k:.2f}" text-anchor="middle" '
@@ -422,7 +425,7 @@ def build(shots, quality):
                     (t_release, "scale(.88)", EASE_OUT), (t_release + 0.18, "scale(1)", "linear")]
     cursor_press = m.track("transform", press_stops, "scale(1)")
     ripples = []
-    for s, (x, y) in zip(presses, [large, generate, grab]):
+    for s, (x, y) in zip(presses, [large, generate, grab], strict=True):
         ring = m.track("transform", [(s, "scale(.2)", EASE_OUT), (s + 0.5, "scale(1)", "linear"),
                                      (s + 0.51, "scale(.2)", "linear")], "scale(1)")
         fade = m.track("opacity", [(s - 0.01, 0, "linear"), (s, 0.45, EASE_OUT), (s + 0.5, 0, "linear")], 0)

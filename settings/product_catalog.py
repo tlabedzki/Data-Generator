@@ -192,8 +192,7 @@ product_catalog = {
             "margin_range": (0.30, 0.50),
             "brand_series_models": {
                 "IKEA": {"TERTIAL": ["Work", "Desk"], "RANARP": ["Classic"]},
-                "Philips": {"Hue": ["Go", "Bloom"], "EyeCare": ["Desk"]},
-                "Philips": {"SceneSwitch": ["Desk", "LED"]},
+                "Philips": {"Hue": ["Go", "Bloom"], "EyeCare": ["Desk"], "SceneSwitch": ["Desk", "LED"]},
                 "Brabantia": {"Comfort": ["LED", "Office"]},
             },
         },
@@ -684,8 +683,7 @@ product_catalog = {
             "price_range": (120, 1200),
             "margin_range": (0.22, 0.40),
             "brand_series_models": {
-                "Fellowes": {"Ergo": ["Office", "Pro"]},
-                "Fellowes": {"Professional": ["Chair", "Ergo"]},
+                "Fellowes": {"Ergo": ["Office", "Pro"], "Professional": ["Chair", "Ergo"]},
                 "Leitz": {"Ergo": ["Cosy"]},
             },
         },
