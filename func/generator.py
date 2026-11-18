@@ -38,7 +38,7 @@ def generate_full_sales_data():
     sv.save_generated_outputs(generated_data, saving_paths)
 
 # Share of total run time per stage, used to turn stage progress into overall progress:
-STAGE_SHARES = {"customer_data": 0.06, "product_data": 0.26, "order_data": 0.63, "sales_data": 0.05}
+STAGE_SHARES = {"customer_data": 0.40, "product_data": 0.15, "order_data": 0.35, "sales_data": 0.10}
 
 def run_generation_pipeline(progress=None):
     """

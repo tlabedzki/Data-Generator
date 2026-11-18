@@ -32,9 +32,40 @@ colors, colors_probabilities = d.get_param_list_and_normalized_probabilities(col
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
 
+def catalog_leaves():
+    """
+    Every (category, product type, brand, series, model) of the catalog with its probability: category share ×
+    product type weight × brand weight, split equally between the brand's series and each series' models.
+
+    Returns:
+    pd.DataFrame: One row per catalog leaf.
+    """
+    rows = []
+    category_p = dict(zip(categories, categories_probabilities))
+    for category, product_types in product_catalog.items():
+        if category_p.get(category, 0) <= 0:
+            continue
+        type_names, type_p = d.get_param_list_and_normalized_probabilities(
+            {name: definition["weight"] for name, definition in product_types.items()})
+        for product_type, p_type in zip(type_names, type_p):
+            definition = product_types[product_type]
+            brands = definition["brand_series_models"]
+            brand_names, brand_p = d.get_param_list_and_normalized_probabilities(
+                {brand: category_brand_weights[category].get(brand, 1) for brand in brands})
+            for brand, p_brand in zip(brand_names, brand_p):
+                series = brands[brand]
+                for series_name, models in series.items():
+                    for model in models:
+                        rows.append((category, product_type, brand, series_name, model,
+                                     category_p[category] * p_type * p_brand / len(series) / len(models),
+                                     *definition["price_range"], *definition["margin_range"]))
+    return pd.DataFrame(rows, columns=["category", "product_type", "brand", "product_series", "product_model",
+                                       "probability", "price_low", "price_high", "margin_low", "margin_high"])
+
+
 def generate_products(num_products, progress=None):
     """
-    Generate a DataFrame containing product data.
+    Generate a DataFrame containing product data (vectorized: one draw of catalog leaves for all products).
 
     Parameters:
     num_products (int): The number of products to generate.
@@ -42,61 +73,38 @@ def generate_products(num_products, progress=None):
     Returns:
     pd.DataFrame: A DataFrame containing the generated product data.
     """
-    # First step - create a dictionary with product source:
-    data = {
-        "product_id": range(200001, 200001 + num_products),
-        "net_purchase_price": [],
-        "sales_margin": [],
-        "currency": ["PLN"] * num_products,
-        "category": [],
-        "subcategory": [],
-        "product_type": [],
-        "brand": [],
-        "product_series": [],
-        "product_model": [],
-        "product_name": [],
-        "product_popularity": [],
-        "color": [np.random.choice(colors, p=colors_probabilities) for _ in range(num_products)],
-    }
+    leaves = catalog_leaves()
+    probability = leaves["probability"].to_numpy()
+    chosen = leaves.iloc[np.random.choice(len(leaves), size=num_products, p=probability / probability.sum())]
+    chosen = chosen.reset_index(drop=True)
+    d.report_progress(progress, 1, 2, steps=2)
 
-    # Second step - create parameters with additional dependencies, which is why they need to be created in this step
-    for product_index in range(num_products):
-        d.report_progress(progress, product_index + 1, num_products)
-        # Category & brand selection:
-        category = np.random.choice(categories, p=categories_probabilities)
-        product_type, product_definition = choose_product_type(category)
-        subcategory = get_subcategory(category, product_type)
-        brand, product_series, product_model = choose_brand_series_model(category, product_definition)
-        product_name = build_product_name(product_type, brand, product_series, product_model)
-
-        # Price & margin params:
-        min_price, max_price = product_definition["price_range"]
-        min_margin, max_margin = product_definition["margin_range"]
-
-        # Append source:
-        data["category"].append(category)
-        data["subcategory"].append(subcategory)
-        data["product_type"].append(product_type)
-        data["brand"].append(brand)
-        data["product_series"].append(product_series)
-        data["product_model"].append(product_model)
-        data["product_name"].append(product_name)
-        data["product_popularity"].append(generate_product_popularity())
-        data["net_purchase_price"].append(round(np.random.uniform(min_price, max_price), 2))
-        data["sales_margin"].append(round(np.random.uniform(min_margin, max_margin), 4))
-
-    # Transform to DataFrame:
-    data = pd.DataFrame(data)
+    price = chosen["price_low"] + np.random.random(num_products) * (chosen["price_high"] - chosen["price_low"])
+    margin = chosen["margin_low"] + np.random.random(num_products) * (chosen["margin_high"] - chosen["margin_low"])
+    data = pd.DataFrame({
+        "product_id": np.arange(200001, 200001 + num_products),
+        "net_purchase_price": price.round(2),
+        "sales_margin": margin.round(4),
+        "currency": "PLN",
+        "category": chosen["category"],
+        "subcategory": [get_subcategory(c, t) for c, t in zip(chosen["category"], chosen["product_type"])],
+        "product_type": chosen["product_type"],
+        "brand": chosen["brand"],
+        "product_series": chosen["product_series"],
+        "product_model": chosen["product_model"],
+        "product_name": (chosen["product_type"] + " " + chosen["brand"] + " " + chosen["product_series"] + " "
+                         + chosen["product_model"]),
+        "product_popularity": np.round(np.random.lognormal(mean=0, sigma=ms.product_popularity_sigma,
+                                                           size=num_products), 6),
+        "color": np.random.choice(colors, size=num_products, p=colors_probabilities),
+    })
 
     # Add sales prices. sales_margin is a gross margin, so price = cost / (1 - margin).
     data['sales_price_net'] = data['net_purchase_price'] / (1 - data['sales_margin'])
-    data['sales_price_gross_unrounded'] = data['sales_price_net'] * (1 + ms.vat_rate)
-    data['sales_price_gross'] = data['sales_price_gross_unrounded'].apply(d.round_to_9).astype(float)
+    data['sales_price_gross'] = (data['sales_price_net'] * (1 + ms.vat_rate)).apply(d.round_to_9).astype(float)
+    d.report_progress(progress, 2, 2, steps=2)
 
-    # Drop unnecessary columns:
-    data.drop(columns=['sales_price_gross_unrounded'], inplace=True)
-
-    return pd.DataFrame(data)
+    return data
 
 def choose_product_type(category):
     """
