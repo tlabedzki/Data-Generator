@@ -55,11 +55,11 @@ Section 12 of the notebook in `notebooks/` covers seasonality and section 18 wal
 
 | order_date | order_id | category | product_name | quantity | revenue_gross | city |
 |---|---|---|---|---|---|---|
-| 2023-01-01 | 100001 | Electronics | Laptop Acer Aspire 7 | 2 | 17,258.00 | Raniżów |
-| 2023-11-12 | 118437 | Health | Pain Relief Apap Classic Tablets | 1 | 36.80 | Rozgarty |
-| 2024-06-29 | 136910 | Toys | Doll Barbie Dreamtopia Princess | 1 | 619.00 | Liszki |
+| 2023-01-01 | 100001 | Clothing | T-Shirt H&M Basic Cotton | 1 | 179.00 | Iława |
+| 2023-11-11 | 118450 | Clothing | Sneakers Nike Court Legacy | 1 | 299.00 | Zielona Góra |
+| 2024-06-27 | 136914 | Sports | Running Shoes Adidas Duramo SL | 1 | 299.00 | Rogoźno |
 
-Three of the 80,339 rows of `sales_data` from the default run with English values. The table has 53 columns: each
+Three of the 80,330 rows of `sales_data` from the default run with English values. The table has 53 columns: each
 order line joined with its customer and product.
 
 <!-- /generated:sample -->
@@ -74,24 +74,25 @@ data, redraws the charts in light and dark versions and rewrites the numbers in 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/monthly-revenue-dark.png">
-  <img alt="Sales grow 21% a year, peaking in November" src="docs/img/monthly-revenue.png">
+  <img alt="Sales grow 22% a year, peaking in November" src="docs/img/monthly-revenue.png">
 </picture>
 
-Revenue grows 21% a year and peaks at 5.0M PLN in November 2024, the Black Friday month.
+Revenue grows 22% a year and peaks at 5.3M PLN in November 2024, the Black Friday month.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/weekday-profile-dark.png">
-  <img alt="Monday brings 22% of orders" src="docs/img/weekday-profile.png">
+  <img alt="Saturday is the quietest day, with 12% of orders" src="docs/img/weekday-profile.png">
 </picture>
 
-Every weekday lands within 2.9 percentage points of its configured weight; the rest is deliberate random noise.
+Every weekday lands within 1.7 percentage points of its configured weight: special days such as Black Friday and the
+weekly e-mail campaigns on Tuesdays or Thursdays move it, as they would in a real shop.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/category-mix-dark.png">
-  <img alt="Clothing earns 34% of revenue" src="docs/img/category-mix.png">
+  <img alt="Clothing earns 33% of revenue" src="docs/img/category-mix.png">
 </picture>
 
-Category revenue lands within 2.8 percentage points of the target mix: the generator corrects for average price, so
+Category revenue lands within 3.1 percentage points of the target mix: the generator corrects for average price, so
 expensive categories do not take over revenue just because their unit prices are high.
 
 Beyond the charts, 52 of 52 realism criteria pass on the same run. The table shows ten of them; the list under it
@@ -100,87 +101,87 @@ shows all.
 | What a real shop does | Default run |
 |---|---|
 | Orders grow year over year (setting: 20% a year) | **19%** |
-| Black Friday 2024 against an average November day | **3.5x** |
-| Christmas Day 2024 against an average December day | **0.30x** |
+| Black Friday 2024 against an average November day | **3.4x** |
+| Christmas Day 2024 against an average December day | **0.23x** |
 | Revenue from the top 10% of customers | **68%** |
-| Cohort retention after 1 and 12 months | **11.6% / 5.6%** |
-| Lift of laptop and wireless mouse in one basket (orders) | **14.2 (50 orders)** |
-| Return rate, Clothing against Electronics | **26.9% / 6.1%** |
-| Social orders on social campaign days against other days | **2.82x** |
-| A/B test with a true +10% lift: measured lift and 95% CI | **+11.1% [+2.9%, +19.9%]** |
-| Labelled fraud orders: value against other orders (orders) | **15.4x (221 fraud orders)** |
+| Cohort retention after 1 and 12 months | **11.4% / 5.6%** |
+| Lift of laptop and wireless mouse in one basket (orders) | **16.3 (60 orders)** |
+| Return rate, Clothing against Electronics | **27.3% / 5.9%** |
+| Social orders on social campaign days against other days | **2.91x** |
+| A/B test with a true +10% lift: measured lift and 95% CI | **+4.9% [-1.4%, +11.6%]** |
+| Labelled fraud orders: value against other orders (orders) | **15.0x (221 fraud orders)** |
 
 <details><summary>All 52 realism criteria (52 pass)</summary>
 
 **Dirty data and anomalies**
 
-- ✅ missing phone_number at medium (expected 1200): 1244
-- ✅ missing city at medium (expected 600): 615
-- ✅ missing age at medium (expected 600): 620
+- ✅ missing phone_number at medium (expected 1200): 1237
+- ✅ missing city at medium (expected 600): 612
+- ✅ missing age at medium (expected 600): 619
 - ✅ duplicate customers at medium (expected 3% of customers): 1200
 - ✅ missing values at none / issues listed: 0 / 0
-- ✅ fraud order value / other orders: 15.4x (221 fraud orders)
+- ✅ fraud order value / other orders: 15.0x (221 fraud orders)
 - ✅ fraud orders shipped to another postal code: 100%
-- ✅ orders on outage day 2023-09-04 vs median day: 4%
-- ✅ orders on outage day 2024-09-23 vs median day: 7%
+- ✅ orders on outage day 2023-09-04 vs median day: 2%
+- ✅ orders on outage day 2024-09-23 vs median day: 6%
 
 **Customer behaviour**
 
-- ✅ cohort retention month 1 / month 12: 11.6% / 5.6%
-- ✅ orders per customer: variance / mean: 5.24
+- ✅ cohort retention month 1 / month 12: 11.4% / 5.6%
+- ✅ orders per customer: variance / mean: 5.14
 - ✅ revenue share of the top 10% customers: 68%
-- ✅ revenue per customer loyal / occasional: 3,836 / 745 PLN
-- ✅ Electronics share of lines, age < 30 / 55+: 5.3% / 2.9%
-- ✅ November share of orders vs the calendar (no flattening): 17.8% vs 17.6% (+0.2 pp)
+- ✅ revenue per customer loyal / occasional: 3,896 / 771 PLN
+- ✅ Electronics share of lines, age < 30 / 55+: 5.7% / 3.4%
+- ✅ November share of orders vs the calendar (no flattening): 17.6% vs 17.6% (+0.0 pp)
 - ✅ November weight over 10 seeds vs setting (noise has no bias): 18.5% vs 18.6% (-0.1 pp)
 - ✅ order growth first to last year (setting 20%/year): 19%
 
 **Prices, promotions, returns and shipping**
 
-- ✅ Black Friday 2023-11-24 / average November day: 3.2x
-- ✅ 25 December 2023 / average December day: 0.31x
-- ✅ Black Friday 2024-11-29 / average November day: 3.5x
-- ✅ 25 December 2024 / average December day: 0.30x
-- ✅ busiest hour of the day: 20:00 (9.7% of orders)
-- ✅ units per line with / without discount: 1.97 / 1.59
-- ✅ return rate Clothing / Electronics: 26.9% / 6.1%
+- ✅ Black Friday 2023-11-24 / average November day: 3.4x
+- ✅ 25 December 2023 / average December day: 0.33x
+- ✅ Black Friday 2024-11-29 / average November day: 3.4x
+- ✅ 25 December 2024 / average December day: 0.23x
+- ✅ busiest hour of the day: 20:00 (9.6% of orders)
+- ✅ units per line with / without discount: 1.96 / 1.60
+- ✅ return rate Clothing / Electronics: 27.3% / 5.9%
 - ✅ bulky orders in lockers / furniture lines to parcel lockers: 0.0% / 0.0% (was 55.6%)
 - ✅ lines sold before launch or after discontinuation: 0
 - ✅ line price differs from price_history on the order day (2000 lines): 0
 - ✅ products with at least one list price change: 80%
-- ✅ late deliveries outside / in November-December: 5.8% / 25.8%
+- ✅ late deliveries outside / in November-December: 4.9% / 24.3%
 
 **Basket and preferences**
 
-- ✅ lift Laptop + Wireless Mouse: 14.2 (50 orders)
-- ✅ lift Smartphone + Headphones: 8.6 (105 orders)
-- ✅ lift Office Desk + Office Chair: 65.5 (11 orders)
-- ✅ lift Cat Food + Pet Litter (litter is bought by cat owners anyway): 3.0 (115 orders)
-- ✅ same first category as the previous order / at random: 36.7% / 17.8%
-- ✅ median days between repeat purchases of the same pet food: 29 (1574 repeats)
-- ✅ median unit price premium / budget customers: 279 / 179 PLN
+- ✅ lift Laptop + Wireless Mouse: 16.3 (60 orders)
+- ✅ lift Smartphone + Headphones: 7.5 (112 orders)
+- ✅ lift Office Desk + Office Chair: 43.4 (7 orders)
+- ✅ lift Cat Food + Pet Litter (litter is bought by cat owners anyway): 2.7 (102 orders)
+- ✅ same first category as the previous order / at random: 36.9% / 17.6%
+- ✅ median days between repeat purchases of the same pet food: 28 (1711 repeats)
+- ✅ median unit price premium / budget customers: 289 / 179 PLN
 - ✅ lines from the customer's preferred category: 42%
 
 **Marketing and traffic**
 
-- ✅ orders with a converting session: 100.0% (690,155 sessions)
-- ✅ largest relative gap of conversion vs setting (channel x device): 2.5% (email 14.2%)
-- ✅ mobile share of sessions: 61.9% vs 62%
-- ✅ social share of orders on social campaign days / other days: 2.82x
-- ✅ ROAS by channel (attributed revenue / cost): affiliate 5.1, email 20.0, paid_search 5.9, social 8.0
+- ✅ orders with a converting session: 100.0% (689,335 sessions)
+- ✅ largest relative gap of conversion vs setting (channel x device): 3.7% (email 14.2%)
+- ✅ mobile share of sessions: 62.2% vs 62%
+- ✅ social share of orders on social campaign days / other days: 2.91x
+- ✅ ROAS by channel (attributed revenue / cost): affiliate 5.2, email 21.1, paid_search 5.9, social 8.2
 - ✅ marketing cost per order: 70 PLN vs 70
-- ✅ carts abandoned (sessions with a cart and no order / all carts): 72%
+- ✅ carts abandoned (sessions with a cart and no order / all carts): 71%
 
 **A/B experiments**
 
-- ✅ checkout_redesign: sample ratio test p-value (mismatch planted: False): 0.042 (B 49.4%)
-- ✅ checkout_redesign: conversion lift, 95% CI (true +10%): +11.1% [+2.9%, +19.9%]
-- ✅ recommendation_widget: sample ratio test p-value (mismatch planted: False): 0.048 (B 52.1%)
-- ✅ recommendation_widget: units per line B - A, 95% CI (true +0.12): +0.144 [+0.074, +0.213]
-- ✅ free_shipping_banner: sample ratio test p-value (mismatch planted: True): 1.1e-32 (B 46.3%)
-- ✅ free_shipping_banner: conversion lift, 95% CI (true +6%): +8.8% [+0.8%, +17.5%]
-- ✅ search_ranking_aa: sample ratio test p-value (mismatch planted: False): 0.37 (B 50.3%)
-- ✅ search_ranking_aa: conversion lift, 95% CI (true +0%): -0.9% [-9.8%, +8.9%]
+- ✅ checkout_redesign: sample ratio test p-value (mismatch planted: False): 0.92 (B 50.0%)
+- ✅ checkout_redesign: conversion lift, 95% CI (true +10%): +4.9% [-1.4%, +11.6%]
+- ✅ recommendation_widget: sample ratio test p-value (mismatch planted: False): 0.9 (B 50.1%)
+- ✅ recommendation_widget: units per line B - A, 95% CI (true +0.12): +0.079 [+0.010, +0.148]
+- ✅ free_shipping_banner: sample ratio test p-value (mismatch planted: True): 4.2e-37 (B 46.0%)
+- ✅ free_shipping_banner: conversion lift, 95% CI (true +6%): +3.5% [-4.3%, +11.9%]
+- ✅ search_ranking_aa: sample ratio test p-value (mismatch planted: False): 0.97 (B 50.0%)
+- ✅ search_ranking_aa: conversion lift, 95% CI (true +0%): +2.5% [-6.8%, +12.7%]
 
 `python scripts/check_realism.py` runs the same criteria and exits with 1 when any of them fails.
 
@@ -220,7 +221,7 @@ stop it.
 
 <!-- generated:cli -->
 
-`python main.py` writes 40,000 customers, 50,000 products and 80,339 order lines (55,568 orders in 2023 and 2024) with
+`python main.py` writes 40,000 customers, 50,000 products and 80,330 order lines (55,568 orders in 2023 and 2024) with
 seed 42 and Polish values, and saves 13 tables as Parquet files in `export/`.
 
 <!-- /generated:cli -->
@@ -334,7 +335,7 @@ func/                generation steps: customers, products, prices, orders, beha
                      experiments, anomalies and data quality, plus the app service, charts and exports
 settings/            all parameters: volumes, calendar, behaviour, basket, commerce, marketing, experiments, quality
 source/              postal codes with localities and address counts
-scripts/             realism criteria, README charts and numbers, demo GIF recorder, postal code import
+scripts/             realism criteria, README charts and numbers, animated demo builder, postal code import
 notebooks/           exploratory analysis (outputs cleared; run main.py first)
 docs/                settings guide and README images
 tests/               pytest suite
@@ -349,9 +350,10 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-172 pytest tests (about 20 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour,
-prices and returns, marketing, experiments, dirty data, exports and the running app on small samples.
-`python scripts/check_realism.py` checks the realism criteria listed under Results on the full default run.
+178 pytest tests (about 30 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour,
+prices and returns, marketing, experiments, dirty data, exports and the app's callbacks and figures on small samples.
+`ruff check .` lints the code; CI runs both on every push. `python scripts/check_realism.py` checks the realism
+criteria listed under Results on the full default run.
 
 ## License
 

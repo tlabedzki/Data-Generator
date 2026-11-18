@@ -99,9 +99,10 @@ generated_files = ["sales_data"]
 
 ## Random Streams
 
-Every step added after the first version (anomalies, dirty data and the later behaviour models) draws from its own
-random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for example the dirty
-data level, does not change the random numbers of the other steps.
+Every step (customers, products, orders, behaviour, prices, sessions, experiments, anomalies, dirty data and so on)
+draws from its own random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for
+example the dirty data level, does not change the random numbers of the other steps. Names, phone numbers and bank
+account numbers come from Faker, seeded with `random_state` too.
 
 ## Data Quality Issues (Dirty Data)
 
@@ -176,7 +177,9 @@ year weight (1 + annual_growth_rate × years since start) × month weight × wee
 The month weights are `base_monthly_seasonality` with one random fluctuation per month and year
 (`monthly_noise_sd = 0.03` in `settings/behaviour_settings.py`, a multiplicative factor around 1.0). Month totals
 therefore follow the settings closely; across seeds the fluctuation averages out. Weekday weights split each month
-over its days, so the weekday profile follows `base_weekday_seasonality`.
+over its days, so the weekday profile follows `base_weekday_seasonality` (default 12-16%, Saturday the quietest).
+Special days and campaigns come on top: Black Friday adds to Fridays and weekly e-mail campaigns to Tuesdays or
+Thursdays, so a day can land a point or two away from its weight.
 
 ## Customer Behaviour
 
@@ -380,8 +383,16 @@ Defaults: `checkout_redesign` (+10% conversion), `recommendation_widget` (+0.12 
 `free_shipping_banner` (+6% conversion with a sample ratio mismatch: 46% instead of 50% in B) and
 `search_ranking_aa` (an A/A test with no effect).
 
-For conversion experiments, orders do not change: converting sessions go to B with a slightly higher chance than
-the others, so B gets `actual_split_b` of the sessions and converts `1 + true_effect` times as often as A.
+Variants are assigned first, at random and without looking at outcomes: units are shuffled within strata (sessions by
+day, channel and device; customers by the day of their first session) and `actual_split_b` of every stratum goes to
+B. A and B therefore have the same traffic mix, and with the planned split the sample ratio test passes easily.
+
+The effect comes afterwards. For conversion experiments the orders themselves do not change: a share of the converting
+A sessions trade places with B sessions without an order from the same day, channel and device, so B converts
+`1 + true_effect` times as often as A on average. For `units_per_line`, order lines of B customers in the window get
+extra units. A measured result has the noise of a real test: its 95% confidence interval contains `true_effect` in
+about 95 of 100 seeds, and a short test can miss a real effect. `checkout_redesign` runs 9 weeks, about the length
+needed to detect +10% with 80% power.
 
 ## Category Catalog Mix
 

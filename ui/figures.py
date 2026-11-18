@@ -60,9 +60,9 @@ def _target_marks(fig, x, y, horizontal, size):
 
 
 def weekday_profile(sales, configured_weights):
-    """Order share by weekday: mist bars, the strongest day in copper, configured weights as ink marks."""
+    """Order share by weekday: mist bars, one day in copper (see charts.weekday_data), configured weights as marks."""
     data = ch.weekday_data(sales, configured_weights)
-    colors = [t.ACCENT if top else t.MIST for top in data["is_top"]]
+    colors = [t.ACCENT if day else t.MIST for day in data["highlight"]]
     fig = go.Figure()
     fig.add_bar(x=data["weekday"], y=data["share"], marker={"color": colors},
                 customdata=data[["day_name", "configured"]],
@@ -73,7 +73,7 @@ def weekday_profile(sales, configured_weights):
     fig.add_scatter(x=data["weekday"], y=label_y + float(label_y.max()) * 0.025, mode="text",
                     text=[nf.percent(v, 0) for v in data["share"]],
                     textposition="top center", hoverinfo="skip",
-                    textfont=_num(13, [t.INK if top else t.MUTED for top in data["is_top"]]))
+                    textfont=_num(13, [t.INK if day else t.MUTED for day in data["highlight"]]))
     fig.update_xaxes(showgrid=False, ticks="", tickfont={"color": t.TEXT}, fixedrange=True, ticklabelstandoff=6)
     fig.update_yaxes(visible=False, range=[0, float(label_y.max()) * 1.2], fixedrange=True)
     return _layout(fig, 300)

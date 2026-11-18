@@ -59,6 +59,9 @@ def monthly_revenue_data(sales):
     return data
 
 
+FLAT_WEEK_RATIO = 1.5
+
+
 def weekday_data(sales, configured_weights):
     orders = sales.drop_duplicates("order_id")
     generated = orders["order_date"].dt.dayofweek.value_counts(normalize=True).reindex(range(7), fill_value=0)
@@ -71,6 +74,9 @@ def weekday_data(sales, configured_weights):
         "configured": configured.to_numpy(),
     })
     data["is_top"] = data.index == data["share"].idxmax()  # one highlighted day, also on a tie
+    # In a flat week (busiest day under 1.5x the quietest) the quiet day is the news, so it gets the highlight:
+    is_flat = data["share"].max() < FLAT_WEEK_RATIO * data["share"].min()
+    data["highlight"] = (data.index == data["share"].idxmin()) if is_flat else data["is_top"]
     return data
 
 
@@ -108,10 +114,13 @@ def weekday_text(sales, configured_weights):
     data = weekday_data(sales, configured_weights)
     top = data.loc[data["is_top"]].iloc[0]
     low = data.loc[data["share"].idxmin()]
-    title = f"{top['day_name']} brings {nf.percent(top['share'], 0)} of orders"
-    return title, [f"Share of orders by weekday; {low['day_name']} is the quietest with "
-                   f"{nf.percent(low['share'], 0)}.",
-                   "Thin marks show the configured weights."]
+    if not top["highlight"]:  # a flat week (see weekday_data)
+        title = f"{low['day_name']} is the quietest day, with {nf.percent(low['share'], 0)} of orders"
+        detail = f"{top['day_name']} is the busiest with {nf.percent(top['share'], 0)}."
+    else:
+        title = f"{top['day_name']} brings {nf.percent(top['share'], 0)} of orders"
+        detail = f"{low['day_name']} is the quietest with {nf.percent(low['share'], 0)}."
+    return title, [f"Share of orders by weekday; {detail}", "Thin marks show the configured weights."]
 
 
 def category_text(sales, language="en"):

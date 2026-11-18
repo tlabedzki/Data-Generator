@@ -62,8 +62,9 @@ def monthly_takeaway(sales):
 def weekday_takeaway(sales, weights):
     data = ch.weekday_data(sales, weights)
     gap = (data["share"] - data["configured"]).abs().max()
-    return (f"Every weekday lands within {nf.number(gap * 100, 1)} percentage points of its configured weight; "
-            "the rest is deliberate random noise.")
+    return (f"Every weekday lands within {nf.number(gap * 100, 1)} percentage points of its configured weight: "
+            "special days such as Black Friday and the weekly e-mail campaigns on Tuesdays or Thursdays move it, as "
+            "they would in a real shop.")
 
 
 def category_takeaway(sales):
