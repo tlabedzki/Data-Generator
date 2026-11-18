@@ -11,7 +11,6 @@ from pathlib import Path
 import func.charts as ch
 import func.number_format as nf
 import settings.main_settings as s
-import settings.market_settings as ms
 
 SAMPLE_COLUMNS = ["order_date", "order_id", "category", "product_name", "quantity", "revenue_gross", "city"]
 CHARTS = [  # file name stem, function that gives the takeaway sentence under the chart
@@ -75,39 +74,55 @@ def category_takeaway(sales):
             "their unit prices are high.")
 
 
-def checks_table(datasets):
-    """Patterns that the charts do not show: what the settings ask for and what the default run delivers."""
-    sales, products = datasets["sales_data"], datasets["product_data"]
-    months, years = sales["order_date"].dt.month, sales["order_date"].dt.year
-    monthly = [w / sum(s.base_monthly_seasonality) for w in s.base_monthly_seasonality]
-    peak = max(range(12), key=lambda i: monthly[i]) + 1
-    peak_name = ch.MONTH_NAMES[peak - 1]
-    lines_by_year = sales.groupby(years).size()
-    span = s.end_year - s.start_year
-    single = s.order_line_number[1] / sum(s.order_line_number.values())
-    lines_per_order = sales.groupby("order_id").size()
-    discounted = sales["discount_rate"] > 0
-    normal_months = ~months.isin([11, 12])
-    revenue = sales.groupby("product_id")["revenue_gross"].sum()
-    revenue = revenue.reindex(products["product_id"], fill_value=0).sort_values(ascending=False)
-    top_share = revenue.iloc[:len(revenue) // 5].sum() / revenue.sum()
-    rows = [
-        (f"{peak_name} share of order lines", f"{pct(monthly[peak - 1], 1)} (`base_monthly_seasonality`)",
-         pct((months == peak).mean(), 1)),
-        (f"Order lines in {s.end_year} vs {s.start_year}",
-         f"+{pct(s.annual_growth_rate * span)} (`annual_growth_rate`) plus noise",
-         f"+{pct(lines_by_year[s.end_year] / lines_by_year[s.start_year] - 1, 1)}"),
-        ("Orders with more than one line", f"{pct(1 - single)} (`order_line_number`)",
-         pct((lines_per_order > 1).mean())),
-        ("Discounted lines, November vs Jan–Oct",
-         f"×{nf.number(ms.discount_monthly_multiplier[11], 2)} (`discount_monthly_multiplier`)",
-         f"{pct(discounted[months == 11].mean())} vs {pct(discounted[normal_months].mean())}"),
-        ("Revenue from the top 20% of products",
-         f"long tail (`product_popularity_sigma` = {nf.number(ms.product_popularity_sigma, 2)})", pct(top_share)),
-    ]
-    lines = ["| Pattern | Settings | Default run |", "|---|---|---|"]
-    lines += [f"| {pattern} | {setting} | **{result}** |" for pattern, setting, result in rows]
-    return "\n".join(lines)
+PACK_NAMES = {"E": "Dirty data and anomalies", "A": "Customer behaviour", "D": "Prices, promotions, returns and shipping",
+              "B": "Basket and preferences", "C": "Marketing and traffic", "F": "A/B experiments"}
+HEADLINES = [  # (pack, start of the check label in scripts/check_realism.py, wording in the README)
+    ("A", "order growth first to last year", "Orders grow year over year (setting: 20% a year)"),
+    ("D", f"Black Friday {s.end_year}", f"Black Friday {s.end_year} against an average November day"),
+    ("D", f"25 December {s.end_year}", f"Christmas Day {s.end_year} against an average December day"),
+    ("A", "revenue share of the top 10% customers", "Revenue from the top 10% of customers"),
+    ("A", "cohort retention month 1 / month 12", "Cohort retention after 1 and 12 months"),
+    ("B", "lift Laptop + Wireless Mouse", "Lift of laptop and wireless mouse in one basket (orders)"),
+    ("D", "return rate Clothing / Electronics", "Return rate, Clothing against Electronics"),
+    ("C", "social share of orders on social campaign days", "Social orders on social campaign days against other days"),
+    ("F", "checkout_redesign: conversion lift", "A/B test with a true +10% lift: measured lift and 95% CI"),
+    ("E", "fraud order value / other orders", "Labelled fraud orders: value against other orders (orders)"),
+]
+
+
+def realism_checks(datasets):
+    """Run every criterion of scripts/check_realism.py on the README run and return (pack, label, value, passed)."""
+    import check_realism as cr  # noqa: E402  (scripts/ is on sys.path; the import silences the generator log)
+
+    rows = []
+    original = cr.check
+    cr.check = lambda pack, label, value, passed: rows.append((pack, label, str(value), bool(passed)))
+    try:
+        for check_pack in cr.PACKS.values():
+            check_pack(datasets)
+    finally:
+        cr.check = original
+    return rows
+
+
+def realism_block(rows):
+    """Headline criteria as a table, then every criterion in a collapsed list."""
+    passed = sum(row[3] for row in rows)
+    found = {}
+    for pack, label, value, _ in rows:
+        found.setdefault((pack, label), value)
+    lines = ["| What a real shop does | Default run |", "|---|---|"]
+    for pack, prefix, wording in HEADLINES:
+        value = next(v for (p, label), v in found.items() if p == pack and label.startswith(prefix))
+        lines.append(f"| {wording} | **{value}** |")
+    lines += ["", f"<details><summary>All {len(rows)} realism criteria ({passed} pass)</summary>", ""]
+    for pack, name in PACK_NAMES.items():
+        lines += [f"**{name}**", ""]
+        lines += [f"- {'✅' if ok else '❌'} {label}: {value}" for p, label, value, ok in rows if p == pack]
+        lines.append("")
+    lines += ["`python scripts/check_realism.py` runs the same criteria and exits with 1 when any of them fails.", "",
+              "</details>"]
+    return "\n".join(lines), passed, len(rows)
 
 
 def results_block(datasets, weights):
@@ -117,8 +132,9 @@ def results_block(datasets, weights):
     parts = []
     for stem, takeaway in CHARTS:
         parts += [picture(stem, texts[stem][0]), "", wrap(takeaway(sales, weights)), ""]
-    parts += ["The table checks patterns that the charts do not show, against the settings that drive them.", "",
-              checks_table(datasets)]
+    table, passed, total = realism_block(realism_checks(datasets))
+    parts += [wrap(f"Beyond the charts, {passed} of {total} realism criteria pass on the same run. The table shows ten "
+                   "of them; the list under it shows all."), "", table]
     return "\n".join(parts)
 
 
@@ -128,8 +144,8 @@ def cli_block(datasets):
     period = f"{years[0]} and {years[-1]}" if len(years) == 2 else f"{years[0]} to {years[-1]}"
     return wrap(f"`python main.py` writes {nf.number(len(datasets['customer_data']))} customers, "
             f"{nf.number(len(datasets['product_data']))} products and {nf.number(len(sales))} order lines "
-            f"({nf.number(sales['order_id'].nunique())} orders in {period}) as {s.saving_format.capitalize()} to "
-            "`export/` in about half a minute, with seed 42 and Polish values by default.")
+            f"({nf.number(sales['order_id'].nunique())} orders in {period}) with seed 42 and Polish values, and saves "
+            f"{len(s.generated_files)} tables as {s.saving_format.capitalize()} files in `export/`.")
 
 
 def update_readme(path, blocks):
