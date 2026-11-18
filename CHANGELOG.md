@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### 1.3.0 - unreleased
+### 1.3.0 - 2026-11-18
 Added:
 - `notebooks/worked_example.ipynb`, saved with its outputs: three questions answered from the raw tables and then checked against the truth columns (an A/B test with a sample ratio check, cohort retention and RFM against `customer_segment`, fraud rules scored with precision and recall against `is_fraud`). `scripts/make_notebook.py` writes and runs it; two runs give the same file.
 - `docs/columns.md`: every column of every table with its type, an example, its meaning and whether it holds the truth; `docs/realism.md`: all realism criteria with their values; `docs/data-model.md`: the table diagram. `scripts/make_charts.py` writes the first two from the default run.
