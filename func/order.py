@@ -296,7 +296,7 @@ def replenishment_products(behaviour, params, price_book, calendar, generator):
     kinds = behaviour["replenishment_type"].to_numpy()
     product = np.zeros(len(behaviour), dtype=np.int64)
     first_day = np.clip(behaviour["first_order_day"].to_numpy(), 0, len(calendar) - 1)
-    for kind in set(kinds) - {""}:
+    for kind in sorted(set(kinds) - {""}):  # sorted: a set of strings iterates in a per-process order
         if kind not in params["product_ids_by_type"]:
             continue
         slots = np.flatnonzero(kinds == kind)

@@ -175,7 +175,7 @@ def build_returns(order_data, product_data, customer_data, shipments, generator)
     returned_quantity = np.where(partial, 1 + (generator.random(count) * (quantity - 1)).astype(int), quantity)
     reasons = np.empty(count, dtype=object)
     categories = picked["category"].to_numpy()
-    for key in set(categories) | {"default"}:
+    for key in sorted(set(categories) | {"default"}):  # sorted: same draws in every process
         slots = categories == key if key != "default" else ~np.isin(categories, list(cs.return_reasons))
         if key != "default" and key not in cs.return_reasons:
             continue
