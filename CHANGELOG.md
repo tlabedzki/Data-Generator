@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.4.1 - 2026-11-19
+Changed:
+- README charts are one light PNG each, shown the same in GitHub's light and dark themes, as plain images instead of `<picture>`. `scripts/make_charts.py` draws only the light version, on a solid white background with a margin, and `docs/img/*-dark.png` are removed. The animated demo at the top keeps its light and dark frame.
+- README: the date of the last change on its last line.
+
 ### 1.4.0 - 2026-11-19
 Added:
 - Order status in `order_data`: `order_status` (`delivered`, `returned`, `cancelled`, `payment_failed`), `payment_status` (`paid`, `refunded`, `failed`, `unpaid`), `cancel_reason` and `cancelled_at`. Payments fail by method (deferred payment 10%, card 3.5%, BLIK 1.2%, cash on delivery never), and about 2.5% of the other orders are cancelled before dispatch, more often with cash on delivery and in November and December, when `out_of_stock` grows. An order is `returned` when every line came back in full and was refunded. Cancelled and failed orders have no shipment, return or review. Settings in `settings/commerce_settings.py`, section Order status.

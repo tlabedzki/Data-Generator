@@ -87,10 +87,9 @@ def metrics_block(datasets):
     ])
 
 
-def picture(stem, alt):
-    """A chart that follows GitHub's light or dark theme."""
-    return (f'<picture>\n  <source media="(prefers-color-scheme: dark)" srcset="docs/img/{stem}-dark.png">\n'
-            f'  <img alt="{alt}" src="docs/img/{stem}.png">\n</picture>')
+def chart_image(stem, alt):
+    """A light chart, shown the same in GitHub's light and dark themes."""
+    return f"![{alt}](docs/img/{stem}.png)"
 
 
 def monthly_takeaway(sales):
@@ -170,7 +169,7 @@ def results_block(datasets, weights, rows):
              "category-mix": ch.category_text(sales)}
     parts = []
     for stem, takeaway in CHARTS:
-        parts += [picture(stem, texts[stem][0]), "", wrap(takeaway(sales, weights)), ""]
+        parts += [chart_image(stem, texts[stem][0]), "", wrap(takeaway(sales, weights)), ""]
     table, passed, total = realism_block(rows)
     parts += [wrap(f"Beyond the charts, {passed} of {total} realism criteria pass on the same run. The table shows ten "
                    "of them; [docs/realism.md](docs/realism.md) lists all with their values."), "", table]

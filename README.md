@@ -80,31 +80,22 @@ free-delivery threshold or picked up in store). 30% of products launch during th
 ## Results
 
 Every chart and number below comes from the default run (seed 42); revenue leaves out cancelled orders and orders
-with a failed payment. `python scripts/make_charts.py` regenerates the data, redraws the charts in light and dark
-versions and rewrites the numbers in this README and in `docs/`;
+with a failed payment. `python scripts/make_charts.py` regenerates the data, redraws the charts and rewrites the
+numbers in this README and in `docs/`;
 `python scripts/make_demo_svg.py` builds the animated demo at the top from screenshots of the app.
 
 <!-- generated:results -->
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/monthly-revenue-dark.png">
-  <img alt="Sales grow 23% a year, peaking in November" src="docs/img/monthly-revenue.png">
-</picture>
+![Sales grow 23% a year, peaking in November](docs/img/monthly-revenue.png)
 
 Revenue grows 23% a year and peaks at 4.9M PLN in November 2024, the Black Friday month.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/weekday-profile-dark.png">
-  <img alt="Saturday is the quietest day, with 12% of orders" src="docs/img/weekday-profile.png">
-</picture>
+![Saturday is the quietest day, with 12% of orders](docs/img/weekday-profile.png)
 
 Every weekday lands within 1.6 percentage points of its configured weight: special days such as Black Friday and the
 weekly e-mail campaigns on Tuesdays or Thursdays move it, as they would in a real shop.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/img/category-mix-dark.png">
-  <img alt="Clothing earns 33% of revenue" src="docs/img/category-mix.png">
-</picture>
+![Clothing earns 33% of revenue](docs/img/category-mix.png)
 
 Category revenue lands within 3.1 percentage points of the target mix: the generator corrects for average price, so
 expensive categories do not take over revenue just because their unit prices are high.
@@ -234,3 +225,5 @@ criteria on the full default run.
 ## License
 
 MIT, see [LICENSE](LICENSE). [Changelog](CHANGELOG.md).
+
+README last updated: 2026-11-19
