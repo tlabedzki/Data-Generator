@@ -5,7 +5,7 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 [![Release](https://img.shields.io/github/v/release/tlabedzki/Data-Generator)](https://github.com/tlabedzki/Data-Generator/releases)
 
-Generates Lumo, a fully fictional Polish online shop, as 14 linked tables, from orders and reviews to web sessions,
+Generates data for Lumo, a fully fictional Polish online shop: 14 linked tables, from orders and reviews to web sessions,
 returns and A/B tests, for analytics practice.
 
 <picture>

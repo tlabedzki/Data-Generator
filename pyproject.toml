@@ -1,7 +1,7 @@
 [project]
 name = "data-generator"
-version = "1.4.2"
-description = "Synthetic Polish online shop in 14 linked tables with answers to check"
+version = "1.4.3"
+description = "Synthetic data for a fictional Polish online shop: 14 linked tables with answers to check"
 requires-python = ">=3.11"
 license = "MIT"
 
