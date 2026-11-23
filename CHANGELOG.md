@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### Unreleased
+### 1.4.2 - 2026-11-23
 Changed:
 - The generated shop has a name, Lumo: in the first sentence of the README, in the app heading ("Lumo, a shop that never existed, with data that looks real.") and in the README Data section, which says the name is made up and refers to no company or product of that name. The name is not written to the data: seed 42 gives the same files as in 1.4.1, byte for byte.
 
