@@ -5,8 +5,8 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 [![Release](https://img.shields.io/github/v/release/tlabedzki/Data-Generator)](https://github.com/tlabedzki/Data-Generator/releases)
 
-Generates a fully fictional Polish online shop as 14 linked tables, from orders and reviews to web sessions, returns
-and A/B tests, for analytics practice.
+Generates Lumo, a fully fictional Polish online shop, as 14 linked tables, from orders and reviews to web sessions,
+returns and A/B tests, for analytics practice.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/app-demo-dark.svg">
@@ -176,7 +176,8 @@ tables link, and [docs/columns.md](docs/columns.md) describes every column and m
 
 Brand, payment and delivery names (for example Samsung, H&M, PayU, BLIK and InPost) are used only as labels to make
 the data look familiar. Products, prices, margins, popularity and market shares are fictional and say nothing about
-these companies.
+these companies. Lumo, the shop's name, is made up for this project and refers to no company or product of that
+name.
 
 <!-- generated:data -->
 
@@ -226,4 +227,4 @@ criteria on the full default run.
 
 MIT, see [LICENSE](LICENSE). [Changelog](CHANGELOG.md).
 
-README last updated: 2026-11-19
+README last updated: 2026-11-23

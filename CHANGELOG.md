@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### Unreleased
+Changed:
+- The generated shop has a name, Lumo: in the first sentence of the README, in the app heading ("Lumo, a shop that never existed, with data that looks real.") and in the README Data section, which says the name is made up and refers to no company or product of that name. The name is not written to the data: seed 42 gives the same files as in 1.4.1, byte for byte.
+
 ### 1.4.1 - 2026-11-19
 Changed:
 - README charts are one light PNG each, shown the same in GitHub's light and dark themes, as plain images instead of `<picture>`. `scripts/make_charts.py` draws only the light version, on a solid white background with a margin, and `docs/img/*-dark.png` are removed. The animated demo at the top keeps its light and dark frame.

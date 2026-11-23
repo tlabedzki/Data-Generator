@@ -62,6 +62,10 @@ def test_layout_builds():
     assert ui_app.page() is not None
 
 
+def test_hero_names_the_fictional_shop():
+    assert "Lumo" in str(ui_app.page().to_plotly_json())
+
+
 def test_server_serves_page_and_layout():
     client = ui_app.app.server.test_client()
     assert client.get("/").status_code == 200

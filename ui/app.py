@@ -212,7 +212,7 @@ def page():
         html.Main(html.Div([
             html.Div([
                 html.P("Synthetic e-commerce data", className="dg-eyebrow"),
-                html.H1(["A shop that never existed, ", html.Br(), "with ", html.Em("data"), " that looks real."],
+                html.H1(["Lumo, a shop that never existed, ", html.Br(), "with ", html.Em("data"), " that looks real."],
                         className="dg-h1"),
                 html.P("Customers, orders, sessions, campaigns, returns and A/B tests, with seasonality, churn, "
                        "promotions and optional dirty data. 100% fictional, reproducible with a seed, ready as CSV or "
