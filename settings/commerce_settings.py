@@ -193,3 +193,111 @@ review_comments = {
              "Good product, but the courier was late."],
     "defect": ["Arrived damaged.", "Stopped working after a few days.", "Faulty item, very disappointed."],
 }
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Shop costs (carrier, returns, payments, affiliate commission):
+
+# What selling costs the shop beyond the purchase price, in PLN without VAT. These settings are the true rates: the
+# cost columns follow from them (only the units written off after a return are drawn at random), so the costs spread
+# over products add up to the cost columns to the grosz. Values "without VAT" divide the gross value after discount
+# by 1 + market_settings.vat_rate.
+
+# Parcel size of a product (product_data.parcel_size): by category, with exceptions by product type. Product types in
+# bulky_product_types are always "bulky" (and is_bulky). A shipment takes the size of its largest product, one size
+# up (at most "large") from parcel_size_step_up_units units on.
+parcel_sizes = ["small", "medium", "large", "bulky"]
+default_parcel_size = "medium"
+category_parcel_size = {
+    "Electronics": "small", "Clothing": "small", "Home & Garden": "medium", "Sports": "medium", "Beauty": "small",
+    "Toys": "medium", "Automotive": "medium", "Books & Media": "small", "Health": "small", "Pet Supplies": "large",
+    "Baby & Kids": "medium", "Office": "small", "Jewelry & Accessories": "small", "Furniture": "large",
+    "DIY Tools": "medium",
+}
+product_type_parcel_size = {
+    "Laptop": "medium", "Printer": "large", "Sneakers": "medium", "Jacket": "medium", "Vacuum Cleaner": "large",
+    "Coffee Machine": "large", "Garden Tool": "large", "Car Battery": "large", "Brake Pads": "small",
+    "Pet Toy": "small", "Diapers": "large", "Car Seat": "large", "Baby Bottle": "small", "Monitor": "large",
+    "Paper Shredder": "large", "Handbag": "medium", "Tool Box": "large",
+}
+parcel_size_step_up_units = 4
+
+# What the carrier charges the shop for one parcel (shipment_data.carrier_cost), by delivery method and parcel size,
+# PLN without VAT. It does not depend on the delivery fee the customer pays, so free delivery still costs the shop.
+# Cash on delivery adds the carrier's collection fee: cod_collection_fee["rate"] of the amount collected plus
+# cod_collection_fee["fixed"].
+carrier_rates = {
+    "InPost parcel locker": {"small": 9.20, "medium": 10.10, "large": 11.40, "bulky": 11.40},
+    "InPost courier":       {"small": 11.50, "medium": 12.90, "large": 15.40, "bulky": 69.00},
+    "DPD":                  {"small": 12.40, "medium": 14.20, "large": 17.10, "bulky": 75.00},
+    "DHL":                  {"small": 12.90, "medium": 14.60, "large": 17.90, "bulky": 79.00},
+    "Allegro One":          {"small": 8.40, "medium": 9.20, "large": 10.60, "bulky": 10.60},
+    "Orlen Paczka":         {"small": 7.90, "medium": 8.70, "large": 10.20, "bulky": 10.20},
+    "Poczta Polska":        {"small": 9.60, "medium": 11.30, "large": 14.10, "bulky": 14.10},
+    "UPS":                  {"small": 14.90, "medium": 17.20, "large": 21.40, "bulky": 89.00},
+    "FedEx":                {"small": 16.50, "medium": 19.40, "large": 24.10, "bulky": 95.00},
+    "Store pickup":         {"small": 3.00, "medium": 3.00, "large": 4.50, "bulky": 25.00},
+}
+default_carrier_rates = {"small": 13.00, "medium": 15.00, "large": 18.00, "bulky": 80.00}
+cod_collection_fee = {"rate": 0.01, "fixed": 2.00}
+
+# Returns (return_data): the shop pays the return label (return_shipping_cost, by parcel size of the product, one
+# label per returned line) when the reason is in shop_paid_return_reasons; otherwise the customer sends it back at
+# their own cost and the column is 0. Handling (handling_cost) is paid for every return, also a rejected one:
+# per_return + per_unit × returned units, plus bulky_extra for a bulky product.
+return_label_rates = {"small": 8.50, "medium": 9.50, "large": 12.50, "bulky": 79.00}
+shop_paid_return_reasons = ["defective", "damaged", "wrong_item", "not_as_described", "wrong_size"]
+return_handling_cost = {"per_return": 6.00, "per_unit": 2.00, "bulky_extra": 25.00}
+
+# Chance that a unit of a refunded return cannot be sold again, by return reason (written_off_quantity is drawn unit
+# by unit; write_off_cost = written_off_quantity × net_purchase_price). Rejected returns go back to the customer, so
+# nothing is written off.
+write_off_share = {
+    "defective": 0.85,
+    "damaged": 0.75,
+    "not_as_described": 0.15,
+    "wrong_item": 0.05,
+    "changed_mind": 0.05,
+    "wrong_size": 0.03,
+}
+default_write_off_share = 0.10
+
+# Payment operator fees (payment_data): payment_fee = payment_amount × fee_rate + fixed_fee. The rate depends on the
+# payment method (deferred payments and cards cost more than BLIK), the fixed fee on the operator. Cash on delivery
+# has no operator: the carrier's collection fee is part of carrier_cost. A failed payment costs only the fixed fee
+# of a declined attempt (failed_payment_fee, by method). The operator keeps its fee when an order is refunded, and
+# a refund itself costs nothing.
+payment_fee_rate = {
+    "BLIK": 0.012,
+    "Card": 0.016,
+    "Fast transfer": 0.011,
+    "Deferred payment": 0.035,
+    "COD": 0.0,
+    "Wallet": 0.018,
+    "Bank transfer": 0.005,
+}
+default_payment_fee_rate = 0.015
+payment_fixed_fee = {
+    "PayU": 0.25, "Przelewy24": 0.30, "Tpay": 0.25, "Autopay": 0.20, "Stripe": 1.00, "PayPal": 1.35, "PayPo": 0.00,
+    "Other": 0.30,
+}
+default_payment_fixed_fee = 0.30
+failed_payment_fee = {"Card": 0.30}
+methods_without_operator = ["COD"]
+
+# Affiliate commission (order_data.affiliate_commission): orders from the affiliate channel pay the network a share
+# of the line value without VAT, by category, for the units the customer kept. The network takes back the commission
+# on units refunded after a return and earns nothing on cancelled or failed orders. The commission comes on top of
+# the cost of affiliate campaigns in campaign_data.
+affiliate_commission_rate = {
+    "Electronics": 0.03,
+    "Clothing": 0.10,
+    "Beauty": 0.09,
+    "Jewelry & Accessories": 0.10,
+    "Health": 0.07,
+    "Sports": 0.07,
+    "Toys": 0.07,
+    "Home & Garden": 0.06,
+    "Furniture": 0.05,
+    "Books & Media": 0.05,
+}
+default_affiliate_commission_rate = 0.06

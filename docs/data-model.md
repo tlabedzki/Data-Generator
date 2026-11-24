@@ -1,6 +1,6 @@
 # Data model
 
-The 15 tables of one run and how they link. [columns.md](columns.md) describes every column; the columns marked
+The 16 tables of one run and how they link. [columns.md](columns.md) describes every column; the columns marked
 "truth" hold what an analysis should find.
 
 ```mermaid
@@ -12,6 +12,7 @@ erDiagram
     order_data ||--|| sales_data : "becomes one row of"
     order_data }|--o| shipment_data : "ships in"
     order_data ||--o| return_data : "comes back in"
+    order_data }|--|| payment_data : "is paid in"
     order_data ||--o| review_data : "is rated in"
     customer_data ||--o{ session_data : visits
     campaign_data |o--o{ session_data : brings
@@ -26,6 +27,7 @@ erDiagram
     product_data {
         int product_id PK
         string category
+        string parcel_size
     }
     order_data {
         int order_line_id PK
@@ -34,6 +36,7 @@ erDiagram
         int product_id FK
         int session_id FK
         string order_status
+        float affiliate_commission
         bool is_fraud "truth"
     }
     sales_data {
@@ -55,10 +58,17 @@ erDiagram
     shipment_data {
         int shipment_id PK
         int order_id
+        float carrier_cost
     }
     return_data {
         int return_id PK
         int order_line_id FK
+        float write_off_cost
+    }
+    payment_data {
+        int payment_id PK
+        int order_id
+        float payment_fee
     }
     review_data {
         int review_id PK
@@ -87,7 +97,9 @@ erDiagram
 
 Each row of `order_data` is one order line, so `order_id` repeats for multi-line orders, and so does its
 `order_status`. Only orders that shipped (`delivered` or `returned`) have a shipment, returns and reviews; cancelled
-orders and orders with a failed payment have none. Two tables point at rows of
+orders and orders with a failed payment have none. Every order has one row in `payment_data`, also a cancelled or
+failed one. The shop's selling costs sit in `shipment_data` (`carrier_cost`), `return_data` (label, handling, goods
+written off), `payment_data` (`payment_fee`) and `order_data` (`affiliate_commission`), all without VAT. Two tables point at rows of
 the others by name instead of a key: `anomaly_data` (fraud rings, shop outages, a return spike, with
 `table_name` and dates) and `quality_issue_data` (one row per injected issue, with `table_name`, `key_column` and
 `key_value`).
@@ -102,6 +114,7 @@ the others by name instead of a key: `anomaly_data` (fraud rings, shop outages, 
 | `competitor_prices` | a list price of a product at one competing shop, with its validity period | `product_id`, `competitor_id` |
 | `shipment_data` | the shipment of an order that shipped | `order_id` |
 | `return_data` | a returned order line | `order_line_id`, `order_id`, `product_id`, `customer_id` |
+| `payment_data` | the payment of an order, with the operator's fee | `order_id` |
 | `review_data` | a rating of a delivered order line | `order_line_id`, `order_id`, `product_id`, `customer_id` |
 | `campaign_data` | a marketing campaign | `campaign_id` |
 | `session_data` | a web session; the converting one has `order_id` | `customer_id`, `campaign_id`, `order_id` |

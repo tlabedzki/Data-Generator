@@ -3,7 +3,7 @@ Check the realism criteria of the generated data on the default command-line vol
 
 Usage (from the repository root):
     python scripts/check_realism.py            # all packs
-    python scripts/check_realism.py E A        # selected packs (E A D B C F G H)
+    python scripts/check_realism.py E A        # selected packs (E A D B C F G H I)
 
 Each criterion prints PASS or FAIL with the measured number. The exit code is 1 when any criterion fails.
 """
@@ -490,8 +490,55 @@ def check_h(data):
           and abs(average - 1) <= 0.02)
 
 
+def check_i(data):
+    import settings.commerce_settings as cs
+    import settings.market_settings as ms
+    lines, shipments, returns = data["order_data"], data["shipment_data"], data["return_data"]
+    payments = data["payment_data"]
+    shipped = realised(lines)
+    net = (shipped["quantity"] * shipped["unit_price_gross"] * (1 - shipped["discount_rate"])).sum() / (1 + ms.vat_rate)
+    free = shipments["shipping_cost"] == 0
+    check("I", "free shipments that still cost the shop; carrier cost per shipment, free / paid by the customer",
+          f"{(shipments.loc[free, 'carrier_cost'] > 0).mean():.0%}; {shipments.loc[free, 'carrier_cost'].mean():.2f} / "
+          f"{shipments.loc[~free, 'carrier_cost'].mean():.2f} PLN",
+          (shipments.loc[free, "carrier_cost"] > 0).all())
+    bulky = shipments.groupby("is_bulky")["carrier_cost"].mean()
+    check("I", "carrier cost of a bulky shipment / any other", f"{bulky[True] / bulky[False]:.1f}",
+          bulky[True] / bulky[False] >= 4)
+    refunded = returns[returns["return_status"] == "refunded"].groupby("return_reason")[
+        ["written_off_quantity", "returned_quantity"]].sum()
+    share = refunded["written_off_quantity"] / refunded["returned_quantity"]
+    reasons = ["defective", "damaged", "changed_mind", "wrong_size"]
+    check("I", "returned units written off, " + " / ".join(reasons) + " (settings "
+               + " / ".join(f"{cs.write_off_share[r]:.0%}" for r in reasons) + ")",
+          " / ".join(f"{share[r]:.0%}" for r in reasons),
+          all(abs(share[r] - cs.write_off_share[r]) <= 0.05 for r in reasons))
+    method = payments["order_id"].map(lines.drop_duplicates("order_id").set_index("order_id")["payment_method"])
+    paid = payments[payments["fee_rate"] > 0]
+    rate = (paid["payment_fee"].groupby(method[paid.index]).sum()
+            / paid["payment_amount"].groupby(method[paid.index]).sum())
+    names = ["BLIK", "Card", "Deferred payment"]
+    check("I", "payment fee / amount paid, " + " / ".join(names) + " (rates "
+               + " / ".join(f"{cs.payment_fee_rate[n]:.1%}" for n in names) + " plus a fixed fee)",
+          " / ".join(f"{rate[n]:.2%}" for n in names),
+          rate["BLIK"] < rate["Card"] < rate["Deferred payment"]
+          and all(0 <= rate[n] - cs.payment_fee_rate[n] <= 0.003 for n in names))
+    affiliate = shipped[shipped["channel"] == "affiliate"]
+    value = (affiliate["quantity"] * affiliate["unit_price_gross"] * (1 - affiliate["discount_rate"])).sum()
+    outside = int((lines.loc[lines["channel"] != "affiliate", "affiliate_commission"] != 0).sum())
+    check("I", "affiliate commission / affiliate net revenue; commission outside the affiliate channel",
+          f"{affiliate['affiliate_commission'].sum() / (value / (1 + ms.vat_rate)):.1%}; {outside}",
+          0.03 <= affiliate["affiliate_commission"].sum() / (value / (1 + ms.vat_rate)) <= 0.10 and outside == 0)
+    parts = {"carrier": shipments["carrier_cost"].sum(),
+             "returns": returns[["return_shipping_cost", "handling_cost", "write_off_cost"]].sum().sum(),
+             "payments": payments["payment_fee"].sum(), "commission": lines["affiliate_commission"].sum()}
+    check("I", "shop costs / net revenue of shipped orders: " + " / ".join(parts),
+          " / ".join(f"{value / net:.1%}" for value in parts.values()),
+          all(0.002 <= value / net <= 0.05 for value in parts.values()))
+
+
 PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f, "G": check_g,
-         "H": check_h}
+         "H": check_h, "I": check_i}
 
 
 def main(selected):

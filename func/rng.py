@@ -27,6 +27,7 @@ STREAMS = {
     "order_status": 15,
     "reviews": 16,
     "competitors": 17,
+    "costs": 18,
 }
 
 

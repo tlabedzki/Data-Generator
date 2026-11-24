@@ -51,6 +51,7 @@ One row is a product. 50,000 rows in the default run.
 | `sales_price_gross` | float | 769 | current list price with VAT, ending in 9, PLN |  |
 | `launch_date` | datetime | 2020-08-17 | first day the product can sell |  |
 | `discontinued_date` | datetime | 2024-04-23 | last day the product can sell; empty while on sale |  |
+| `parcel_size` | text | medium | small, medium, large or bulky: parcel size of the product, by category and product type |  |
 
 ## order_data
 
@@ -82,12 +83,13 @@ One row is an order line. 80,326 rows in the default run.
 | `payment_status` | text | paid | paid, refunded, failed, or unpaid for a cancelled cash-on-delivery order |  |
 | `cancel_reason` | text | duplicate_order | customer_request, out_of_stock, duplicate_order or address_problem; empty unless cancelled |  |
 | `cancelled_at` | datetime | 2023-01-09 09:45 | cancellation time, before the planned dispatch; empty unless cancelled |  |
+| `affiliate_commission` | float | 0 | commission paid to the affiliate network for the units kept, without VAT, PLN; 0 outside the affiliate channel and for cancelled or failed orders |  |
 
 ## sales_data
 
 One row is an order line joined with its product and customer. 80,326 rows in the default run.
 
-All 56 columns of `order_data`, `product_data` and `customer_data` (joined on `product_id` and `customer_id`), plus:
+All 58 columns of `order_data`, `product_data` and `customer_data` (joined on `product_id` and `customer_id`), plus:
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
@@ -143,6 +145,8 @@ One row is the shipment of an order. 52,452 rows in the default run.
 | `delivered_at` | datetime | 2023-01-03 19:31 | delivery time |  |
 | `promised_delivery_date` | datetime | 2023-01-04 | delivery date promised at checkout |  |
 | `is_late` | bool | False | delivered after the promised date |  |
+| `parcel_size` | text | small | size of the parcel: its largest product, one size up from 4 units |  |
+| `carrier_cost` | float | 11.5 | what the carrier charges the shop by method and parcel size, plus the cash-on-delivery fee, without VAT, PLN |  |
 
 ## return_data
 
@@ -160,6 +164,23 @@ One row is a returned order line. 8,878 rows in the default run.
 | `return_reason` | text | changed_mind | for example wrong_size, changed_mind or defective |  |
 | `refund_amount` | float | 537 | money refunded, PLN |  |
 | `return_status` | text | refunded | refunded or rejected |  |
+| `return_shipping_cost` | float | 0 | return label paid by the shop, without VAT, PLN; 0 when the customer pays (changed_mind) |  |
+| `handling_cost` | float | 12 | receiving and checking the return, without VAT, PLN |  |
+| `written_off_quantity` | int | 0 | returned units that cannot be sold again; 0 for a rejected return |  |
+| `write_off_cost` | float | 0 | written_off_quantity × net_purchase_price, PLN |  |
+
+## payment_data
+
+One row is the payment of an order, with the payment operator's fee. 55,568 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `payment_id` | int | 1 | payment key; one payment per order |  |
+| `order_id` | int | 100001 | order key; one order has 1-5 lines |  |
+| `payment_amount` | float | 197 | amount charged at checkout: lines after discount plus the delivery fee, PLN gross; 0 when a cash-on-delivery order is cancelled |  |
+| `fee_rate` | float | 0.016 | operator's share of the amount by payment method; 0 for cash on delivery and failed payments |  |
+| `fixed_fee` | float | 0.3 | operator's fixed fee by provider, or the fee of a declined card; 0 for cash on delivery, PLN |  |
+| `payment_fee` | float | 3.45 | payment_amount × fee_rate + fixed_fee, PLN; kept by the operator when the order is refunded |  |
 
 ## review_data
 

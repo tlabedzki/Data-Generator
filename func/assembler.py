@@ -1,5 +1,7 @@
 import pandas as pd
 
+from func.costs import NEW_SALES_COLUMNS
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Functions:
 
@@ -21,5 +23,9 @@ def build_sales_data(order_data, product_data, customer_data):
     sales_data['sales_price_gross_after_discount'] = sales_data['unit_price_gross'] * (1 - sales_data['discount_rate'])
     sales_data['sales_price_net_after_discount'] = sales_data['unit_price_net'] * (1 - sales_data['discount_rate'])
     sales_data['revenue_gross'] = sales_data['quantity'] * sales_data['sales_price_gross_after_discount']
+
+    # Columns added in later versions go last, so the earlier columns keep their positions.
+    new = [column for column in NEW_SALES_COLUMNS if column in sales_data.columns]
+    sales_data = sales_data[[column for column in sales_data.columns if column not in new] + new]
 
     return sales_data.sort_values(['order_datetime', 'order_id'], kind='stable').reset_index(drop=True)

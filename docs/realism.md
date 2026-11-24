@@ -1,6 +1,6 @@
 # Realism criteria
 
-75 of 75 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
+81 of 81 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
 with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 
 ## Dirty data and anomalies
@@ -101,3 +101,12 @@ with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 - ✅ Fulmina sale discount to the price before, from 50 PLN (settings 15%-30%): min / mean / max: 13.5% / 22.5% / 31.5%
 - ✅ Fulmina sales 2-5 days long; back to the price before: 2-5 days; 99%
 - ✅ Fulmina offer-days on sale; offers on sale on Black Friday 2024; average level with sales: 2.6%; 59%; 1.015
+
+## Shop costs
+
+- ✅ free shipments that still cost the shop; carrier cost per shipment, free / paid by the customer: 100%; 11.33 / 15.43 PLN
+- ✅ carrier cost of a bulky shipment / any other: 6.8
+- ✅ returned units written off, defective / damaged / changed_mind / wrong_size (settings 85% / 75% / 5% / 3%): 85% / 76% / 6% / 3%
+- ✅ payment fee / amount paid, BLIK / Card / Deferred payment (rates 1.2% / 1.6% / 3.5% plus a fixed fee): 1.24% / 1.63% / 3.53%
+- ✅ affiliate commission / affiliate net revenue; commission outside the affiliate channel: 6.3%; 0
+- ✅ shop costs / net revenue of shipped orders: carrier / returns / payments / commission: 1.6% / 1.7% / 2.0% / 0.6%

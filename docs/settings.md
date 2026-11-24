@@ -68,8 +68,8 @@ Use `generated_files` in `settings/main_settings.py`.
 ```python
 generated_files = [
     "customer_data", "product_data", "order_data", "sales_data", "price_history", "competitor_prices", "shipment_data",
-    "return_data", "review_data", "campaign_data", "session_data", "experiment_data", "experiment_assignment_data",
-    "anomaly_data", "quality_issue_data",
+    "return_data", "payment_data", "review_data", "campaign_data", "session_data", "experiment_data",
+    "experiment_assignment_data", "anomaly_data", "quality_issue_data",
 ]
 ```
 
@@ -78,13 +78,14 @@ Available values:
 | File | One row is | Notes |
 |---|---|---|
 | `customer_data` | a customer account | truth for churn models: `true_purchase_rate`, `true_churn_date` |
-| `product_data` | a product | |
-| `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line; `order_status` per order |
+| `product_data` | a product | `parcel_size` for shipping costs |
+| `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line; `order_status` per order; `affiliate_commission` |
 | `sales_data` | an order line joined with its product and customer | revenue columns added |
 | `price_history` | a list price of a product with its validity period | the last price equals `sales_price_gross` |
 | `competitor_prices` | a list price of a product at one competing shop, with its validity period | 5 fictional shops, sale prices flagged in `is_promotion`; truth: strategy, price level, market price |
-| `shipment_data` | the shipment of an order | only orders that shipped; cost, dispatch, delivery, late or not |
-| `return_data` | a returned order line | reason, quantity, refund |
+| `shipment_data` | the shipment of an order | only orders that shipped; fee paid by the customer, carrier cost to the shop, dispatch, delivery, late or not |
+| `return_data` | a returned order line | reason, quantity, refund; return label, handling and goods written off |
+| `payment_data` | the payment of an order | every order; amount charged and the payment operator's fee |
 | `review_data` | a rating of a delivered order line | 1-5 stars, date, optional comment |
 | `campaign_data` | a marketing campaign | channel, dates, cost, voucher, true effect |
 | `session_data` | a web session | about 12 per order; the converting one has `order_id` |
@@ -106,7 +107,7 @@ generated_files = ["sales_data"]
 ## Random Streams
 
 Every step (customers, products, orders, behaviour, prices, competitor prices, sessions, experiments, order status,
-reviews, anomalies, dirty data and so on) draws from its own random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for
+reviews, goods written off after returns, anomalies, dirty data and so on) draws from its own random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for
 example the dirty data level, does not change the random numbers of the other steps. Names, phone numbers and bank
 account numbers come from Faker, seeded with `random_state` too.
 
@@ -449,6 +450,43 @@ check a rating analysis against.
 
 A line is `late` when its shipment has `is_late`, `defect` wins over `late`, and the rest is `on_time`. The rating
 does not change what the customer buys later.
+
+## Shop Costs
+
+What selling costs the shop beyond the purchase price, in `settings/commerce_settings.py`, section Shop costs. All
+amounts are PLN without VAT. These settings are the true rates: every cost column follows from them, except the units
+written off after a return, which are drawn unit by unit from their own random stream. So costs spread over products
+add up to the cost columns to the grosz, and the tables of 1.6.0 stay as they were: the cost columns are added at
+the end of `product_data`, `order_data`, `shipment_data`, `return_data` and `sales_data`, and `payment_data` is new.
+Values "without VAT" divide the gross value after discount by `1 + vat_rate`.
+
+| Setting | Meaning |
+|---|---|
+| `category_parcel_size`, `product_type_parcel_size`, `default_parcel_size` | parcel size of a product (`small`, `medium`, `large`), by category with exceptions by product type; types in `bulky_product_types` are always `bulky` |
+| `parcel_size_step_up_units` | a shipment takes the size of its largest product, one size up (at most `large`) from 4 units |
+| `carrier_rates`, `default_carrier_rates` | what the carrier charges the shop for one parcel, by delivery method and parcel size: for example 9.20 to 11.40 PLN for an InPost parcel locker, 69 to 95 PLN for a bulky courier parcel |
+| `cod_collection_fee` | cash on delivery adds 1% of the amount collected plus 2 PLN to `carrier_cost` |
+| `return_label_rates` | return label by parcel size of the product (8.50 small to 79 PLN bulky), one per returned line |
+| `shop_paid_return_reasons` | reasons for which the shop pays the label: defective, damaged, wrong_item, not_as_described and wrong_size (free size exchange); for changed_mind the customer pays |
+| `return_handling_cost` | 6 PLN per return plus 2 PLN per unit, 25 PLN more for a bulky product; also for rejected returns |
+| `write_off_share`, `default_write_off_share` | chance that a unit of a refunded return cannot be sold again: defective 85%, damaged 75%, not_as_described 15%, wrong_item and changed_mind 5%, wrong_size 3%; rejected returns go back to the customer |
+| `payment_fee_rate`, `default_payment_fee_rate` | operator's share of the amount by payment method: BLIK 1.2%, card 1.6%, fast transfer 1.1%, deferred payment 3.5%, wallet 1.8%, bank transfer 0.5% |
+| `payment_fixed_fee`, `default_payment_fixed_fee` | fixed fee by operator, from 0 (PayPo) to 1.35 PLN (PayPal) |
+| `methods_without_operator` | cash on delivery: no operator fee, the carrier's collection fee is in `carrier_cost` |
+| `failed_payment_fee` | a declined card costs 0.30 PLN; other failed payments cost nothing |
+| `affiliate_commission_rate`, `default_affiliate_commission_rate` | commission of the affiliate network by category (3% Electronics to 10% Clothing and Jewelry & Accessories, 6% otherwise) |
+
+`payment_data` has one row per order, also cancelled and failed ones: `payment_fee = payment_amount × fee_rate +
+fixed_fee`. The operator keeps its fee when an order is refunded, and a refund costs nothing. A cancelled
+cash-on-delivery order was never charged, so its amount is 0.
+
+`affiliate_commission` is paid on the units of an affiliate order that the customer kept: the network takes back the
+commission on refunded units and earns nothing on cancelled or failed orders. It comes on top of the cost of
+affiliate campaigns in `campaign_data`, which stays the cost of the campaigns.
+
+The shop's own `carrier_cost` does not depend on `shipping_cost`, the fee the customer pays, so a free delivery (from
+199 PLN) still costs the shop. The rates are fictional, set at the level of Polish e-commerce contracts, and refer
+to no real price list.
 
 ## Marketing And Traffic
 

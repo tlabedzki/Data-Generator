@@ -84,7 +84,26 @@ def metrics_block(datasets):
              f"{pct(launched)} of products launch during the period and {pct(discontinued)} are discontinued, and "
              f"{nf.number(buyers)} of the {nf.number(len(customers))} accounts order in it: {pct(earlier)} signed up "
              "earlier, so their cohorts start before the data does."),
+        "",
+        shop_costs_sentence(datasets, paid),
     ])
+
+
+def shop_costs_sentence(datasets, paid):
+    """What selling costs the shop beyond the purchase price, as shares of net revenue of shipped orders."""
+    import settings.market_settings as ms
+    net = (paid["quantity"] * paid["unit_price_gross"] * (1 - paid["discount_rate"])).sum() / (1 + ms.vat_rate)
+    shipments, returns = datasets["shipment_data"], datasets["return_data"]
+    free = shipments["shipping_cost"] == 0
+    back = returns[returns["return_status"] == "refunded"]
+    written_off = back["written_off_quantity"].sum() / back["returned_quantity"].sum()
+    returns_cost = returns[["return_shipping_cost", "handling_cost", "write_off_cost"]].sum().sum()
+    return wrap(f"The shop's own selling costs are in the data too, without VAT. Carriers take "
+                f"{pct(shipments['carrier_cost'].sum() / net, 1)} of net revenue (a free shipment still costs the "
+                f"shop {nf.number(shipments.loc[free, 'carrier_cost'].mean(), 2)} PLN on average), returns "
+                f"{pct(returns_cost / net, 1)} on top of the refunds, with {pct(written_off)} of returned units "
+                f"written off, payment fees {pct(datasets['payment_data']['payment_fee'].sum() / net, 1)} and "
+                f"affiliate commission {pct(datasets['order_data']['affiliate_commission'].sum() / net, 1)}.")
 
 
 def chart_image(stem, alt):
@@ -120,7 +139,7 @@ def category_takeaway(sales):
 PACK_NAMES = {"E": "Dirty data and anomalies", "A": "Customer behaviour",
               "D": "Prices, promotions, returns and shipping", "B": "Basket and preferences",
               "C": "Marketing and traffic", "F": "A/B experiments", "G": "Order status, reviews and churn",
-              "H": "Competitor prices"}
+              "H": "Competitor prices", "I": "Shop costs"}
 HEADLINES = [  # (pack, start of the check label in scripts/check_realism.py, wording in the README)
     ("A", "order growth first to last year", "Orders grow year over year (setting: 20% a year)"),
     ("D", f"Black Friday {s.end_year}", f"Black Friday {s.end_year} against an average November day"),

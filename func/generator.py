@@ -1,7 +1,7 @@
 """
 The generation pipeline: customers, products and order lines first, then the tables built on them (prices,
-competitor prices, sessions, experiments, order status, shipments, returns, reviews, anomalies, data quality issues)
-and the joined sales lines.
+competitor prices, sessions, experiments, order status, shipments, returns, reviews, shop costs and payments,
+anomalies, data quality issues) and the joined sales lines.
 
 Every step draws from its own random stream (func/rng.py), so the same seed always gives the same files.
 """
@@ -19,6 +19,7 @@ from func import (
     behaviour,
     calendar,
     competitors,
+    costs,
     customer,
     data,
     experiments,
@@ -44,8 +45,8 @@ EXPORT_DIR = PROJECT_DIR / "export"
 
 # Output tables: source tables first, then the joined sales lines, then the extra tables.
 DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "price_history", "competitor_prices",
-                 "shipment_data", "return_data", "review_data", "campaign_data", "session_data", "experiment_data",
-                 "experiment_assignment_data", "anomaly_data", "quality_issue_data"]
+                 "shipment_data", "return_data", "payment_data", "review_data", "campaign_data", "session_data",
+                 "experiment_data", "experiment_assignment_data", "anomaly_data", "quality_issue_data"]
 SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
 
 # Share of total run time per stage, used to turn stage progress into overall progress:
@@ -94,7 +95,7 @@ def run_generation_pipeline(progress: ProgressCallback | None = None) -> dict[st
         price_stream = rng.stream("prices")
         products = product.generate_product_data(s.product_data_rows, rng.stream("products"),
                                                  stage_progress("product_data"))
-        tables["product_data"] = prices.add_life_cycle(products, price_stream)
+        tables["product_data"] = costs.add_parcel_size(prices.add_life_cycle(products, price_stream))
 
     if "order_data" in needed:
         customers, products = tables["customer_data"], tables["product_data"]
@@ -142,6 +143,12 @@ def run_generation_pipeline(progress: ProgressCallback | None = None) -> dict[st
                                                                             extra["return_data"], status_stream)
         extra["review_data"] = reviews.build_reviews(order_data, extra["shipment_data"], extra["return_data"],
                                                      spikes, rng.stream("reviews"))
+        # Shop costs come last and add columns only, so the tables above stay as in earlier versions.
+        order_data = costs.add_affiliate_commission(order_data, products, extra["return_data"])
+        extra["payment_data"] = costs.build_payment_data(order_data, planned_shipments)
+        extra["shipment_data"] = costs.add_shipment_costs(extra["shipment_data"], order_data, products,
+                                                          extra["payment_data"])
+        extra["return_data"] = costs.add_return_costs(extra["return_data"], products, rng.stream("costs"))
         tables["order_data"] = order_data
         extra["anomaly_data"] = anomaly.anomaly_frame(anomalies + spikes)
 

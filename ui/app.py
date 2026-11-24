@@ -30,7 +30,8 @@ WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 DATASET_LABELS = {"sales_data": "Sales lines", "order_data": "Order lines", "customer_data": "Customers",
                   "product_data": "Products", "price_history": "Price history",
                   "competitor_prices": "Competitor prices", "shipment_data": "Shipments",
-                  "return_data": "Returns", "review_data": "Reviews", "campaign_data": "Campaigns",
+                  "return_data": "Returns", "payment_data": "Payments", "review_data": "Reviews",
+                  "campaign_data": "Campaigns",
                   "session_data": "Sessions", "experiment_data": "Experiments",
                   "experiment_assignment_data": "Experiment assignments",
                   "anomaly_data": "Anomalies", "quality_issue_data": "Data issues"}

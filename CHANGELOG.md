@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### [Unreleased] - proposed 1.7.0
+Added:
+- The shop's own selling costs, in PLN without VAT, from the rates in `settings/commerce_settings.py` (section Shop costs, described in `docs/settings.md`). The rates are the truth: every cost follows from them except the units written off after a return, so costs spread over products add up to the cost columns to the grosz.
+- `payment_data`, the 16th table: one payment per order (also cancelled and failed ones) with `payment_amount` (lines after discount plus the delivery fee), `fee_rate` by payment method (BLIK 1.2%, card 1.6%, deferred payment 3.5%), `fixed_fee` by operator and `payment_fee`. Cash on delivery has no operator fee, a declined card costs 0.30 PLN, and the operator keeps its fee when an order is refunded.
+- `product_data.parcel_size` (small, medium, large or bulky, by category and product type) and, in `shipment_data`, the parcel size of the shipment and `carrier_cost`: what the carrier charges the shop by delivery method and parcel size, plus 1% + 2 PLN for cash on delivery. A free delivery still costs the shop (11.33 PLN on average in the default run).
+- In `return_data`: `return_shipping_cost` (the return label, paid by the shop except for changed_mind), `handling_cost`, `written_off_quantity` (units that cannot be sold again, drawn by return reason: defective 85%, changed_mind 5%) and `write_off_cost` at the purchase price.
+- `order_data.affiliate_commission`: commission of the affiliate network by category (3% to 10%) on the units of an affiliate order that the customer kept; 0 for other channels and for cancelled or failed orders.
+- 6 realism criteria in a new pack I (shop costs) of `scripts/check_realism.py`, 81 in all; 8 tests in `tests/test_costs.py`, one of them showing that changing the cost settings changes only the cost columns. A row in What you can analyse and a sentence on the shop's costs under the sample.
+
+Changed:
+- Nothing in the earlier columns: the new columns sit at the end of `product_data`, `order_data`, `shipment_data`, `return_data` and `sales_data`, and the written-off units draw from their own random stream. Seed 42 gives the other 10 tables exactly as in 1.6.0, byte for byte, and every 1.6.0 column of the five changed tables with the same values in the same place.
+
 ### 1.6.0 - 2026-11-24
 Added:
 - A fifth competitor in `competitor_prices`: Fulmina, a flash sale shop (`competitor_strategy` flash_sale). Its regular price sits at level 1.02 and it sells 40% of products. On top of that it runs 8 random sales a year, 2 to 5 days each, plus one from Black Friday to Cyber Monday; each offer joins an ordinary sale with chance 0.3 (0.6 on Black Friday) at 15, 20, 25 or 30% off its price on the day before, and the regular price comes back the day after. In the default run 2.6% of Fulmina's offer-days are on sale and its average level with sales is 1.015.

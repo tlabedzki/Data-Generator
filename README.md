@@ -5,8 +5,8 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 [![Release](https://img.shields.io/github/v/release/tlabedzki/Data-Generator)](https://github.com/tlabedzki/Data-Generator/releases)
 
-Generates data for Lumo, a fully fictional Polish online shop: 15 linked tables, from orders and reviews to competitor
-prices, web sessions, returns and A/B tests, for analytics practice.
+Generates data for Lumo, a fully fictional Polish online shop: 16 linked tables, from orders and reviews to competitor
+prices, shop costs, web sessions, returns and A/B tests, for analytics practice.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/app-demo-dark.svg">
@@ -37,15 +37,16 @@ Each row starts with a question a shop asks; the last column says where the true
 | Do late parcels and faulty products cost stars? | Rating analysis on `review_data` with `shipment_data` (`is_late`) and `return_data` (reasons) | `review_score_weights` in `settings/` |
 | Is the A/B test result real? | Significance test, confidence interval, sample ratio mismatch and A/A test on `experiment_data`, `experiment_assignment_data`, `session_data` | `true_effect`, `has_sample_ratio_mismatch` |
 | Is our price competitive, and where is it far above or below the market? | Price index (our price / median competitor price) by product, category and shop on `competitor_prices`, `product_data`, `price_history` | `competitor_strategy`, `true_price_level`, `true_market_price_gross` |
+| What does each product really earn after shipping, returns, payment fees and commission? | Contribution margin by product: spread `carrier_cost` and `payment_fee` over order lines, add return costs and `affiliate_commission`, on `sales_data`, `shipment_data`, `return_data`, `payment_data` | rates in `settings/commerce_settings.py` (Shop costs); the costs add up to the grosz |
 | Do discounts sell more, and what drives returns and late deliveries? | Price elasticity, promotion uplift, return and delivery rates on `sales_data`, `price_history`, `return_data`, `shipment_data` | settings in `docs/settings.md` |
 | Which orders are fraud, and when did the shop go down? | Fraud and anomaly detection on `order_data`, `anomaly_data` | `is_fraud`, `anomaly_data` |
 | Can you trust the data before you analyse it? | Data cleaning (missing values, typos, formats, outliers, duplicates) on every table at `data_quality_level` low, medium or high | `quality_issue_data` (clean values) |
 
 ## What it does
 
-- Generates 15 linked tables: customers, products, order lines, sales lines, price history, competitor prices,
-  shipments, returns, reviews, campaigns, web sessions, experiments, experiment assignments, anomalies and data
-  quality issues.
+- Generates 16 linked tables: customers, products, order lines, sales lines, price history, competitor prices,
+  shipments, returns, payments, reviews, campaigns, web sessions, experiments, experiment assignments, anomalies and
+  data quality issues.
 - Models customers over time: signup cohorts, accounts that never order, segments, churn with its true date and
   purchase rate, preferred categories, replenishment and products bought together.
 - Shapes demand with monthly and weekday seasonality, special days, hours of the day, price changes, discounts that
@@ -53,6 +54,9 @@ Each row starts with a question a shop asks; the last column says where the true
 - Prices the same products at five fictional competitors (a discounter, a price matcher that follows our changes, a
   premium shop, a marketplace and a flash sale shop with short sales of 15-30% off) with each shop's true price
   level. Competitor prices never change our demand.
+- Charges the shop's own selling costs, without VAT: carrier rates by delivery method and parcel size (a free delivery
+  still costs the shop), return labels, handling and goods written off by return reason, payment operator fees by
+  method and operator, and affiliate commission on the units the customer kept.
 - Adds channels, campaigns, devices, a session funnel and randomized A/B tests, plus labelled fraud, shop outages and
   optional dirty data.
 - Saves CSV or Parquet with values in English or Polish; the same seed gives identical files.
@@ -65,7 +69,7 @@ Each row starts with a question a shop asks; the last column says where the true
 | 2023-11-11 | 118441 | Clothing | Dress Reserved Elegant Floral | 1 | 523.02 | delivered | Gdańsk |
 | 2024-06-28 | 136911 | Health | Vitamin Supplement Olimp Labs Gold Vita-Min | 2 | 282.30 | delivered | Pobiedziska |
 
-Three of the 80,326 rows of `sales_data` (59 columns: each order line joined with its customer and product), exactly
+Three of the 80,326 rows of `sales_data` (61 columns: each order line joined with its customer and product), exactly
 as `python main.py` writes them with the default English values.
 
 <!-- /generated:sample -->
@@ -79,6 +83,10 @@ costs with `acquisition_channel` give CAC and ROAS, which runs from 4.9 (affilia
 72% of carts are abandoned, 15% of orders use a campaign voucher code and 71% of shipments go free (above the
 free-delivery threshold or picked up in store). 30% of products launch during the period and 15% are discontinued, and
 23,172 of the 40,000 accounts order in it: 45% signed up earlier, so their cohorts start before the data does.
+
+The shop's own selling costs are in the data too, without VAT. Carriers take 1.6% of net revenue (a free shipment
+still costs the shop 11.33 PLN on average), returns 1.7% on top of the refunds, with 18% of returned units written
+off, payment fees 2.0% and affiliate commission 0.6%.
 
 <!-- /generated:metrics -->
 
@@ -105,7 +113,7 @@ weekly e-mail campaigns on Tuesdays or Thursdays move it, as they would in a rea
 Category revenue lands within 3.1 percentage points of the target mix: the generator corrects for average price, so
 expensive categories do not take over revenue just because their unit prices are high.
 
-Beyond the charts, 75 of 75 realism criteria pass on the same run. The table shows ten of them;
+Beyond the charts, 81 of 81 realism criteria pass on the same run. The table shows ten of them;
 [docs/realism.md](docs/realism.md) lists all with their values.
 
 | What a real shop does | Default run |
@@ -156,7 +164,7 @@ stop it.
 <!-- generated:cli -->
 
 `python main.py` writes 40,000 customers, 50,000 products and 80,326 order lines (55,568 orders in 2023 and 2024) with
-seed 42 and English values, and saves 15 tables as Parquet files in `export/`.
+seed 42 and English values, and saves 16 tables as Parquet files in `export/`.
 
 <!-- /generated:cli -->
 
@@ -176,7 +184,7 @@ as a ZIP.
 All people, e-mails, phone numbers, bank account numbers, products, prices, sales and reviews are synthetic:
 generated by `func/` with [Faker](https://faker.readthedocs.io/) (`pl_PL`) and NumPy, seed 42; review comments come
 from a short list of ready sentences. E-mail addresses use the reserved
-domains `example.com`, `example.org` and `example.net`. [docs/data-model.md](docs/data-model.md) shows how the 15
+domains `example.com`, `example.org` and `example.net`. [docs/data-model.md](docs/data-model.md) shows how the 16
 tables link, and [docs/columns.md](docs/columns.md) describes every column and marks the truth columns.
 
 Brand, payment and delivery names (for example Samsung, H&M, PayU, BLIK and InPost) are used only as labels to make
@@ -222,9 +230,9 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-219 pytest tests (about 30 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
-and churn, prices, competitor prices, order status, returns and ratings, marketing, experiments, dirty data, exports
-and the app's callbacks and figures on small samples.
+232 pytest tests (about 35 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
+and churn, prices, competitor prices, shop costs, order status, returns and ratings, marketing, experiments, dirty
+data, exports and the app's callbacks and figures on small samples.
 `ruff check .` lints the code and CI runs both on every push; `python scripts/check_realism.py` checks the realism
 criteria on the full default run.
 
