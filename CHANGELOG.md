@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### [Unreleased] - proposed 1.7.0
+### 1.7.0 - 2026-11-24
 Added:
 - The shop's own selling costs, in PLN without VAT, from the rates in `settings/commerce_settings.py` (section Shop costs, described in `docs/settings.md`). The rates are the truth: every cost follows from them except the units written off after a return, so costs spread over products add up to the cost columns to the grosz.
 - `payment_data`, the 16th table: one payment per order (also cancelled and failed ones) with `payment_amount` (lines after discount plus the delivery fee), `fee_rate` by payment method (BLIK 1.2%, card 1.6%, deferred payment 3.5%), `fixed_fee` by operator and `payment_fee`. Cash on delivery has no operator fee, a declined card costs 0.30 PLN, and the operator keeps its fee when an order is refunded.
