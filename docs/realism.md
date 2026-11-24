@@ -1,6 +1,6 @@
 # Realism criteria
 
-70 of 70 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
+75 of 75 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
 with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 
 ## Dirty data and anomalies
@@ -91,8 +91,13 @@ with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 
 ## Competitor prices
 
-- ✅ price level to the market price on the last day, Taniutko / Parytet / Wrzos Atelier / Targowo (true_price_level 0.92 / 1.00 / 1.08 / 0.97): 0.921 / 1.000 / 1.079 / 0.970
-- ✅ products each shop sells (settings 55% / 70% / 40% / 80%): 55% / 70% / 40% / 80%
-- ✅ our price / median competitor price between 0.8 and 1.25; below 0.95 / above 1.05: 93%; 28% / 40%
+- ✅ five shops with different names and strategies: Frugalia discounter / Aequo matcher / Maison Orvelle premium / Mercatoria marketplace / Fulmina flash_sale
+- ✅ regular price level to the market price on the last day, Frugalia / Aequo / Maison Orvelle / Mercatoria / Fulmina (true_price_level 0.92 / 1.00 / 1.08 / 0.97 / 1.02): 0.921 / 1.000 / 1.079 / 0.970 / 1.021
+- ✅ products each shop sells (settings 55% / 70% / 40% / 80% / 40%): 55% / 70% / 40% / 80% / 40%
+- ✅ our price / median competitor price between 0.8 and 1.25; below 0.95 / above 1.05: 94%; 29% / 38%
 - ✅ competitor price periods with a gap or an overlap: 0
-- ✅ Parytet price changes made 3-14 days after one of ours: 100%
+- ✅ Aequo price changes made 3-14 days after one of ours: 100%
+- ✅ sale prices outside Fulmina: 0
+- ✅ Fulmina sale discount to the price before, from 50 PLN (settings 15%-30%): min / mean / max: 13.5% / 22.5% / 31.5%
+- ✅ Fulmina sales 2-5 days long; back to the price before: 2-5 days; 99%
+- ✅ Fulmina offer-days on sale; offers on sale on Black Friday 2024; average level with sales: 2.6%; 59%; 1.015

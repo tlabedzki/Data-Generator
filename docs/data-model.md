@@ -49,6 +49,7 @@ erDiagram
         int product_id FK
         int competitor_id
         date valid_from
+        bool is_promotion
         float true_price_level "truth"
     }
     shipment_data {

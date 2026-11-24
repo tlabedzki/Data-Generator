@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.6.0 - 2026-11-24
+Added:
+- A fifth competitor in `competitor_prices`: Fulmina, a flash sale shop (`competitor_strategy` flash_sale). Its regular price sits at level 1.02 and it sells 40% of products. On top of that it runs 8 random sales a year, 2 to 5 days each, plus one from Black Friday to Cyber Monday; each offer joins an ordinary sale with chance 0.3 (0.6 on Black Friday) at 15, 20, 25 or 30% off its price on the day before, and the regular price comes back the day after. In the default run 2.6% of Fulmina's offer-days are on sale and its average level with sales is 1.015.
+- Column `is_promotion` in `competitor_prices`: True for a Fulmina sale price, False for every other row. `true_price_level` is the regular level, sale prices aside.
+- 5 realism criteria in pack H (five shops, sale discount, sale length, days on sale and Black Friday, no sales at other shops), 75 in all; 4 tests in `tests/test_competitors.py`, one of them fails when there are not five shops or when names or strategies repeat.
+
+Changed:
+- New names for the four shops: Frugalia (discounter, was Taniutko), Aequo (matcher, was Parytet), Maison Orvelle (premium, was Wrzos Atelier) and Mercatoria (marketplace, was Targowo). Their ids, prices and periods are the same as in 1.5.0.
+- `competitor_prices` has 636,742 rows in the default run (421,393 in 1.5.0) and `competitor_price_id` is renumbered, since Fulmina's rows sit among the others by product. Seed 42 gives the other 14 tables exactly as in 1.5.0, byte for byte.
+
 ### 1.5.0 - 2026-11-24
 Added:
 - `competitor_prices`, the 15th table: list prices of the same products at four fictional competing shops, with validity periods like `price_history` (`valid_from`, `valid_to`, `change_type`). Taniutko (discounter, price level 0.92, sells 55% of products), Parytet (matcher, 1.00, 70%), Wrzos Atelier (premium, 1.08, 40%) and Targowo (marketplace, 0.97, 80%) each have their own noise, number of price changes and price ending. The matcher follows our list price changes 3 to 14 days later. 421,393 rows in the default run.

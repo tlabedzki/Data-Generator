@@ -50,8 +50,9 @@ Each row starts with a question a shop asks; the last column says where the true
   purchase rate, preferred categories, replenishment and products bought together.
 - Shapes demand with monthly and weekday seasonality, special days, hours of the day, price changes, discounts that
   sell more units, cancellations, failed payments, returns and late deliveries in the peak season.
-- Prices the same products at four fictional competitors (a discounter, a price matcher that follows our changes, a
-  premium shop and a marketplace) with each shop's true price level. Competitor prices never change our demand.
+- Prices the same products at five fictional competitors (a discounter, a price matcher that follows our changes, a
+  premium shop, a marketplace and a flash sale shop with short sales of 15-30% off) with each shop's true price
+  level. Competitor prices never change our demand.
 - Adds channels, campaigns, devices, a session funnel and randomized A/B tests, plus labelled fraud, shop outages and
   optional dirty data.
 - Saves CSV or Parquet with values in English or Polish; the same seed gives identical files.
@@ -104,7 +105,7 @@ weekly e-mail campaigns on Tuesdays or Thursdays move it, as they would in a rea
 Category revenue lands within 3.1 percentage points of the target mix: the generator corrects for average price, so
 expensive categories do not take over revenue just because their unit prices are high.
 
-Beyond the charts, 70 of 70 realism criteria pass on the same run. The table shows ten of them;
+Beyond the charts, 75 of 75 realism criteria pass on the same run. The table shows ten of them;
 [docs/realism.md](docs/realism.md) lists all with their values.
 
 | What a real shop does | Default run |
@@ -180,8 +181,8 @@ tables link, and [docs/columns.md](docs/columns.md) describes every column and m
 
 Brand, payment and delivery names (for example Samsung, H&M, PayU, BLIK and InPost) are used only as labels to make
 the data look familiar. Products, prices, margins, popularity and market shares are fictional and say nothing about
-these companies. Lumo, the shop's name, and its competitors Taniutko, Parytet, Wrzos Atelier and Targowo are made up
-for this project and refer to no company or product of those names.
+these companies. Lumo, the shop's name, and its competitors Frugalia, Aequo, Maison Orvelle, Mercatoria and Fulmina
+are made up for this project and refer to no company or product of those names.
 
 <!-- generated:data -->
 

@@ -82,7 +82,7 @@ Available values:
 | `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line; `order_status` per order |
 | `sales_data` | an order line joined with its product and customer | revenue columns added |
 | `price_history` | a list price of a product with its validity period | the last price equals `sales_price_gross` |
-| `competitor_prices` | a list price of a product at one competing shop, with its validity period | 4 fictional shops; truth: strategy, price level, market price |
+| `competitor_prices` | a list price of a product at one competing shop, with its validity period | 5 fictional shops, sale prices flagged in `is_promotion`; truth: strategy, price level, market price |
 | `shipment_data` | the shipment of an order | only orders that shipped; cost, dispatch, delivery, late or not |
 | `return_data` | a returned order line | reason, quantity, refund |
 | `review_data` | a rating of a delivered order line | 1-5 stars, date, optional comment |
@@ -318,7 +318,7 @@ and `revenue_gross` from them.
 
 ## Competitor Prices
 
-`competitor_prices` holds the list prices of four fictional shops that sell some of the same products. **The table
+`competitor_prices` holds the list prices of five fictional shops that sell some of the same products. **The table
 only adds data: competitor prices do not change demand, orders, sales or any other table.** It draws from its own
 random stream (`competitors`), so seed 42 gives the other 14 tables exactly as without it, and it stays clean at every
 `data_quality_level`. Settings in `settings/market_settings.py`, section Competitor prices.
@@ -335,22 +335,35 @@ price change). Prices change back and forth around the shop's level instead of d
 
 | Shop | `competitor_strategy` | `price_level` | `price_sd` | `coverage` | Price changes | Ending |
 |---|---|---|---|---|---|---|
-| Taniutko | discounter | 0.92 | 0.04 | 55% | 1.5 a year | ,99 |
-| Parytet | matcher | 1.00 | 0.02 | 70% | follows ours | ,99 |
-| Wrzos Atelier | premium | 1.08 | 0.05 | 40% | 0.6 a year | 9 (under 20 PLN: ,99) |
-| Targowo | marketplace | 0.97 | 0.10 | 80% | 3 a year | ,99 |
+| Frugalia | discounter | 0.92 | 0.04 | 55% | 1.5 a year | ,99 |
+| Aequo | matcher | 1.00 | 0.02 | 70% | follows ours | ,99 |
+| Maison Orvelle | premium | 1.08 | 0.05 | 40% | 0.6 a year | 9 (under 20 PLN: ,99) |
+| Mercatoria | marketplace | 0.97 | 0.10 | 80% | 3 a year | ,99 |
+| Fulmina | flash_sale | 1.02 | 0.05 | 40% | 1 a year, plus sales | ,99 |
 
-`coverage` is the chance that a shop sells a product, drawn once per product and shop, so about 1.6% of products have
-no competitor offer and about 13% have one. The matcher has no random changes: with `reaction_probability = 0.6` it
+The names are made up: a frugal discounter, a matcher that keeps prices *ex aequo* with ours, a premium *maison*, a
+marketplace (*mercato*, a market) and a flash sale shop named after lightning (*fulmen*). `coverage` is the chance that
+a shop sells a product, drawn once per product and shop, so about 0.9% of products have no competitor offer and about
+9% have one. The matcher has no random changes: with `reaction_probability = 0.6` it
 follows each of our list price changes in `price_history` after `reaction_delay_days = (3, 14)` days, by the same
 ratio, and its price on the last day of sale sits at its level. Endings: `,99` is the nearest x.99 (149.37 → 148.99),
 `9` the nearest whole price ending in 9 (153 → 149, 155 → 159).
 
+**Flash sales.** Fulmina keeps its regular price at its level and runs short, deep sales on top of it:
+`sale_events_per_year = 8` random sales a year, each `sale_days = (2, 5)` days long, plus one from Black Friday to
+Cyber Monday every year. Sales never overlap: a random sale that starts less than `sale_gap_days = 14` days after
+another (or near Black Friday) is dropped. In an ordinary sale each offer joins with `sale_share = 0.3`, on Black
+Friday with `black_friday_share = 0.6`, and costs one of `sale_discounts = (0.15, 0.20, 0.25, 0.30)` less than its
+regular price on the day before. The day after the sale the regular price returns; a regular change that falls inside
+a sale starts when it ends. Sale rows have `is_promotion = True` (`change_type` decrease, then increase when the sale
+ends); every other row, at every shop, has `False`. `true_price_level` is the regular level, sale prices aside: in the
+default run about 2.6% of Fulmina's offer-days are on sale and its average level with sales is 1.015.
+
 An offer lasts while the product is on sale inside the period, from `launch_date` (or the first day of the period) to
 `discontinued_date`, also for products that never sell. Periods of one offer follow each other day after day;
 `valid_to` is empty only for offers still on sale on the last day. `price_net` uses the VAT ratio of the product
-(`sales_price_gross / sales_price_net`). Realism pack H in `scripts/check_realism.py` measures the levels, coverage,
-price index and matcher delays.
+(`sales_price_gross / sales_price_net`). Realism pack H in `scripts/check_realism.py` measures the five shops, levels,
+coverage, price index, matcher delays and the flash sales (discount, length, share of days, Black Friday).
 
 ## Price Elasticity And Discounts
 

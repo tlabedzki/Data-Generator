@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import settings.main_settings as s  # noqa: E402
 import settings.quality_settings as qs  # noqa: E402
-from func import service  # noqa: E402
+from func import calendar, service  # noqa: E402
 
 RESULTS = []
 
@@ -425,10 +425,15 @@ def check_h(data):
     offers, products, history = data["competitor_prices"], data["product_data"], data["price_history"]
     end = pd.Timestamp(s.end_year, 12, 31)
     current = offers[(offers["valid_from"] <= end) & (offers["valid_to"].isna() | (offers["valid_to"] >= end))]
-    level = (current["price_gross"] / current["true_market_price_gross"]).groupby(current["competitor_name"]).mean()
+    regular = current[~current["is_promotion"]]
+    level = (regular["price_gross"] / regular["true_market_price_gross"]).groupby(regular["competitor_name"]).mean()
     truth = current.groupby("competitor_name")["true_price_level"].first()
     names = [shop["name"] for shop in ms.competitor_settings.values()]
-    check("H", "price level to the market price on the last day, " + " / ".join(names) + " (true_price_level "
+    check("H", "five shops with different names and strategies",
+          " / ".join(f"{shop['name']} {shop['strategy']}" for shop in ms.competitor_settings.values()),
+          len(ms.competitor_settings) == 5 and offers["competitor_name"].nunique() == 5
+          and len({shop["strategy"] for shop in ms.competitor_settings.values()}) == 5)
+    check("H", "regular price level to the market price on the last day, " + " / ".join(names) + " (true_price_level "
                + " / ".join(f"{truth[name]:.2f}" for name in names) + ")",
           " / ".join(f"{level[name]:.3f}" for name in names), ((level - truth).abs() <= 0.02).all())
     coverage = offers.groupby("competitor_name")["product_id"].nunique() / len(products)
@@ -453,6 +458,36 @@ def check_h(data):
     followed = pairs.loc[delay.between(low, high), "competitor_price_id"].nunique()
     check("H", f"{matcher['name']} price changes made {low}-{high} days after one of ours",
           f"{followed / len(changes):.0%}", followed == len(changes))
+
+    flash = next(shop for shop in ms.competitor_settings.values() if "sale_events_per_year" in shop)
+    mine = offers[offers["competitor_name"] == flash["name"]]
+    sale = mine["is_promotion"]
+    other_sales = int(offers.loc[offers["is_promotion"], "competitor_name"].ne(flash["name"]).sum())
+    check("H", f"sale prices outside {flash['name']}", other_sales, other_sales == 0)
+    before = mine.groupby("product_id")["price_gross"].shift(1)
+    after = mine.groupby("product_id")["price_gross"].shift(-1)
+    priced = sale & (before >= 50)
+    discount = 1 - mine.loc[priced, "price_gross"] / before[priced]
+    low, high = min(flash["sale_discounts"]), max(flash["sale_discounts"])
+    check("H", f"{flash['name']} sale discount to the price before, from 50 PLN (settings {low:.0%}-{high:.0%}): "
+               "min / mean / max", f"{discount.min():.1%} / {discount.mean():.1%} / {discount.max():.1%}",
+          discount.between(low - 0.02, high + 0.02).all())
+    ended = sale & mine["valid_to"].notna() & after.notna()
+    days = (mine.loc[ended, "valid_to"] - mine.loc[ended, "valid_from"]).dt.days + 1
+    back = (after[ended] == before[ended]).mean()
+    check("H", f"{flash['name']} sales {flash['sale_days'][0]}-{flash['sale_days'][1]} days long; back to the price "
+               "before", f"{days.min()}-{days.max()} days; {back:.0%}",
+          days.between(*flash["sale_days"]).all() and back >= 0.9)
+    days_on_sale = (mine["valid_to"].fillna(end) - mine["valid_from"]).dt.days + 1
+    share = days_on_sale[sale].sum() / days_on_sale.sum()
+    friday = calendar.black_friday(s.end_year)
+    on_friday = mine[(mine["valid_from"] <= friday) & (mine["valid_to"].isna() | (mine["valid_to"] >= friday))]
+    whole = mine["price_gross"] / mine["true_market_price_gross"]
+    average = (whole * days_on_sale).sum() / days_on_sale.sum()
+    check("H", f"{flash['name']} offer-days on sale; offers on sale on Black Friday {s.end_year}; average level "
+               "with sales", f"{share:.1%}; {on_friday['is_promotion'].mean():.0%}; {average:.3f}",
+          0.02 <= share <= 0.10 and abs(on_friday["is_promotion"].mean() - flash["black_friday_share"]) <= 0.1
+          and abs(average - 1) <= 0.02)
 
 
 PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f, "G": check_g,

@@ -1,9 +1,13 @@
-"""Competitor prices: validity periods, price level and coverage per shop, the matcher, no effect on other tables."""
+"""
+Competitor prices: five shops, validity periods, price level and coverage per shop, the matcher, the flash sale shop
+and no effect on other tables.
+"""
 import numpy as np
 import pandas as pd
 import pytest
 from conftest import ALL_FILES, generate
 
+import func.calendar as fc
 import func.competitors as cp
 import settings.main_settings as s
 import settings.market_settings as ms
@@ -23,6 +27,19 @@ def offers(data):
 
 def prices_on(offers, day):
     return offers[(offers["valid_from"] <= day) & (offers["valid_to"].isna() | (offers["valid_to"] >= day))]
+
+
+def flash_shop():
+    return next((key, value) for key, value in ms.competitor_settings.items() if "sale_events_per_year" in value)
+
+
+def test_five_shops_with_different_names_and_strategies(offers):
+    shops = ms.competitor_settings.values()
+    assert len(ms.competitor_settings) == 5
+    assert len({shop["name"] for shop in shops}) == 5
+    assert len({shop["strategy"] for shop in shops}) == 5
+    assert offers["competitor_id"].nunique() == 5 and offers["competitor_name"].nunique() == 5
+    assert {shop["strategy"] for shop in shops} == {"discounter", "matcher", "premium", "marketplace", "flash_sale"}
 
 
 def test_columns_and_keys(offers, data):
@@ -83,6 +100,7 @@ def test_net_price_uses_the_vat_of_the_product(offers, data):
 @pytest.mark.parametrize("day", [pd.Timestamp(s.start_year, 1, 1), pd.Timestamp(s.end_year, 6, 30), END])
 def test_shop_price_level_matches_its_truth(offers, day):
     current = prices_on(offers, day)
+    current = current[~current["is_promotion"]]
     ratio = current["price_gross"] / current["true_market_price_gross"]
     level = ratio.groupby(current["competitor_id"]).mean()
     truth = current.groupby("competitor_id")["true_price_level"].first()
@@ -121,6 +139,48 @@ def test_matcher_follows_our_price_changes(offers, data):
     delay = (pairs["valid_from"] - pairs["valid_from_ours"]).dt.days
     followed = pairs[delay.between(low, high)].drop_duplicates("competitor_price_id")
     assert len(changes) > 0 and len(followed) == len(changes)
+
+
+def test_only_the_flash_sale_shop_has_sales(offers):
+    shop_id, _ = flash_shop()
+    assert offers["is_promotion"].dtype == bool
+    assert offers.loc[offers["is_promotion"], "competitor_id"].eq(shop_id).all()
+    assert offers.loc[offers["competitor_id"] == shop_id, "is_promotion"].any()
+
+
+def test_sales_are_short_deep_and_end_with_the_regular_price(offers):
+    shop_id, shop = flash_shop()
+    mine = offers[offers["competitor_id"] == shop_id]
+    before = mine.groupby("product_id")["price_gross"].shift(1)
+    after = mine.groupby("product_id")["price_gross"].shift(-1)
+    after_is_sale = mine.groupby("product_id")["is_promotion"].shift(-1)
+    sale = mine["is_promotion"]
+    assert before[sale].notna().all() and (mine.loc[sale, "change_type"] == "decrease").all()
+    priced = sale & (before >= 50)  # under 50 PLN the ,99 ending moves the discount by more than 2 points
+    discount = 1 - mine.loc[priced, "price_gross"] / before[priced]
+    low, high = min(shop["sale_discounts"]), max(shop["sale_discounts"])
+    assert discount.between(low - 0.02, high + 0.02).all()
+    assert discount.mean() == pytest.approx(np.mean(shop["sale_discounts"]), abs=0.02)
+    ended = sale & mine["valid_to"].notna() & after.notna()
+    days = (mine.loc[ended, "valid_to"] - mine.loc[ended, "valid_from"]).dt.days + 1
+    assert days.between(*shop["sale_days"]).all()
+    assert not after_is_sale[ended].astype(bool).any()
+    assert (after[ended] == before[ended]).mean() >= 0.9
+
+
+def test_sales_never_overlap_and_black_friday_is_one_of_them(offers):
+    _, shop = flash_shop()
+    events = cp.sale_events(shop, np.random.default_rng(0))
+    assert (events["start"].diff().dropna() >= pd.Timedelta(days=shop["sale_gap_days"])).all()
+    assert (events["end"] >= events["start"]).all()
+    for year in range(s.start_year, s.end_year + 1):
+        friday = fc.black_friday(year)
+        assert ((events["start"] == friday) & (events["end"] == friday + pd.Timedelta(days=3))).any()
+    shop_id, _ = flash_shop()
+    on_friday = prices_on(offers[offers["competitor_id"] == shop_id], fc.black_friday(s.end_year))
+    assert on_friday["is_promotion"].mean() == pytest.approx(shop["black_friday_share"], abs=0.1)
+    ordinary = events[~events["start"].isin([fc.black_friday(year) for year in range(s.start_year, s.end_year + 1)])]
+    assert (ordinary["share"] == shop["sale_share"]).all() and len(ordinary) >= s.end_year - s.start_year + 1
 
 
 def test_same_seed_same_table_and_other_seed_differs(offers):
