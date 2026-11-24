@@ -1,6 +1,7 @@
 """
-The generation pipeline: customers, products and order lines first, then the tables built on them (prices, sessions,
-experiments, order status, shipments, returns, reviews, anomalies, data quality issues) and the joined sales lines.
+The generation pipeline: customers, products and order lines first, then the tables built on them (prices,
+competitor prices, sessions, experiments, order status, shipments, returns, reviews, anomalies, data quality issues)
+and the joined sales lines.
 
 Every step draws from its own random stream (func/rng.py), so the same seed always gives the same files.
 """
@@ -17,6 +18,7 @@ from func import (
     assembler,
     behaviour,
     calendar,
+    competitors,
     customer,
     data,
     experiments,
@@ -41,8 +43,8 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 EXPORT_DIR = PROJECT_DIR / "export"
 
 # Output tables: source tables first, then the joined sales lines, then the extra tables.
-DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data",
-                 "return_data", "review_data", "campaign_data", "session_data", "experiment_data",
+DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "price_history", "competitor_prices",
+                 "shipment_data", "return_data", "review_data", "campaign_data", "session_data", "experiment_data",
                  "experiment_assignment_data", "anomaly_data", "quality_issue_data"]
 SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
 
@@ -111,6 +113,9 @@ def run_generation_pipeline(progress: ProgressCallback | None = None) -> dict[st
                                                                order_params["product_category_weights"])
         customers = tables["customer_data"] = behaviour.add_behaviour_columns(customers, customer_behaviour)
         extra["price_history"] = prices.build_price_history(products, price_stream)
+        if "competitor_prices" in selected_files:
+            extra["competitor_prices"] = competitors.build_competitor_prices(products, extra["price_history"],
+                                                                             rng.stream("competitors"))
         price_book = prices.PriceBook(products, extra["price_history"], day_calendar)
         order_data, annual_rate = order.generate_order_data(s.order_data_rows, order_params, customer_behaviour,
                                                             day_calendar, price_book, rng.stream("orders"),

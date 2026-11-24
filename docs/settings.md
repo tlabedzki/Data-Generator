@@ -67,9 +67,9 @@ Use `generated_files` in `settings/main_settings.py`.
 
 ```python
 generated_files = [
-    "customer_data", "product_data", "order_data", "sales_data", "price_history", "shipment_data", "return_data",
-    "review_data", "campaign_data", "session_data", "experiment_data", "experiment_assignment_data", "anomaly_data",
-    "quality_issue_data",
+    "customer_data", "product_data", "order_data", "sales_data", "price_history", "competitor_prices", "shipment_data",
+    "return_data", "review_data", "campaign_data", "session_data", "experiment_data", "experiment_assignment_data",
+    "anomaly_data", "quality_issue_data",
 ]
 ```
 
@@ -82,6 +82,7 @@ Available values:
 | `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line; `order_status` per order |
 | `sales_data` | an order line joined with its product and customer | revenue columns added |
 | `price_history` | a list price of a product with its validity period | the last price equals `sales_price_gross` |
+| `competitor_prices` | a list price of a product at one competing shop, with its validity period | 4 fictional shops; truth: strategy, price level, market price |
 | `shipment_data` | the shipment of an order | only orders that shipped; cost, dispatch, delivery, late or not |
 | `return_data` | a returned order line | reason, quantity, refund |
 | `review_data` | a rating of a delivered order line | 1-5 stars, date, optional comment |
@@ -104,9 +105,8 @@ generated_files = ["sales_data"]
 
 ## Random Streams
 
-Every step (customers, products, orders, behaviour, prices, sessions, experiments, order status, reviews,
-anomalies, dirty data and so on)
-draws from its own random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for
+Every step (customers, products, orders, behaviour, prices, competitor prices, sessions, experiments, order status,
+reviews, anomalies, dirty data and so on) draws from its own random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for
 example the dirty data level, does not change the random numbers of the other steps. Names, phone numbers and bank
 account numbers come from Faker, seeded with `random_state` too.
 
@@ -315,6 +315,42 @@ these dates.
 `decrease`). The last price of every product equals `sales_price_gross` in `product_data`. Order lines carry the
 list price valid on the order day (`unit_price_gross`, `unit_price_net`); `sales_data` computes the discounted prices
 and `revenue_gross` from them.
+
+## Competitor Prices
+
+`competitor_prices` holds the list prices of four fictional shops that sell some of the same products. **The table
+only adds data: competitor prices do not change demand, orders, sales or any other table.** It draws from its own
+random stream (`competitors`), so seed 42 gives the other 14 tables exactly as without it, and it stays clean at every
+`data_quality_level`. Settings in `settings/market_settings.py`, section Competitor prices.
+
+**Market price.** The market price comes from the cost of a product, not from our price: `net_purchase_price` ×
+the median `sales_price_net / net_purchase_price` of its product type (of its category when the type has fewer than
+`competitor_reference_min_products = 20` products), with the VAT of the product. Our margin is drawn per product, so
+our price lands above the market for some products and below it for others. `true_market_price_gross` holds it.
+
+**Shops** (`competitor_settings`). A shop's price is the market price × `price_level` × a lasting log-normal noise
+per product and shop (mean 1, sd `price_sd`), × (1 + a short-term deviation with sd `change_sd`, drawn again at every
+price change). Prices change back and forth around the shop's level instead of drifting away from it, so
+`true_price_level` holds on any day.
+
+| Shop | `competitor_strategy` | `price_level` | `price_sd` | `coverage` | Price changes | Ending |
+|---|---|---|---|---|---|---|
+| Taniutko | discounter | 0.92 | 0.04 | 55% | 1.5 a year | ,99 |
+| Parytet | matcher | 1.00 | 0.02 | 70% | follows ours | ,99 |
+| Wrzos Atelier | premium | 1.08 | 0.05 | 40% | 0.6 a year | 9 (under 20 PLN: ,99) |
+| Targowo | marketplace | 0.97 | 0.10 | 80% | 3 a year | ,99 |
+
+`coverage` is the chance that a shop sells a product, drawn once per product and shop, so about 1.6% of products have
+no competitor offer and about 13% have one. The matcher has no random changes: with `reaction_probability = 0.6` it
+follows each of our list price changes in `price_history` after `reaction_delay_days = (3, 14)` days, by the same
+ratio, and its price on the last day of sale sits at its level. Endings: `,99` is the nearest x.99 (149.37 → 148.99),
+`9` the nearest whole price ending in 9 (153 → 149, 155 → 159).
+
+An offer lasts while the product is on sale inside the period, from `launch_date` (or the first day of the period) to
+`discontinued_date`, also for products that never sell. Periods of one offer follow each other day after day;
+`valid_to` is empty only for offers still on sale on the last day. `price_net` uses the VAT ratio of the product
+(`sales_price_gross / sales_price_net`). Realism pack H in `scripts/check_realism.py` measures the levels, coverage,
+price index and matcher delays.
 
 ## Price Elasticity And Discounts
 

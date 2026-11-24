@@ -1,6 +1,6 @@
 # Realism criteria
 
-65 of 65 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
+70 of 70 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
 with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 
 ## Dirty data and anomalies
@@ -88,3 +88,11 @@ with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 - ✅ orders more than 2 days after true_churn_date (outages move orders by up to 2 days): 0 (11 moved by an outage)
 - ✅ repeat orders in the period / true_purchase_rate x active years: 1.006
 - ✅ churned by the end: buyers silent for the last 180 days / recent buyers: 76% / 26%
+
+## Competitor prices
+
+- ✅ price level to the market price on the last day, Taniutko / Parytet / Wrzos Atelier / Targowo (true_price_level 0.92 / 1.00 / 1.08 / 0.97): 0.921 / 1.000 / 1.079 / 0.970
+- ✅ products each shop sells (settings 55% / 70% / 40% / 80%): 55% / 70% / 40% / 80%
+- ✅ our price / median competitor price between 0.8 and 1.25; below 0.95 / above 1.05: 93%; 28% / 40%
+- ✅ competitor price periods with a gap or an overlap: 0
+- ✅ Parytet price changes made 3-14 days after one of ours: 100%

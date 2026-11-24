@@ -417,3 +417,30 @@ delivery_method_with_probabilities = {
     "FedEx":                  0.01,
     "Store pickup":           0.04,
 }
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Competitor prices (competitor_prices):
+
+# Four fictional shops sell some of the same products. They never change demand or sales: the table only adds data.
+# The market price of a product comes from its cost, not from our price: net_purchase_price times the median
+# sales_price_net / net_purchase_price of its product type (of its category when the type has fewer than
+# competitor_reference_min_products products). Our own margin is drawn per product, so our price lands above the
+# market for some products and below it for others.
+# A shop's price = market price x price_level x a lasting log-normal noise per (product, shop) with mean 1 and sd
+# price_sd x (1 + a short-term deviation drawn again at every price change, sd change_sd). coverage is the chance that
+# the shop sells a product (drawn once per product and shop), changes_per_year the rate of price changes and
+# price_ending the last digits ("99" = 149.99, "9" = 149, under 20 PLN 19.99).
+# The matcher does not change prices at random: with reaction_probability it follows each of our list price changes
+# in price_history after reaction_delay_days (first and last day), by the same ratio.
+competitor_reference_min_products = 20
+competitor_settings = {
+    1: {"name": "Taniutko", "strategy": "discounter", "price_level": 0.92, "price_sd": 0.04, "coverage": 0.55,
+        "changes_per_year": 1.5, "change_sd": 0.04, "price_ending": "99"},
+    2: {"name": "Parytet", "strategy": "matcher", "price_level": 1.00, "price_sd": 0.02, "coverage": 0.70,
+        "changes_per_year": 0.0, "change_sd": 0.0, "price_ending": "99",
+        "reaction_probability": 0.6, "reaction_delay_days": (3, 14)},
+    3: {"name": "Wrzos Atelier", "strategy": "premium", "price_level": 1.08, "price_sd": 0.05, "coverage": 0.40,
+        "changes_per_year": 0.6, "change_sd": 0.03, "price_ending": "9"},
+    4: {"name": "Targowo", "strategy": "marketplace", "price_level": 0.97, "price_sd": 0.10, "coverage": 0.80,
+        "changes_per_year": 3.0, "change_sd": 0.06, "price_ending": "99"},
+}

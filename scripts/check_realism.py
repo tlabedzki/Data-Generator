@@ -3,7 +3,7 @@ Check the realism criteria of the generated data on the default command-line vol
 
 Usage (from the repository root):
     python scripts/check_realism.py            # all packs
-    python scripts/check_realism.py E A        # selected packs (E A D B C F G)
+    python scripts/check_realism.py E A        # selected packs (E A D B C F G H)
 
 Each criterion prints PASS or FAIL with the measured number. The exit code is 1 when any criterion fails.
 """
@@ -417,7 +417,46 @@ def check_g(data):
           churned[silent].mean() >= 2 * churned[recent].mean())
 
 
-PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f, "G": check_g}
+# ---------------------------------------------------------------------------------------------------------------- #
+# Pack H: competitor prices
+
+def check_h(data):
+    import settings.market_settings as ms
+    offers, products, history = data["competitor_prices"], data["product_data"], data["price_history"]
+    end = pd.Timestamp(s.end_year, 12, 31)
+    current = offers[(offers["valid_from"] <= end) & (offers["valid_to"].isna() | (offers["valid_to"] >= end))]
+    level = (current["price_gross"] / current["true_market_price_gross"]).groupby(current["competitor_name"]).mean()
+    truth = current.groupby("competitor_name")["true_price_level"].first()
+    names = [shop["name"] for shop in ms.competitor_settings.values()]
+    check("H", "price level to the market price on the last day, " + " / ".join(names) + " (true_price_level "
+               + " / ".join(f"{truth[name]:.2f}" for name in names) + ")",
+          " / ".join(f"{level[name]:.3f}" for name in names), ((level - truth).abs() <= 0.02).all())
+    coverage = offers.groupby("competitor_name")["product_id"].nunique() / len(products)
+    check("H", "products each shop sells (settings " + " / ".join(f"{shop['coverage']:.0%}" for shop in
+                                                                     ms.competitor_settings.values()) + ")",
+          " / ".join(f"{coverage[name]:.0%}" for name in names),
+          all(abs(coverage[shop["name"]] - shop["coverage"]) <= 0.03 for shop in ms.competitor_settings.values()))
+    median = current.groupby("product_id")["price_gross"].median()
+    index = (products.set_index("product_id")["sales_price_gross"] / median).dropna()
+    check("H", "our price / median competitor price between 0.8 and 1.25; below 0.95 / above 1.05",
+          f"{index.between(0.8, 1.25).mean():.0%}; {(index < 0.95).mean():.0%} / {(index > 1.05).mean():.0%}",
+          index.between(0.8, 1.25).mean() >= 0.85 and min((index < 0.95).mean(), (index > 1.05).mean()) >= 0.15)
+    offer = offers.groupby(["product_id", "competitor_id"])
+    gaps = int(((offers["valid_from"] - offer["valid_to"].shift()).dt.days.dropna() != 1).sum())
+    check("H", "competitor price periods with a gap or an overlap", gaps, gaps == 0)
+    matcher = next(shop for shop in ms.competitor_settings.values() if "reaction_probability" in shop)
+    low, high = matcher["reaction_delay_days"]
+    changes = offers[(offers["competitor_name"] == matcher["name"]) & (offers["change_type"] != "initial")]
+    ours = history.loc[history["change_type"] != "initial", ["product_id", "valid_from"]]
+    pairs = changes.merge(ours, on="product_id", suffixes=("", "_ours"))
+    delay = (pairs["valid_from"] - pairs["valid_from_ours"]).dt.days
+    followed = pairs.loc[delay.between(low, high), "competitor_price_id"].nunique()
+    check("H", f"{matcher['name']} price changes made {low}-{high} days after one of ours",
+          f"{followed / len(changes):.0%}", followed == len(changes))
+
+
+PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f, "G": check_g,
+         "H": check_h}
 
 
 def main(selected):

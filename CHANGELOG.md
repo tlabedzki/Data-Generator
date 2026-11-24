@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.5.0 - 2026-11-24
+Added:
+- `competitor_prices`, the 15th table: list prices of the same products at four fictional competing shops, with validity periods like `price_history` (`valid_from`, `valid_to`, `change_type`). Taniutko (discounter, price level 0.92, sells 55% of products), Parytet (matcher, 1.00, 70%), Wrzos Atelier (premium, 1.08, 40%) and Targowo (marketplace, 0.97, 80%) each have their own noise, number of price changes and price ending. The matcher follows our list price changes 3 to 14 days later. 421,393 rows in the default run.
+- The market price of a product comes from its cost (the median markup of its product type), not from our price, so our price lands above the market for some products and below it for others: in the default run 93% of products are priced between 0.8 and 1.25 times the median competitor price.
+- Truth columns `competitor_strategy`, `true_price_level` and `true_market_price_gross`. The price level of every shop holds on any day, within 0.002 in the default run.
+- Settings in `settings/market_settings.py` (section Competitor prices) and a Competitor Prices section in `docs/settings.md`; 5 realism criteria in a new pack H of `scripts/check_realism.py`, 70 in all; 17 tests in `tests/test_competitors.py`; a row in What you can analyse.
+
+Changed:
+- Nothing else: competitor prices draw from their own random stream and never change demand, orders or sales. Seed 42 gives the other 14 tables exactly as in 1.4.3, byte for byte.
+
 ### 1.4.3 - 2026-11-23
 Changed:
 - The first sentence of the README and the package description in `pyproject.toml` say the program generates data for the shop, not the shop itself: "Generates data for Lumo, a fully fictional Polish online shop: 14 linked tables, …". The code and the data are unchanged: seed 42 gives the same files as in 1.4.2, byte for byte.

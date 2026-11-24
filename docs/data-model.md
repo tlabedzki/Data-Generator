@@ -1,6 +1,6 @@
 # Data model
 
-The 14 tables of one run and how they link. [columns.md](columns.md) describes every column; the columns marked
+The 15 tables of one run and how they link. [columns.md](columns.md) describes every column; the columns marked
 "truth" hold what an analysis should find.
 
 ```mermaid
@@ -8,6 +8,7 @@ erDiagram
     customer_data ||--o{ order_data : places
     product_data ||--o{ order_data : "is sold in"
     product_data ||--|{ price_history : "is priced in"
+    product_data ||--o{ competitor_prices : "is offered by competitors in"
     order_data ||--|| sales_data : "becomes one row of"
     order_data }|--o| shipment_data : "ships in"
     order_data ||--o| return_data : "comes back in"
@@ -42,6 +43,13 @@ erDiagram
     price_history {
         int product_id FK
         date valid_from
+    }
+    competitor_prices {
+        int competitor_price_id PK
+        int product_id FK
+        int competitor_id
+        date valid_from
+        float true_price_level "truth"
     }
     shipment_data {
         int shipment_id PK
@@ -90,6 +98,7 @@ the others by name instead of a key: `anomaly_data` (fraud rings, shop outages, 
 | `order_data` | an order line | `customer_id`, `product_id`, `session_id`, `campaign_id` |
 | `sales_data` | an order line joined with its product and customer | everything in `order_data` |
 | `price_history` | a list price of a product with its validity period | `product_id` |
+| `competitor_prices` | a list price of a product at one competing shop, with its validity period | `product_id`, `competitor_id` |
 | `shipment_data` | the shipment of an order that shipped | `order_id` |
 | `return_data` | a returned order line | `order_line_id`, `order_id`, `product_id`, `customer_id` |
 | `review_data` | a rating of a delivered order line | `order_line_id`, `order_id`, `product_id`, `customer_id` |

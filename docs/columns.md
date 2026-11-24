@@ -108,6 +108,25 @@ One row is a list price of a product with its validity period. 146,183 rows in t
 | `sales_price_net` | float | 567.4 | list price without VAT in this period, PLN |  |
 | `change_type` | text | initial | initial, increase or decrease |  |
 
+## competitor_prices
+
+One row is a list price of a product at one competing shop, with its validity period. 421,393 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `competitor_price_id` | int | 1 | competitor price key (from 1) |  |
+| `product_id` | int | 200001 | product key (from 200001) |  |
+| `competitor_id` | int | 1 | competing shop key, 1-4 |  |
+| `competitor_name` | text | Taniutko | fictional shop name: Taniutko, Parytet, Wrzos Atelier or Targowo |  |
+| `valid_from` | datetime | 2023-01-01 | first day of this competitor price |  |
+| `valid_to` | datetime | 2024-03-29 | last day of this price; empty when the offer is on sale at the end |  |
+| `price_gross` | float | 669 | competitor list price with VAT, ending in ,99 or 9 by shop, PLN |  |
+| `price_net` | float | 543 | competitor list price without VAT, at the VAT of the product, PLN |  |
+| `change_type` | text | initial | initial, increase or decrease (the matcher follows our changes) |  |
+| `competitor_strategy` | text | discounter | discounter, matcher, premium or marketplace | yes |
+| `true_price_level` | float | 0.92 | price level of the shop against the market price (0.92 = 8% below) | yes |
+| `true_market_price_gross` | float | 728.5 | market price with VAT: cost × median markup of the product type, PLN | yes |
+
 ## shipment_data
 
 One row is the shipment of an order. 52,452 rows in the default run.

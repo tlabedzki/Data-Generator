@@ -1,6 +1,6 @@
 """
-Generate synthetic e-commerce data (13 linked tables: customers, products, orders, sales lines, sessions, experiments
-and more) and save it to the `export/` directory.
+Generate synthetic e-commerce data (15 linked tables: customers, products, orders, sales lines, competitor prices,
+sessions, experiments and more) and save it to the `export/` directory.
 
 All parameters live in the `settings/` package; see `docs/settings.md`.
 """

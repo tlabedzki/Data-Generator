@@ -18,14 +18,14 @@ def generate(customers=300, products=400, order_lines=1200, language="en", seed=
     """Run the full pipeline on a small volume with temporarily overridden settings (extra: main settings)."""
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(qs, "data_quality_level", quality_level)
-        for name, value in extra.items():
-            mp.setattr(s, name, value)
         mp.setattr(s, "customer_data_rows", customers)
         mp.setattr(s, "product_data_rows", products)
         mp.setattr(s, "order_data_rows", order_lines)
         mp.setattr(s, "generated_files", ALL_FILES)
         mp.setattr(s, "data_language", language)
         mp.setattr(s, "random_state", seed)
+        for name, value in extra.items():
+            mp.setattr(s, name, value)
         return g.run_generation_pipeline()
 
 

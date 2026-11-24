@@ -13,6 +13,7 @@ TABLE_ROWS = {
     "order_data": "an order line",
     "sales_data": "an order line joined with its product and customer",
     "price_history": "a list price of a product with its validity period",
+    "competitor_prices": "a list price of a product at one competing shop, with its validity period",
     "shipment_data": "the shipment of an order",
     "return_data": "a returned order line",
     "review_data": "a rating of a delivered order line",
@@ -26,7 +27,8 @@ TABLE_ROWS = {
 
 # Columns that hold the answer an analysis should find (hide them before you analyse).
 TRUTH = {"customer_segment", "preferred_category", "price_tier", "true_purchase_rate", "true_churn_date", "is_fraud",
-         "true_daily_lift", "true_effect", "has_sample_ratio_mismatch", "anomaly_type", "clean_value"}
+         "true_daily_lift", "true_effect", "has_sample_ratio_mismatch", "anomaly_type", "clean_value",
+         "competitor_strategy", "true_price_level", "true_market_price_gross"}
 
 # The same column name means the same thing in every table; a (table, column) key overrides it for one table.
 NOTES = {
@@ -94,6 +96,17 @@ NOTES = {
     "change_type": "initial, increase or decrease",
     ("price_history", "sales_price_gross"): "list price with VAT in this period, PLN",
     ("price_history", "sales_price_net"): "list price without VAT in this period, PLN",
+    "competitor_price_id": "competitor price key (from 1)",
+    "competitor_id": "competing shop key, 1-4",
+    "competitor_name": "fictional shop name: Taniutko, Parytet, Wrzos Atelier or Targowo",
+    ("competitor_prices", "valid_from"): "first day of this competitor price",
+    ("competitor_prices", "valid_to"): "last day of this price; empty when the offer is on sale at the end",
+    "price_gross": "competitor list price with VAT, ending in ,99 or 9 by shop, PLN",
+    "price_net": "competitor list price without VAT, at the VAT of the product, PLN",
+    ("competitor_prices", "change_type"): "initial, increase or decrease (the matcher follows our changes)",
+    "competitor_strategy": "discounter, matcher, premium or marketplace",
+    "true_price_level": "price level of the shop against the market price (0.92 = 8% below)",
+    "true_market_price_gross": "market price with VAT: cost × median markup of the product type, PLN",
     "shipment_id": "shipment key; only orders that shipped have one",
     "is_bulky": "furniture or other goods too large for a parcel locker",
     "shipping_cost": "delivery fee paid by the customer, PLN",
