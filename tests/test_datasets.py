@@ -50,7 +50,10 @@ def test_prices_and_margins_follow_catalog(small_data):
         low_price, high_price = definition["price_range"]
         low_margin, high_margin = definition["margin_range"]
         assert low_price <= row.net_purchase_price <= high_price
-        assert low_margin <= row.sales_margin <= high_margin
+        # The margin is drawn from the range; rounding the list price to end in 9 can move it a little down
+        # (rounding to the nearest whole price) or up, more for cheap products.
+        assert low_margin - 0.01 <= row.sales_margin < 1
+        assert row.sales_margin == round(1 - row.net_purchase_price / row.sales_price_net, 4)
         assert row.brand in definition["brand_series_models"]
 
 

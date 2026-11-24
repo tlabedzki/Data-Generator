@@ -36,7 +36,7 @@ One row is a product. 50,000 rows in the default run.
 |---|---|---|---|---|
 | `product_id` | int | 200001 | product key (from 200001) |  |
 | `net_purchase_price` | float | 351.9 | purchase price without VAT, PLN |  |
-| `sales_margin` | float | 0.4363 | gross margin of the list price (0.30 = 30%) |  |
+| `sales_margin` | float | 0.4372 | margin the list price leaves: 1 - net_purchase_price / sales_price_net (0.30 = 30%) |  |
 | `currency` | text | PLN | always PLN |  |
 | `category` | text | Home & Garden | top level of the catalog, 15 categories |  |
 | `subcategory` | text | Cookware | second level of the catalog |  |
@@ -47,7 +47,7 @@ One row is a product. 50,000 rows in the default run.
 | `product_name` | text | Kitchen Pan Tefal Ingenio Set | type, brand, series and model |  |
 | `product_popularity` | float | 1.001 | long-tail sales weight (log-normal) |  |
 | `color` | text | gray | product colour |  |
-| `sales_price_net` | float | 624.2 | current list price without VAT, PLN |  |
+| `sales_price_net` | float | 625.2 | current list price without VAT: sales_price_gross / 1.23, PLN |  |
 | `sales_price_gross` | float | 769 | current list price with VAT, ending in 9, PLN |  |
 | `launch_date` | datetime | 2020-08-17 | first day the product can sell |  |
 | `discontinued_date` | datetime | 2024-04-23 | last day the product can sell; empty while on sale |  |
@@ -66,7 +66,7 @@ One row is an order line. 80,326 rows in the default run.
 | `product_id` | int | 201090 | product key (from 200001) |  |
 | `quantity` | int | 1 | units on the line |  |
 | `unit_price_gross` | float | 179 | list price with VAT on the order day, PLN |  |
-| `unit_price_net` | float | 134.8 | list price without VAT on the order day, PLN |  |
+| `unit_price_net` | float | 145.5 | list price without VAT on the order day: unit_price_gross / 1.23, PLN |  |
 | `customer_id` | int | 114291 | customer key (from 100001) |  |
 | `payment_method` | text | Card | for example BLIK, Card or Fast transfer |  |
 | `payment_provider` | text | Przelewy24 | payment operator |  |
@@ -94,7 +94,7 @@ All 58 columns of `order_data`, `product_data` and `customer_data` (joined on `p
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
 | `sales_price_gross_after_discount` | float | 179 | unit_price_gross after discount_rate, PLN |  |
-| `sales_price_net_after_discount` | float | 134.8 | unit_price_net after discount_rate, PLN |  |
+| `sales_price_net_after_discount` | float | 145.5 | unit_price_net after discount_rate, PLN |  |
 | `revenue_gross` | float | 179 | quantity × sales_price_gross_after_discount, PLN, as ordered: also for cancelled orders |  |
 
 ## price_history
@@ -107,12 +107,12 @@ One row is a list price of a product with its validity period. 146,183 rows in t
 | `valid_from` | datetime | 2023-01-01 | first day of this list price |  |
 | `valid_to` | datetime | 2023-10-12 | last day of this list price; empty for the current price |  |
 | `sales_price_gross` | float | 699 | list price with VAT in this period, PLN |  |
-| `sales_price_net` | float | 567.4 | list price without VAT in this period, PLN |  |
+| `sales_price_net` | float | 568.3 | list price without VAT in this period, PLN |  |
 | `change_type` | text | initial | initial, increase or decrease |  |
 
 ## competitor_prices
 
-One row is a list price of a product at one competing shop, with its validity period. 636,742 rows in the default run.
+One row is a list price of a product at one competing shop, with its validity period. 636,646 rows in the default run.
 
 | Column | Type | Example | Meaning | Truth |
 |---|---|---|---|---|
@@ -122,13 +122,13 @@ One row is a list price of a product at one competing shop, with its validity pe
 | `competitor_name` | text | Frugalia | fictional shop name: Frugalia, Aequo, Maison Orvelle, Mercatoria or Fulmina |  |
 | `valid_from` | datetime | 2023-01-01 | first day of this competitor price |  |
 | `valid_to` | datetime | 2024-03-29 | last day of this price; empty when the offer is on sale at the end |  |
-| `price_gross` | float | 669 | competitor price with VAT (the sale price while is_promotion), ending in ,99 or 9 by shop, PLN |  |
-| `price_net` | float | 543 | competitor price without VAT, at the VAT of the product, PLN |  |
+| `price_gross` | float | 679 | competitor price with VAT (the sale price while is_promotion), ending in ,99 or 9 by shop, PLN |  |
+| `price_net` | float | 552 | competitor price without VAT: price_gross / 1.23, PLN |  |
 | `change_type` | text | initial | initial, increase or decrease (the matcher follows our changes; a sale starts with a decrease and ends with an increase) |  |
 | `is_promotion` | bool | False | a short sale price of the flash sale shop Fulmina; false at the other shops |  |
 | `competitor_strategy` | text | discounter | discounter, matcher, premium, marketplace or flash_sale | yes |
 | `true_price_level` | float | 0.92 | price level of the shop against the market price (0.92 = 8% below), sale prices aside | yes |
-| `true_market_price_gross` | float | 728.5 | market price with VAT: cost × median markup of the product type, PLN | yes |
+| `true_market_price_gross` | float | 739.2 | market price with VAT: cost × median markup of the product type, PLN | yes |
 
 ## shipment_data
 

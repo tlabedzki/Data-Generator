@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### [Unreleased] - proposed 1.7.1 (after 1.7.0)
+Fixed:
+- Net prices now equal the gross price without 23% VAT in every row: `sales_price_net` in `product_data` and `price_history`, `unit_price_net` in `order_data`, `price_net` in `competitor_prices` and the net columns of `sales_data`. Until 1.7.0 the net price was the target price before the list price was rounded to end in 9, so gross / net ran from 1.18 to 4.33 instead of 1.23 (for example 129 PLN gross with 97.18 PLN net, now 104.88 PLN).
+- `sales_margin` is the margin the list price really leaves, 1 - `net_purchase_price` / `sales_price_net`; the drawn margin only sets the price before rounding.
+- The market price of competitors comes from the corrected net prices, so `competitor_prices` changes a little: 636,646 rows instead of 636,742 in the default run, with other prices and `true_market_price_gross`.
+
+Changed:
+- Seed 42 gives the same list prices with VAT, orders, quantities, shipments, returns, payments and shop costs as 1.7.0; only the net prices, `sales_margin` and the competitor prices differ. 3 tests in `tests/test_vat.py`, one of them showing that a single wrong net price is caught.
+
 ### 1.7.0 - 2026-11-24
 Added:
 - The shop's own selling costs, in PLN without VAT, from the rates in `settings/commerce_settings.py` (section Shop costs, described in `docs/settings.md`). The rates are the truth: every cost follows from them except the units written off after a return, so costs spread over products add up to the cost columns to the grosz.

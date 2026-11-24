@@ -77,7 +77,7 @@ as `python main.py` writes them with the default English values.
 <!-- generated:metrics -->
 
 The same run keeps the money side of every order. Lines carry the purchase price, so the gross margin of shipped
-orders is 35%; refunds take 10.7% off revenue, and cancelled or unpaid orders hold 5.5% of the value ordered. Campaign
+orders is 36%; refunds take 10.7% off revenue, and cancelled or unpaid orders hold 5.5% of the value ordered. Campaign
 costs with `acquisition_channel` give CAC and ROAS, which runs from 4.9 (affiliate) to 19.5 (e-mail).
 
 72% of carts are abandoned, 15% of orders use a campaign voucher code and 71% of shipments go free (above the
@@ -230,9 +230,9 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-232 pytest tests (about 35 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
-and churn, prices, competitor prices, shop costs, order status, returns and ratings, marketing, experiments, dirty
-data, exports and the app's callbacks and figures on small samples.
+235 pytest tests (about 35 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
+and churn, prices and VAT, competitor prices, shop costs, order status, returns and ratings, marketing, experiments,
+dirty data, exports and the app's callbacks and figures on small samples.
 `ruff check .` lints the code and CI runs both on every push; `python scripts/check_realism.py` checks the realism
 criteria on the full default run.
 

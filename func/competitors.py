@@ -216,7 +216,7 @@ def build_competitor_prices(product_data, price_history, generator):
     """
     count = len(product_data)
     first, last, span_days = selling_period(product_data)
-    vat_ratio = (product_data["sales_price_gross"] / product_data["sales_price_net"]).to_numpy()
+    vat_ratio = np.full(count, 1 + ms.vat_rate)
     market_gross = market_reference(product_data).to_numpy() * vat_ratio
     shop_ids = sorted(ms.competitor_settings)
     frames = []

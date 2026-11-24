@@ -92,7 +92,7 @@ with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 ## Competitor prices
 
 - ✅ five shops with different names and strategies: Frugalia discounter / Aequo matcher / Maison Orvelle premium / Mercatoria marketplace / Fulmina flash_sale
-- ✅ regular price level to the market price on the last day, Frugalia / Aequo / Maison Orvelle / Mercatoria / Fulmina (true_price_level 0.92 / 1.00 / 1.08 / 0.97 / 1.02): 0.921 / 1.000 / 1.079 / 0.970 / 1.021
+- ✅ regular price level to the market price on the last day, Frugalia / Aequo / Maison Orvelle / Mercatoria / Fulmina (true_price_level 0.92 / 1.00 / 1.08 / 0.97 / 1.02): 0.921 / 1.000 / 1.080 / 0.970 / 1.021
 - ✅ products each shop sells (settings 55% / 70% / 40% / 80% / 40%): 55% / 70% / 40% / 80% / 40%
 - ✅ our price / median competitor price between 0.8 and 1.25; below 0.95 / above 1.05: 94%; 29% / 38%
 - ✅ competitor price periods with a gap or an overlap: 0

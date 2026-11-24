@@ -10,6 +10,7 @@ import pandas as pd
 import func.data as d
 import settings.commerce_settings as cs
 import settings.main_settings as s
+import settings.market_settings as ms
 
 PRICE_HISTORY_COLUMNS = ["product_id", "valid_from", "valid_to", "sales_price_gross", "sales_price_net", "change_type"]
 HISTORY_YEARS_BEFORE = 3
@@ -91,13 +92,12 @@ def build_price_history(product_data, generator):
     rounded = np.array([d.round_to_9(price) for price in rows["price"].to_numpy()], dtype=float)
     is_last = rows["product"].ne(rows["product"].shift(-1)).to_numpy()
     rounded[is_last] = current[product[is_last]]
-    net_ratio = (product_data["sales_price_net"] / product_data["sales_price_gross"]).to_numpy()
 
     history = pd.DataFrame({
         "product_id": product_data["product_id"].to_numpy()[product],
         "valid_from": pd.to_datetime(rows["valid_from"]).dt.normalize(),
         "sales_price_gross": rounded,
-        "sales_price_net": np.round(rounded * net_ratio[product], 2),
+        "sales_price_net": (rounded / (1 + ms.vat_rate)).round(2),
         "change_type": rows["change_type"].to_numpy(),
     })
     next_from = history.groupby("product_id")["valid_from"].shift(-1)

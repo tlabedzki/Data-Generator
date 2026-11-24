@@ -91,10 +91,8 @@ def test_prices_are_positive_with_the_shop_ending(offers):
             assert (cents[whole] == 0).all() and (offers.loc[whole, "price_gross"] % 10 == 9).all()
 
 
-def test_net_price_uses_the_vat_of_the_product(offers, data):
-    products = data["product_data"].set_index("product_id")
-    vat = offers["product_id"].map(products["sales_price_gross"] / products["sales_price_net"])
-    assert np.allclose(offers["price_net"], offers["price_gross"] / vat, atol=0.006)
+def test_net_price_uses_the_vat_rate(offers):
+    assert np.allclose(offers["price_net"], offers["price_gross"] / (1 + ms.vat_rate), atol=0.005)
 
 
 @pytest.mark.parametrize("day", [pd.Timestamp(s.start_year, 1, 1), pd.Timestamp(s.end_year, 6, 30), END])
@@ -109,8 +107,8 @@ def test_shop_price_level_matches_its_truth(offers, day):
 
 def test_market_price_comes_from_cost(offers, data):
     products = data["product_data"]
-    vat = products["sales_price_gross"] / products["sales_price_net"]
-    market = pd.Series((cp.market_reference(products) * vat).round(2).to_numpy(), index=products["product_id"])
+    market = pd.Series((cp.market_reference(products) * (1 + ms.vat_rate)).round(2).to_numpy(),
+                       index=products["product_id"])
     assert np.allclose(offers["true_market_price_gross"], offers["product_id"].map(market))
     assert (offers.groupby("product_id")["true_market_price_gross"].nunique() == 1).all()
 

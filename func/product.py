@@ -83,12 +83,22 @@ def generate_product_data(num_products: int, generator: np.random.Generator, pro
         "color": generator.choice(np.array(colors), size=num_products, p=colors_probabilities),
     })
 
-    # Add sales prices. sales_margin is a gross margin, so price = cost / (1 - margin).
-    data['sales_price_net'] = data['net_purchase_price'] / (1 - data['sales_margin'])
-    data['sales_price_gross'] = (data['sales_price_net'] * (1 + ms.vat_rate)).apply(d.round_to_9).astype(float)
+    # Add sales prices. The drawn margin gives a target price, cost / (1 - margin); the list price is that price with
+    # VAT rounded to end in 9. The net price is the list price without VAT, and sales_margin the margin it really
+    # leaves, so gross / net = 1 + vat_rate on every product.
+    target_net = data['net_purchase_price'] / (1 - data['sales_margin'])
+    data['sales_price_gross'] = (target_net * (1 + ms.vat_rate)).apply(d.round_to_9).astype(float)
+    data['sales_price_net'] = net_price(data['sales_price_gross'])
+    data['sales_margin'] = (1 - data['net_purchase_price'] / data['sales_price_net']).round(4)
+    data = data[[column for column in data.columns if column != 'sales_price_gross'] + ['sales_price_gross']]
     d.report_progress(progress, 2, 2, steps=2)
 
     return data
+
+def net_price(gross):
+    """Price without VAT of a gross price, to the grosz: gross / (1 + vat_rate)."""
+    return (gross / (1 + ms.vat_rate)).round(2)
+
 
 def get_subcategory(category, product_type):
     """

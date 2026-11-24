@@ -326,7 +326,7 @@ random stream (`competitors`), so seed 42 gives the other 14 tables exactly as w
 
 **Market price.** The market price comes from the cost of a product, not from our price: `net_purchase_price` ×
 the median `sales_price_net / net_purchase_price` of its product type (of its category when the type has fewer than
-`competitor_reference_min_products = 20` products), with the VAT of the product. Our margin is drawn per product, so
+`competitor_reference_min_products = 20` products), with 23% VAT. Our margin is drawn per product, so
 our price lands above the market for some products and below it for others. `true_market_price_gross` holds it.
 
 **Shops** (`competitor_settings`). A shop's price is the market price × `price_level` × a lasting log-normal noise
@@ -362,8 +362,8 @@ default run about 2.6% of Fulmina's offer-days are on sale and its average level
 
 An offer lasts while the product is on sale inside the period, from `launch_date` (or the first day of the period) to
 `discontinued_date`, also for products that never sell. Periods of one offer follow each other day after day;
-`valid_to` is empty only for offers still on sale on the last day. `price_net` uses the VAT ratio of the product
-(`sales_price_gross / sales_price_net`). Realism pack H in `scripts/check_realism.py` measures the five shops, levels,
+`valid_to` is empty only for offers still on sale on the last day. `price_net` is `price_gross / 1.23` (`vat_rate`
+in `settings/market_settings.py`). Realism pack H in `scripts/check_realism.py` measures the five shops, levels,
 coverage, price index, matcher delays and the flash sales (discount, length, share of days, Black Friday).
 
 ## Price Elasticity And Discounts
@@ -702,11 +702,19 @@ Older category-level `price_ranges` and `margin_ranges` in `settings/market_sett
 "margin_range": (0.10, 0.24)
 ```
 
-The generator calculates net sales price as:
+The generator draws a margin from the range and turns it into the list price with VAT, rounded to end in 9. The net
+price is that list price without VAT, and `sales_margin` is the margin the list price really leaves:
 
 ```python
-sales_price_net = net_purchase_price / (1 - sales_margin)
+target_net = net_purchase_price / (1 - drawn_margin)
+sales_price_gross = round_to_9(target_net * (1 + vat_rate))
+sales_price_net = round(sales_price_gross / (1 + vat_rate), 2)
+sales_margin = round(1 - net_purchase_price / sales_price_net, 4)
 ```
+
+Rounding to a price ending in 9 moves the margin a little from the drawn one, more for cheap products. Every net
+price in the data (`sales_price_net`, `unit_price_net`, `price_net` and the net columns of `sales_data`) is its gross
+price divided by `1 + vat_rate`, to the grosz.
 
 ## Quantity Per Order Line
 
