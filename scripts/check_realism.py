@@ -3,7 +3,7 @@ Check the realism criteria of the generated data on the default command-line vol
 
 Usage (from the repository root):
     python scripts/check_realism.py            # all packs
-    python scripts/check_realism.py E A        # selected packs (E A D B C F G H I)
+    python scripts/check_realism.py E A        # selected packs (E A D B C F G H I J)
 
 Each criterion prints PASS or FAIL with the measured number. The exit code is 1 when any criterion fails.
 """
@@ -34,8 +34,8 @@ def check(pack, label, value, passed):
 
 
 def generate(**changes):
-    params = service.GenerationParams(customers=s.customer_data_rows, products=s.product_data_rows,
-                                      order_lines=s.order_data_rows, **changes)
+    volume = {"customers": s.customer_data_rows, "products": s.product_data_rows, "order_lines": s.order_data_rows}
+    params = service.GenerationParams(**{**volume, **changes})
     started = time.perf_counter()
     data = service.generate(params)
     print(f"  generated {params.data_quality_level!r} data in {time.perf_counter() - started:.1f} s")
@@ -537,8 +537,67 @@ def check_i(data):
           all(0.002 <= value / net <= 0.05 for value in parts.values()))
 
 
+# ---------------------------------------------------------------------------------------------------------------- #
+# Pack J: suppliers, purchase orders and stock
+
+STOCKOUT_RUN = {"products": 1_500, "order_lines": 100_000}  # a denser catalog: most products sell every month
+
+
+def regular_orders(orders):
+    """One row per regular (not express) purchase order that arrived, with its lead time in days."""
+    regular = orders[~orders["is_express"] & orders["received_date"].notna()].drop_duplicates("purchase_order_id")
+    return regular.assign(lead_days=(regular["received_date"] - regular["order_date"]).dt.days)
+
+
+def end_stock_value(data):
+    movements = data["stock_movement_data"].sort_values("stock_movement_id")
+    last = movements.groupby("product_id")["stock_after"].last()
+    cost = data["product_data"].set_index("product_id")["net_purchase_price"]
+    return last * cost.reindex(last.index)
+
+
+def check_j(data):
+    import settings.inventory_settings as inv
+    suppliers = data["supplier_data"].set_index("supplier_id")
+    orders = regular_orders(data["purchase_order_data"])
+    stats = orders.groupby("supplier_id")["lead_days"].agg(["mean", "std", "size"])
+    stats = stats[stats["size"] >= 20]
+    ratio = stats["mean"] / suppliers.loc[stats.index, "true_lead_time_mean_days"]
+    check("J", f"mean lead time / true mean, {len(stats)} suppliers with 20+ orders (lowest / highest)",
+          f"{ratio.min():.2f} / {ratio.max():.2f}", ratio.between(0.9, 1.1).all())
+    late = (orders["received_date"] > orders["promised_date"]).mean()
+    check("J", "regular purchase orders received after the promised date", f"{late:.0%}", 0.2 <= late <= 0.6)
+    origin = orders.groupby(orders["supplier_id"].map(suppliers["country"]))["lead_days"].mean()
+    check("J", "mean lead time by origin, " + " / ".join(origin.index), " / ".join(f"{v:.1f}" for v in origin) +
+          " days", origin.get("CN", 99) > 3 * max(origin.drop("CN", errors="ignore")))
+    received = data["purchase_order_data"].dropna(subset=["received_date"])
+    express = received.loc[received["is_express"], "received_quantity"].sum() / received["received_quantity"].sum()
+    check("J", "stockouts off: units that came by express delivery / all units received", f"{express:.1%}",
+          0 < express <= 0.15 and data["lost_demand_data"].empty)
+
+    with service.overridden_settings({"stockouts": True}, inv):
+        short = generate(**STOCKOUT_RUN)
+    lines, lost = short["order_data"], short["lost_demand_data"]
+    served, missed = lines["quantity"].sum(), lost["quantity"].sum()
+    check("J", f"stockouts on ({STOCKOUT_RUN['products']:,} products): units served / units asked for",
+          f"{served / (served + missed):.1%}", 0.88 <= served / (served + missed) <= 0.96)
+    month = lambda frame: frame["order_date"].dt.month.isin([11, 12])  # noqa: E731
+    peak = lambda frame: frame.groupby(month(frame))["quantity"].sum()  # noqa: E731
+    share = peak(lost) / (peak(lost) + peak(lines))
+    check("J", "stockouts on: lost share of demand, November-December / other months",
+          f"{share[True]:.1%} / {share[False]:.1%}", share[True] >= 1.4 * share[False])
+    value = end_stock_value(short)
+    sold = lines.loc[lines["order_date"] > lines["order_date"].max() - pd.Timedelta(days=90), "product_id"]
+    idle = value[~value.index.isin(sold)].sum() / value.sum()
+    check("J", "stockouts on: stock value at the end in products with no sale in the last 90 days",
+          f"{idle:.0%}", 0.05 <= idle <= 0.5)
+    sessions = short["session_data"]
+    check("J", "stockouts on: sessions linked to an order / orders", f"{sessions['order_id'].notna().sum():,} / "
+          f"{lines['order_id'].nunique():,}", sessions["order_id"].notna().sum() == lines["order_id"].nunique())
+
+
 PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f, "G": check_g,
-         "H": check_h, "I": check_i}
+         "H": check_h, "I": check_i, "J": check_j}
 
 
 def main(selected):

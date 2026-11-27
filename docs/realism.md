@@ -1,6 +1,6 @@
 # Realism criteria
 
-81 of 81 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
+89 of 89 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
 with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 
 ## Dirty data and anomalies
@@ -110,3 +110,14 @@ with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 - ✅ payment fee / amount paid, BLIK / Card / Deferred payment (rates 1.2% / 1.6% / 3.5% plus a fixed fee): 1.24% / 1.63% / 3.53%
 - ✅ affiliate commission / affiliate net revenue; commission outside the affiliate channel: 6.3%; 0
 - ✅ shop costs / net revenue of shipped orders: carrier / returns / payments / commission: 1.6% / 1.7% / 2.0% / 0.6%
+
+## Suppliers and stock
+
+- ✅ mean lead time / true mean, 24 suppliers with 20+ orders (lowest / highest): 0.96 / 1.08
+- ✅ regular purchase orders received after the promised date: 34%
+- ✅ mean lead time by origin, CN / DE / PL: 33.0 / 6.8 / 3.7 days
+- ✅ stockouts off: units that came by express delivery / all units received: 7.6%
+- ✅ stockouts on (1,500 products): units served / units asked for: 90.9%
+- ✅ stockouts on: lost share of demand, November-December / other months: 14.0% / 6.6%
+- ✅ stockouts on: stock value at the end in products with no sale in the last 90 days: 26%
+- ✅ stockouts on: sessions linked to an order / orders: 66,069 / 66,069

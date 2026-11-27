@@ -286,3 +286,78 @@ One row is one injected data quality issue (empty at data_quality_level none). 0
 | `issue_type` | text |  | missing, typo, format, outlier, duplicate_customer or duplicate_row |  |
 | `dirty_value` | text |  | value in the file |  |
 | `clean_value` | text |  | value before the issue was injected | yes |
+
+## supplier_data
+
+One row is a supplier the shop buys from. 24 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `supplier_id` | int | 1 | supplier key (from 1) |  |
+| `supplier_name` | text | Galvio Dystrybucja Sp. z o.o. | fictional company name |  |
+| `country` | text | PL | where the supplier ships from: PL, DE or CN |  |
+| `order_weekdays` | text | Wed,Fri | weekdays the supplier takes orders on, for example Mon,Thu |  |
+| `promised_lead_time_days` | int | 3 | lead time the supplier promises, in days: its true mean, rounded |  |
+| `true_lead_time_mean_days` | float | 3.1 | mean of the actual lead time, in days | yes |
+| `true_lead_time_cv` | float | 0.22 | spread of the actual lead time: standard deviation / mean | yes |
+
+## product_supplier_data
+
+One row is the supplier of a product, with its pack size and minimum order. 50,000 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `product_id` | int | 200001 | product key (from 200001) |  |
+| `supplier_id` | int | 17 | supplier key (from 1) |  |
+| `pack_size` | int | 1 | units in one pack; the shop orders whole packs |  |
+| `min_order_quantity` | int | 1 | smallest order of the product in units (whole packs) |  |
+
+## purchase_order_data
+
+One row is a purchase order line: units of one product the shop ordered from its supplier. 59,346 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `purchase_order_id` | int | 1 | purchase order key; the lines of one supplier on one day share it |  |
+| `purchase_order_line_id` | int | 1 | purchase order line key |  |
+| `supplier_id` | int | 22 | supplier key (from 1) |  |
+| `product_id` | int | 231525 | product key (from 200001) |  |
+| `order_date` | datetime | 2022-11-14 | day the shop ordered; the first delivery of a product launched in the period is ordered a lead time before its launch |  |
+| `ordered_quantity` | int | 1 | units ordered |  |
+| `promised_date` | datetime | 2022-12-18 | order day plus the promised lead time |  |
+| `received_date` | datetime | 2023-01-07 | day the delivery arrived (never on Sunday); empty while still on the way at the end |  |
+| `received_quantity` | int (nullable) | 1 | units received, all that were ordered; empty while on the way |  |
+| `unit_cost_net` | float | 156.1 | purchase price of one unit without VAT (net_purchase_price), PLN |  |
+| `is_express` | bool | False | express delivery that filled an empty shelf the same day (only with stockouts off) |  |
+
+## stock_movement_data
+
+One row is a change in the stock of a product: opening stock, a delivery or the units sold on a day. 172,110 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `stock_movement_id` | int | 1 | movement key, oldest first |  |
+| `product_id` | int | 200001 | product key (from 200001) |  |
+| `movement_date` | datetime | 2023-01-01 | day of the movement |  |
+| `movement_type` | text | opening | opening (stock on the first day), receipt (a delivery) or sale (units of the day's order lines) |  |
+| `quantity` | int | 1 | change in units: plus for opening and receipts, minus for sales |  |
+| `stock_after` | int | 1 | units in stock after the movement |  |
+| `purchase_order_line_id` | int (nullable) | 262 | purchase order line of a receipt; empty otherwise |  |
+
+## lost_demand_data
+
+One row is an order line the customer could not place because the product was out of stock (empty unless stockouts is on). 0 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `lost_line_id` | int |  | lost line key | yes |
+| `order_date` | datetime |  | order day | yes |
+| `order_datetime` | datetime |  | order time, to the second | yes |
+| `customer_id` | int |  | customer key (from 100001) | yes |
+| `product_id` | int |  | product key (from 200001) | yes |
+| `quantity` | int |  | units the customer wanted | yes |
+| `unit_price_gross` | float |  | list price with VAT on that day, PLN | yes |
+| `discount_rate` | float |  | discount on the line (0.15 = 15%) | yes |
+| `lost_revenue_gross` | float |  | quantity × unit_price_gross × (1 - discount_rate), PLN | yes |
+| `channel` | text |  | traffic channel | yes |
+| `session_id` | int (nullable) |  | session in which the customer found the product out of stock | yes |

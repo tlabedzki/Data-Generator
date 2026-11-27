@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.8.0 - 2026-11-27
+Added:
+- Suppliers, purchase orders and stock, in five new tables (21 in all), from the settings in `settings/inventory_settings.py` (described in `docs/settings.md`, section Suppliers And Stock). `supplier_data`: 24 fictional suppliers in Poland, Germany and China in the default run, each with its order weekdays, a promised lead time and, as truth, the mean and spread of the actual lead time (`true_lead_time_mean_days`, `true_lead_time_cv`). `product_supplier_data`: the supplier of every product (a brand comes from one supplier within a category), its pack size and minimum order. `purchase_order_data`: every purchase order line with the order, promised and received dates; deliveries never arrive on Sunday and the orders still on the way at the end have no received date. `stock_movement_data`: opening stock, receipts and the day's sales of every product, with the stock after each movement.
+- A buyer orders "by eye" on the supplier's order days: the average daily sales of the last 28 days times the promised lead time, the days to the next order day and 10 days of cover, minus the stock on hand and on order, rounded up to whole packs and at least the minimum order.
+- Setting `stockouts`. Off (default): an express delivery fills an empty shelf the same day (`is_express`), so every order line is served. On: a line that does not fit the stock is lost; it leaves `order_data` and every table built on it, and `lost_demand_data` (truth) keeps what the customer asked for, with the list price and the lost revenue. On 1,500 products and 100,000 order lines the buyer serves 91% of the units asked for and loses 14% of the demand in November and December against 7% in other months.
+- 8 realism criteria in a new pack J (suppliers and stock) of `scripts/check_realism.py`, 89 in all; 16 tests (11 in `tests/test_inventory.py` and 5 previews of the new tables in the app), among them stock that never goes below zero and adds up, sales movements equal to the order lines, lost lines that did not fit the stock and settings of the buyer that change only the stock tables.
+
+Changed:
+- Nothing in the earlier tables with the default settings: the new tables draw from their own random stream, so seed 42 gives the 16 tables of 1.7.1 exactly as before, byte for byte. Two simplifications keep it so: returned units go to an outlet and do not come back to the stock, and cancelled or failed orders keep their units.
+
 ### 1.7.1 - 2026-11-24
 Fixed:
 - Net prices now equal the gross price without 23% VAT in every row: `sales_price_net` in `product_data` and `price_history`, `unit_price_net` in `order_data`, `price_net` in `competitor_prices` and the net columns of `sales_data`. Until 1.7.0 the net price was the target price before the list price was rounded to end in 9, so gross / net ran from 1.18 to 4.33 instead of 1.23 (for example 129 PLN gross with 97.18 PLN net, now 104.88 PLN).

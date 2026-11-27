@@ -1,7 +1,7 @@
 """
 The generation pipeline: customers, products and order lines first, then the tables built on them (prices,
-competitor prices, sessions, experiments, order status, shipments, returns, reviews, shop costs and payments,
-anomalies, data quality issues) and the joined sales lines.
+competitor prices, sessions, experiments, suppliers and stock, order status, shipments, returns, reviews, shop costs
+and payments, anomalies, data quality issues) and the joined sales lines.
 
 Every step draws from its own random stream (func/rng.py), so the same seed always gives the same files.
 """
@@ -24,6 +24,7 @@ from func import (
     data,
     experiments,
     fulfilment,
+    inventory,
     localization,
     log,
     marketing,
@@ -46,7 +47,9 @@ EXPORT_DIR = PROJECT_DIR / "export"
 # Output tables: source tables first, then the joined sales lines, then the extra tables.
 DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "price_history", "competitor_prices",
                  "shipment_data", "return_data", "payment_data", "review_data", "campaign_data", "session_data",
-                 "experiment_data", "experiment_assignment_data", "anomaly_data", "quality_issue_data"]
+                 "experiment_data", "experiment_assignment_data", "anomaly_data", "quality_issue_data",
+                 "supplier_data", "product_supplier_data", "purchase_order_data", "stock_movement_data",
+                 "lost_demand_data"]
 SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
 
 # Share of total run time per stage, used to turn stage progress into overall progress:
@@ -132,6 +135,12 @@ def run_generation_pipeline(progress: ProgressCallback | None = None) -> dict[st
         order_data = marketing.add_session_ids(order_data, session_of_order)
         order_data, extra["experiment_data"], extra["experiment_assignment_data"] = experiments.run_experiments(
             order_data, extra["session_data"], day_calendar, rng.stream("experiments"))
+        # Suppliers, purchase orders and stock draw from their own stream. With stockouts off every line is served
+        # and the tables above and below stay as in 1.7.1; with stockouts on, lost lines leave order_data here.
+        stock = inventory.build_inventory(order_data, products, day_calendar["date"], rng.stream("inventory"))
+        extra.update({name: frame for name, frame in stock.items() if name != "served"})
+        order_data, extra["session_data"], extra["lost_demand_data"] = inventory.remove_lost_lines(
+            order_data, extra["session_data"], stock["served"], price_book, anomaly.renumber_orders)
         order_data = fulfilment.add_unit_prices(order_data, price_book)
         order_data, bulky_orders = fulfilment.fit_delivery_to_products(order_data, products, logistics)
         status_stream = rng.stream("order_status")

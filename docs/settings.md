@@ -69,7 +69,8 @@ Use `generated_files` in `settings/main_settings.py`.
 generated_files = [
     "customer_data", "product_data", "order_data", "sales_data", "price_history", "competitor_prices", "shipment_data",
     "return_data", "payment_data", "review_data", "campaign_data", "session_data", "experiment_data",
-    "experiment_assignment_data", "anomaly_data", "quality_issue_data",
+    "experiment_assignment_data", "anomaly_data", "quality_issue_data", "supplier_data", "product_supplier_data",
+    "purchase_order_data", "stock_movement_data", "lost_demand_data",
 ]
 ```
 
@@ -93,6 +94,11 @@ Available values:
 | `experiment_assignment_data` | a unit (session or customer) in an experiment | variant A or B |
 | `anomaly_data` | a labelled anomaly (fraud ring, shop outage, return spike) | the truth for anomaly detection |
 | `quality_issue_data` | one injected data quality issue | empty when `data_quality_level = "none"` |
+| `supplier_data` | a supplier the shop buys from | order weekdays, promised lead time; truth: mean and spread of the actual lead time |
+| `product_supplier_data` | the supplier of a product | pack size and minimum order |
+| `purchase_order_data` | a purchase order line | ordered, promised and received dates; express deliveries flagged |
+| `stock_movement_data` | a change in the stock of a product | opening, receipt or the day's sales, with the stock after it |
+| `lost_demand_data` | an order line lost to an empty shelf | empty unless `stockouts = True` (truth) |
 
 Source tables needed by a selected file are always generated, but only the selected files are saved.
 
@@ -107,7 +113,7 @@ generated_files = ["sales_data"]
 ## Random Streams
 
 Every step (customers, products, orders, behaviour, prices, competitor prices, sessions, experiments, order status,
-reviews, goods written off after returns, anomalies, dirty data and so on) draws from its own random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for
+reviews, goods written off after returns, suppliers and stock, anomalies, dirty data and so on) draws from its own random stream seeded with `(random_state, stream number)` (`func/rng.py`). Changing one of them, for
 example the dirty data level, does not change the random numbers of the other steps. Names, phone numbers and bank
 account numbers come from Faker, seeded with `random_state` too.
 
@@ -487,6 +493,43 @@ affiliate campaigns in `campaign_data`, which stays the cost of the campaigns.
 The shop's own `carrier_cost` does not depend on `shipping_cost`, the fee the customer pays, so a free delivery (from
 199 PLN) still costs the shop. The rates are fictional, set at the level of Polish e-commerce contracts, and refer
 to no real price list.
+
+## Suppliers And Stock
+
+Suppliers, purchase orders and stock, in `settings/inventory_settings.py`. Each category has
+`suppliers_per_category` suppliers (one when not listed), and its brands are dealt among them, so a brand comes from
+one supplier within a category. A supplier ships from Poland, Germany or China (`supplier_origins`, each with a range
+of mean lead times), takes orders on one to three weekdays (`order_weekday_count`) and promises its mean lead time,
+rounded. The actual lead time of each order is log-normal around the mean with the supplier's spread
+(`lead_time_cv`), and deliveries never arrive on Sunday. Every product has a pack size by category (`pack_sizes`,
+`default_pack_sizes`) and a minimum order of 1, 2 or 4 packs (`min_order_packs`).
+
+A buyer orders "by eye" at the end of each order day of the supplier: the average daily units sold over
+`buyer_history_days`, times the promised lead time, the days until the next order day and `buyer_cover_days`, with a
+log-normal spread (`buyer_quantity_sigma`). When the stock on hand and on order is below that, the buyer orders the
+difference, rounded up to whole packs and at least the minimum order. A product with no stock and no sales in the
+window is noticed and ordered again with the chance `empty_shelf_notice_rate` per order day. The buyer stops
+ordering a product that is withdrawn before the next delivery could sell, so a withdrawn product can keep stock that
+never sells. Products on sale on the first day start with an opening stock, and products launched later get a first
+delivery on their launch day (Saturday when it falls on a Sunday): the buyer's guess of their sales over
+`opening_cover_days` or `launch_cover_days`, at least one pack.
+
+Stock goes down on the order day of every order line, first come first served. Two simplifications keep the other
+tables as they were: returned units go to an outlet and do not come back to the stock, and cancelled or failed orders
+keep their units.
+
+| Setting | Meaning |
+|---|---|
+| `stockouts` | `False` (default): an express delivery fills an empty shelf the same day (`is_express` in `purchase_order_data`), so every order line is served and the 16 tables of 1.7.1 stay exactly as they were. `True`: a line that does not fit the stock is lost; it leaves `order_data` and every table built on it, and `lost_demand_data` keeps it as the truth |
+
+With `stockouts = True` the sales are lower than the demand. An analysis that forecasts from `order_data` alone sees
+fewer sales on the days a product was out of stock and has to tell "nobody wanted it" from "it was not there". The
+buyer by eye reacts late to a fast rise in demand, so the most lines are lost around Black Friday and in December. A
+session whose whole order was lost keeps no `order_id`, orders are numbered again, and fraud rings and shop outages
+in `anomaly_data` describe what happened before the stock check (some of their lines may be lost). The stock tables
+are most realistic with a catalog in which most products sell every month: in `scripts/check_realism.py` (pack J),
+1,500 products and 100,000 order lines serve about 91% of the units asked for. The default run has 50,000 products,
+most of which sell only a few units in two years.
 
 ## Marketing And Traffic
 

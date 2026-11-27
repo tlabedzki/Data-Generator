@@ -24,12 +24,21 @@ TABLE_ROWS = {
     "experiment_assignment_data": "a unit (session or customer) in an experiment",
     "anomaly_data": "a labelled anomaly: fraud ring, shop outage or return spike",
     "quality_issue_data": "one injected data quality issue (empty at data_quality_level none)",
+    "supplier_data": "a supplier the shop buys from",
+    "product_supplier_data": "the supplier of a product, with its pack size and minimum order",
+    "purchase_order_data": "a purchase order line: units of one product the shop ordered from its supplier",
+    "stock_movement_data": "a change in the stock of a product: opening stock, a delivery or the units sold on a day",
+    "lost_demand_data": "an order line the customer could not place because the product was out of stock (empty "
+                        "unless stockouts is on)",
 }
 
 # Columns that hold the answer an analysis should find (hide them before you analyse).
 TRUTH = {"customer_segment", "preferred_category", "price_tier", "true_purchase_rate", "true_churn_date", "is_fraud",
          "true_daily_lift", "true_effect", "has_sample_ratio_mismatch", "anomaly_type", "clean_value",
-         "competitor_strategy", "true_price_level", "true_market_price_gross"}
+         "competitor_strategy", "true_price_level", "true_market_price_gross", "true_lead_time_mean_days",
+         "true_lead_time_cv"}
+# Tables that are truth as a whole: every column is the answer.
+TRUTH_TABLES = {"lost_demand_data"}
 
 # The same column name means the same thing in every table; a (table, column) key overrides it for one table.
 NOTES = {
@@ -179,6 +188,36 @@ NOTES = {
     "issue_type": "missing, typo, format, outlier, duplicate_customer or duplicate_row",
     "dirty_value": "value in the file",
     "clean_value": "value before the issue was injected",
+    "supplier_id": "supplier key (from 1)",
+    "supplier_name": "fictional company name",
+    "country": "where the supplier ships from: PL, DE or CN",
+    "order_weekdays": "weekdays the supplier takes orders on, for example Mon,Thu",
+    "promised_lead_time_days": "lead time the supplier promises, in days: its true mean, rounded",
+    "true_lead_time_mean_days": "mean of the actual lead time, in days",
+    "true_lead_time_cv": "spread of the actual lead time: standard deviation / mean",
+    "pack_size": "units in one pack; the shop orders whole packs",
+    "min_order_quantity": "smallest order of the product in units (whole packs)",
+    "purchase_order_id": "purchase order key; the lines of one supplier on one day share it",
+    "purchase_order_line_id": "purchase order line key",
+    ("purchase_order_data", "order_date"): "day the shop ordered; the first delivery of a product launched in the "
+                                           "period is ordered a lead time before its launch",
+    "ordered_quantity": "units ordered",
+    "promised_date": "order day plus the promised lead time",
+    "received_date": "day the delivery arrived (never on Sunday); empty while still on the way at the end",
+    "received_quantity": "units received, all that were ordered; empty while on the way",
+    "unit_cost_net": "purchase price of one unit without VAT (net_purchase_price), PLN",
+    "is_express": "express delivery that filled an empty shelf the same day (only with stockouts off)",
+    "stock_movement_id": "movement key, oldest first",
+    "movement_date": "day of the movement",
+    "movement_type": "opening (stock on the first day), receipt (a delivery) or sale (units of the day's order lines)",
+    ("stock_movement_data", "quantity"): "change in units: plus for opening and receipts, minus for sales",
+    "stock_after": "units in stock after the movement",
+    ("stock_movement_data", "purchase_order_line_id"): "purchase order line of a receipt; empty otherwise",
+    "lost_line_id": "lost line key",
+    ("lost_demand_data", "quantity"): "units the customer wanted",
+    ("lost_demand_data", "unit_price_gross"): "list price with VAT on that day, PLN",
+    "lost_revenue_gross": "quantity × unit_price_gross × (1 - discount_rate), PLN",
+    ("lost_demand_data", "session_id"): "session in which the customer found the product out of stock",
 }
 
 
@@ -228,7 +267,7 @@ def columns_markdown(datasets: dict[str, pd.DataFrame]) -> str:
         lines += ["| Column | Type | Example | Meaning | Truth |", "|---|---|---|---|---|"]
         for column in frame.columns:
             lines.append(f"| `{column}` | {dtype_name(frame[column])} | {example(frame[column])} | "
-                         f"{note(table, column)} | {'yes' if column in TRUTH else ''} |")
+                         f"{note(table, column)} | {'yes' if column in TRUTH or table in TRUTH_TABLES else ''} |")
         lines.append("")
     return "\n".join(lines)
 

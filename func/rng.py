@@ -28,6 +28,7 @@ STREAMS = {
     "reviews": 16,
     "competitors": 17,
     "costs": 18,
+    "inventory": 19,
 }
 
 

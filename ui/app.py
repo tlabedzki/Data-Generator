@@ -34,7 +34,10 @@ DATASET_LABELS = {"sales_data": "Sales lines", "order_data": "Order lines", "cus
                   "campaign_data": "Campaigns",
                   "session_data": "Sessions", "experiment_data": "Experiments",
                   "experiment_assignment_data": "Experiment assignments",
-                  "anomaly_data": "Anomalies", "quality_issue_data": "Data issues"}
+                  "anomaly_data": "Anomalies", "quality_issue_data": "Data issues",
+                  "supplier_data": "Suppliers", "product_supplier_data": "Product suppliers",
+                  "purchase_order_data": "Purchase orders", "stock_movement_data": "Stock movements",
+                  "lost_demand_data": "Lost demand"}
 QUALITY_LABELS = {"none": "None", "low": "Low", "medium": "Medium", "high": "High"}
 STAGE_LABELS = {"customer_data": "Generating customers", "product_data": "Building the product catalog",
                 "order_data": "Drawing orders", "sales_data": "Joining sales lines"}

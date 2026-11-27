@@ -1,6 +1,6 @@
 # Data model
 
-The 16 tables of one run and how they link. [columns.md](columns.md) describes every column; the columns marked
+The 21 tables of one run and how they link. [columns.md](columns.md) describes every column; the columns marked
 "truth" hold what an analysis should find.
 
 ```mermaid
@@ -18,6 +18,13 @@ erDiagram
     campaign_data |o--o{ session_data : brings
     session_data ||--o{ order_data : "converts into"
     experiment_data ||--|{ experiment_assignment_data : assigns
+    supplier_data ||--|{ product_supplier_data : supplies
+    product_data ||--|| product_supplier_data : "is bought as"
+    supplier_data ||--o{ purchase_order_data : receives
+    product_data ||--o{ purchase_order_data : "is ordered in"
+    product_data ||--o{ stock_movement_data : "moves in"
+    purchase_order_data |o--o| stock_movement_data : "arrives as"
+    product_data ||--o{ lost_demand_data : "is missing in"
     customer_data {
         int customer_id PK
         string customer_segment "truth"
@@ -93,6 +100,42 @@ erDiagram
         int experiment_id FK
         int unit_id "session or customer"
     }
+    supplier_data {
+        int supplier_id PK
+        string order_weekdays
+        int promised_lead_time_days
+        float true_lead_time_mean_days "truth"
+        float true_lead_time_cv "truth"
+    }
+    product_supplier_data {
+        int product_id PK
+        int supplier_id FK
+        int pack_size
+        int min_order_quantity
+    }
+    purchase_order_data {
+        int purchase_order_line_id PK
+        int purchase_order_id
+        int supplier_id FK
+        int product_id FK
+        date order_date
+        date received_date
+        bool is_express
+    }
+    stock_movement_data {
+        int stock_movement_id PK
+        int product_id FK
+        string movement_type
+        int quantity
+        int stock_after
+        int purchase_order_line_id FK
+    }
+    lost_demand_data {
+        int lost_line_id PK
+        int customer_id FK
+        int product_id FK
+        int quantity "truth"
+    }
 ```
 
 Each row of `order_data` is one order line, so `order_id` repeats for multi-line orders, and so does its
@@ -103,6 +146,11 @@ written off), `payment_data` (`payment_fee`) and `order_data` (`affiliate_commis
 the others by name instead of a key: `anomaly_data` (fraud rings, shop outages, a return spike, with
 `table_name` and dates) and `quality_issue_data` (one row per injected issue, with `table_name`, `key_column` and
 `key_value`).
+
+Stock goes down on the order day of every order line: the `sale` rows of `stock_movement_data` add up to the
+`quantity` of `order_data` by product and day. Every received line of `purchase_order_data` is one `receipt` row. With
+`stockouts` on, the lines that did not fit the stock are not in `order_data` (nor in the tables built on it) but in
+`lost_demand_data`, the truth of what customers asked for.
 
 | Table | One row is | Links |
 |---|---|---|
@@ -122,3 +170,8 @@ the others by name instead of a key: `anomaly_data` (fraud rings, shop outages, 
 | `experiment_assignment_data` | a session or customer in an experiment | `experiment_id`, `unit_id` |
 | `anomaly_data` | a labelled anomaly | `table_name`, `customer_id` for fraud rings |
 | `quality_issue_data` | one injected data quality issue | `table_name`, `key_column`, `key_value` |
+| `supplier_data` | a supplier the shop buys from | `supplier_id` |
+| `product_supplier_data` | the supplier of a product, with its pack size and minimum order | `product_id`, `supplier_id` |
+| `purchase_order_data` | a purchase order line | `supplier_id`, `product_id` |
+| `stock_movement_data` | a change in the stock of a product | `product_id`, `purchase_order_line_id` |
+| `lost_demand_data` | an order line lost to an empty shelf (with `stockouts` on) | `customer_id`, `product_id`, `session_id` |

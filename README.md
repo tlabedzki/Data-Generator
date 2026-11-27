@@ -5,8 +5,8 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 [![Release](https://img.shields.io/github/v/release/tlabedzki/Data-Generator)](https://github.com/tlabedzki/Data-Generator/releases)
 
-Generates data for Lumo, a fully fictional Polish online shop: 16 linked tables, from orders and reviews to competitor
-prices, shop costs, web sessions, returns and A/B tests, for analytics practice.
+Generates data for Lumo, a fully fictional Polish online shop: 21 linked tables, from orders and reviews to competitor
+prices, shop costs, suppliers and stock, web sessions, returns and A/B tests, for analytics practice.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/app-demo-dark.svg">
@@ -39,14 +39,15 @@ Each row starts with a question a shop asks; the last column says where the true
 | Is our price competitive, and where is it far above or below the market? | Price index (our price / median competitor price) by product, category and shop on `competitor_prices`, `product_data`, `price_history` | `competitor_strategy`, `true_price_level`, `true_market_price_gross` |
 | What does each product really earn after shipping, returns, payment fees and commission? | Contribution margin by product: spread `carrier_cost` and `payment_fee` over order lines, add return costs and `affiliate_commission`, on `sales_data`, `shipment_data`, `return_data`, `payment_data` | rates in `settings/commerce_settings.py` (Shop costs); the costs add up to the grosz |
 | Do discounts sell more, and what drives returns and late deliveries? | Price elasticity, promotion uplift, return and delivery rates on `sales_data`, `price_history`, `return_data`, `shipment_data` | settings in `docs/settings.md` |
+| What should the shop order from each supplier, and when? | Demand forecasting, safety stock and reorder policy on `order_data`, `stock_movement_data`, `purchase_order_data`, `product_supplier_data`; backtest on simulated stock | `true_lead_time_mean_days`, `true_lead_time_cv`; with `stockouts = True`, `lost_demand_data` (demand the empty shelf lost) |
 | Which orders are fraud, and when did the shop go down? | Fraud and anomaly detection on `order_data`, `anomaly_data` | `is_fraud`, `anomaly_data` |
 | Can you trust the data before you analyse it? | Data cleaning (missing values, typos, formats, outliers, duplicates) on every table at `data_quality_level` low, medium or high | `quality_issue_data` (clean values) |
 
 ## What it does
 
-- Generates 16 linked tables: customers, products, order lines, sales lines, price history, competitor prices,
-  shipments, returns, payments, reviews, campaigns, web sessions, experiments, experiment assignments, anomalies and
-  data quality issues.
+- Generates 21 linked tables: customers, products, order lines, sales lines, price history, competitor prices,
+  shipments, returns, payments, reviews, campaigns, web sessions, experiments, experiment assignments, anomalies,
+  data quality issues, suppliers, the supplier of every product, purchase orders, stock movements and lost demand.
 - Models customers over time: signup cohorts, accounts that never order, segments, churn with its true date and
   purchase rate, preferred categories, replenishment and products bought together.
 - Shapes demand with monthly and weekday seasonality, special days, hours of the day, price changes, discounts that
@@ -57,6 +58,10 @@ Each row starts with a question a shop asks; the last column says where the true
 - Charges the shop's own selling costs, without VAT: carrier rates by delivery method and parcel size (a free delivery
   still costs the shop), return labels, handling and goods written off by return reason, payment operator fees by
   method and operator, and affiliate commission on the units the customer kept.
+- Buys the goods from fictional suppliers in Poland, Germany and China, each with its order days, pack sizes,
+  minimum orders and a lead time that varies around its true mean. A buyer orders "by eye" from the last four weeks
+  of sales, and the stock goes down with every order line. With `stockouts = True` an empty shelf loses the sale and
+  `lost_demand_data` keeps it; by default an express delivery fills the shelf and the other tables stay as in 1.7.1.
 - Adds channels, campaigns, devices, a session funnel and randomized A/B tests, plus labelled fraud, shop outages and
   optional dirty data.
 - Saves CSV or Parquet with values in English or Polish; the same seed gives identical files.
@@ -113,7 +118,7 @@ weekly e-mail campaigns on Tuesdays or Thursdays move it, as they would in a rea
 Category revenue lands within 3.1 percentage points of the target mix: the generator corrects for average price, so
 expensive categories do not take over revenue just because their unit prices are high.
 
-Beyond the charts, 81 of 81 realism criteria pass on the same run. The table shows ten of them;
+Beyond the charts, 89 of 89 realism criteria pass on the same run. The table shows ten of them;
 [docs/realism.md](docs/realism.md) lists all with their values.
 
 | What a real shop does | Default run |
@@ -164,11 +169,11 @@ stop it.
 <!-- generated:cli -->
 
 `python main.py` writes 40,000 customers, 50,000 products and 80,326 order lines (55,568 orders in 2023 and 2024) with
-seed 42 and English values, and saves 16 tables as Parquet files in `export/`.
+seed 42 and English values, and saves 21 tables as Parquet files in `export/`.
 
 <!-- /generated:cli -->
 
-It takes about 7 seconds on a laptop. Every option lives in `settings/` and [docs/settings.md](docs/settings.md)
+It takes about 12 seconds on a laptop. Every option lives in `settings/` and [docs/settings.md](docs/settings.md)
 describes it: `data_language = "pl"` in `settings/main_settings.py` writes the same data with Polish values, and
 `data_quality_level` in `settings/quality_settings.py` turns on dirty data.
 
@@ -184,13 +189,14 @@ as a ZIP.
 All people, e-mails, phone numbers, bank account numbers, products, prices, sales and reviews are synthetic:
 generated by `func/` with [Faker](https://faker.readthedocs.io/) (`pl_PL`) and NumPy, seed 42; review comments come
 from a short list of ready sentences. E-mail addresses use the reserved
-domains `example.com`, `example.org` and `example.net`. [docs/data-model.md](docs/data-model.md) shows how the 16
+domains `example.com`, `example.org` and `example.net`. [docs/data-model.md](docs/data-model.md) shows how the 21
 tables link, and [docs/columns.md](docs/columns.md) describes every column and marks the truth columns.
 
 Brand, payment and delivery names (for example Samsung, H&M, PayU, BLIK and InPost) are used only as labels to make
 the data look familiar. Products, prices, margins, popularity and market shares are fictional and say nothing about
-these companies. Lumo, the shop's name, and its competitors Frugalia, Aequo, Maison Orvelle, Mercatoria and Fulmina
-are made up for this project and refer to no company or product of those names.
+these companies. Lumo, the shop's name, its competitors Frugalia, Aequo, Maison Orvelle, Mercatoria and Fulmina
+and its suppliers (for example Galvio Dystrybucja Sp. z o.o.) are made up for this project and refer to no company
+or product of those names.
 
 <!-- generated:data -->
 
@@ -230,9 +236,9 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-235 pytest tests (about 35 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
-and churn, prices and VAT, competitor prices, shop costs, order status, returns and ratings, marketing, experiments,
-dirty data, exports and the app's callbacks and figures on small samples.
+251 pytest tests (about 45 seconds) check table shapes, joins, seed reproducibility, seasonality, customer behaviour
+and churn, prices and VAT, competitor prices, shop costs, suppliers and stock, order status, returns and ratings,
+marketing, experiments, dirty data, exports and the app's callbacks and figures on small samples.
 `ruff check .` lints the code and CI runs both on every push; `python scripts/check_realism.py` checks the realism
 criteria on the full default run.
 
