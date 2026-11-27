@@ -37,3 +37,9 @@ def test_flag_svg_is_a_badge_high_image_with_a_title(readme):
     svg = ET.parse(ROOT / image).getroot()
     assert svg.tag == f"{SVG}svg" and svg.get("height") == "20"
     assert svg.find(f"{SVG}title").text == label
+
+
+def test_both_flags_have_the_same_size():
+    sizes = {(svg.get("width"), svg.get("height"))
+             for svg in (ET.parse(ROOT / image).getroot() for image, _, _ in FLAGS.values())}
+    assert sizes == {("30", "20")}

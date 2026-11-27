@@ -227,7 +227,7 @@ paid service; the only file it reads is the postal code list in `source/`.
 | Parquet (pyarrow) | The default output: it keeps dates, nullable integers and booleans as they are and is smaller than CSV. | CSV stays as an option, and the app downloads CSV by default for spreadsheet users. |
 | Dash with Mantine | The app: only pip packages and ready components for the form, the tables and the downloads. | Reflex needed Node.js, about 340 npm packages and a one-minute frontend build; Streamlit took the colours and the font but kept its own menus and layout. |
 | Plotly | The app's charts; `scripts/make_charts.py` renders the same figures with headless Chrome, so the README shows exactly what the app draws. | Altair, used for the earlier charts, went away together with the Streamlit app. |
-| pytest, ruff | 255 tests on small samples in about 45 seconds; lint and tests in CI on every push. | – |
+| pytest, ruff | 256 tests on small samples in about 45 seconds; lint and tests in CI on every push. | – |
 
 ## Project structure
 

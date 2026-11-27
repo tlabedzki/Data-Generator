@@ -239,7 +239,7 @@ serwera, konta, klucza ani płatnej usługi; jedyny plik, który czyta, to lista
 | Parquet (pyarrow) | Format domyślny: zachowuje bez zmian daty, liczby całkowite z brakami (nullable integers) i wartości logiczne, a zajmuje mniej miejsca niż CSV. | CSV zostaje jako opcja, a aplikacja domyślnie pobiera CSV z myślą o użytkownikach arkuszy kalkulacyjnych. |
 | Dash z Mantine | Aplikacja: tylko pakiety z pip i gotowe komponenty do formularza, tabel i pobierania. | Reflex wymagał Node.js, ok. 340 pakietów npm i minutowego budowania frontendu; w Streamlit dało się ustawić kolory i czcionkę, ale menu i układ zostawały jego własne. |
 | Plotly | Wykresy aplikacji; `scripts/make_charts.py` renderuje te same wykresy w Chrome bez okna (headless), więc README pokazuje dokładnie to, co rysuje aplikacja. | Altair, w którym powstały wcześniejsze wykresy, zniknął razem z aplikacją w Streamlit. |
-| pytest, ruff | 255 testów na małych próbkach w ok. 45 sekund; lint (automatyczne sprawdzanie stylu i typowych błędów w kodzie) i testy w CI (ciągła integracja, czyli automatyczne uruchamianie na GitHubie) przy każdym pushu. | – |
+| pytest, ruff | 256 testów na małych próbkach w ok. 45 sekund; lint (automatyczne sprawdzanie stylu i typowych błędów w kodzie) i testy w CI (ciągła integracja, czyli automatyczne uruchamianie na GitHubie) przy każdym pushu. | – |
 
 ## Struktura projektu
 
@@ -265,7 +265,7 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-255 testów pytest (ok. 45 sekund) sprawdza na małych próbkach kształt tabel, złączenia, powtarzalność przy tym samym
+256 testów pytest (ok. 45 sekund) sprawdza na małych próbkach kształt tabel, złączenia, powtarzalność przy tym samym
 seedzie, sezonowość, zachowanie i odejścia klientów, ceny i VAT, ceny konkurencji, koszty sklepu, dostawców i stany
 magazynowe, status zamówień, zwroty i oceny, marketing, eksperymenty, brudne dane, eksporty oraz funkcje aplikacji
 reagujące na działania użytkownika (callbacks) i jej wykresy.
