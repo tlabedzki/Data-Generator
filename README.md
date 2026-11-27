@@ -214,28 +214,19 @@ publishing its files with this attribution; `scripts/build_postal_codes.py` rebu
 
 ## Why these tools
 
-- **NumPy random generators.** Every step of the generator draws from its own `numpy.random.Generator`, seeded with
-  the seed and the step's number (`func/rng.py`), so a new table never shifts the numbers of the old ones: 1.8.0
-  added five stock tables and the other 16 stayed byte for byte as in 1.7.1. One global seed would not allow that,
-  because any change in one step would move every step after it. The vectorized engine also replaced Python loops
-  in 1.2 and cut `python main.py` from about 35 to 7 seconds.
-- **pandas.** Every table is a DataFrame that is joined, localized and saved in one place. The generator was written
-  on pandas from its first version, and no other data frame library was tried.
-- **Faker (`pl_PL`).** It gives fictional Polish names, phone numbers and bank account numbers, seeded with the same
-  seed. Postal codes come from a public file (ZnajdzKod.pl) instead: they have to match a real locality and be
-  weighted by the number of addresses, and Faker's codes do neither.
-- **Parquet (pyarrow).** The command line saves Parquet by default because it keeps dates, nullable integers and
-  booleans as they are, and the files are smaller than CSV. CSV stays as an option, and the app downloads CSV by
-  default for spreadsheet users.
-- **Dash with Mantine.** The app was built three times in a comparison (Reflex, Dash with Mantine, Streamlit). Reflex
-  needed Node.js, about 340 npm packages and a one-minute frontend build. Streamlit could take the colours and the
-  font but kept its own menus, headers and layout. Dash with Mantine needs only pip packages and gives ready
-  components for the form, the tables and the downloads.
-- **Plotly.** The app's charts are Plotly figures, and `scripts/make_charts.py` renders the same figures with
-  headless Chrome for the README, so the README shows exactly what the app draws. The earlier Altair charts went
-  away together with the Streamlit app.
-- **pytest and ruff.** 251 tests check table shapes, joins, seed reproducibility and the truth columns on small
-  samples in about 45 seconds; ruff lints the code, and CI runs both on every push.
+Data Generator writes data rather than reading it: one run builds all 21 tables in memory in one process and saves
+them, about 44 MB of Parquet in about 12 seconds for the default run. A fresh clone needs no server, account, key or
+paid service; the only file it reads is the postal code list in `source/`.
+
+| Tool | What it does here and why it fits | Alternative considered |
+|---|---|---|
+| NumPy random generators | Every step draws from its own generator seeded with the seed and the step's number (`func/rng.py`), so a new table never shifts the old ones: 1.8.0 added five tables and the 16 of 1.7.1 stayed byte for byte. The vectorized engine of 1.2 cut `python main.py` from about 35 to 7 seconds. | One global seed: any change in one step would move the numbers of every step after it. |
+| pandas | Every table is a DataFrame that is joined, localized and saved in one place; the generator was built on it from the first version. | – |
+| Faker (`pl_PL`) | Fictional Polish names, phone numbers and bank account numbers, seeded with the same seed. | Faker's postal codes: they match no real locality and carry no weight, so codes come from a public file (ZnajdzKod.pl) weighted by the number of addresses. |
+| Parquet (pyarrow) | The default output: it keeps dates, nullable integers and booleans as they are and is smaller than CSV. | CSV stays as an option, and the app downloads CSV by default for spreadsheet users. |
+| Dash with Mantine | The app: only pip packages and ready components for the form, the tables and the downloads. | Reflex needed Node.js, about 340 npm packages and a one-minute frontend build; Streamlit took the colours and the font but kept its own menus and layout. |
+| Plotly | The app's charts; `scripts/make_charts.py` renders the same figures with headless Chrome, so the README shows exactly what the app draws. | Altair, used for the earlier charts, went away together with the Streamlit app. |
+| pytest, ruff | 251 tests on small samples in about 45 seconds; lint and tests in CI on every push. | – |
 
 ## Project structure
 
