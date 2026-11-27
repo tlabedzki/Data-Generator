@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.8.2 - 2026-11-27
+Changed:
+- The README language switch is a flag at the end of the badge row (the Polish flag in `README.md`, the British
+  flag in `READMEPL.md`) instead of the English | Polski line under the title; `tests/test_readme_flag.py` keeps
+  it there.
+
 ### 1.8.1 - 2026-11-27
 Added:
 - A Polish version of the README (`READMEPL.md`) with an English | Polski link under the title of both files.
