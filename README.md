@@ -1,11 +1,10 @@
 # Data Generator
 
-**English** | [Polski](READMEPL.md)
-
 [![Tests](https://github.com/tlabedzki/Data-Generator/actions/workflows/tests.yml/badge.svg)](https://github.com/tlabedzki/Data-Generator/actions/workflows/tests.yml)
 ![Python 3.11](https://img.shields.io/badge/python-3.11-3776AB)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 [![Release](https://img.shields.io/github/v/release/tlabedzki/Data-Generator)](https://github.com/tlabedzki/Data-Generator/releases)
+[![Polski](docs/img/flag-pl.svg "Polski")](READMEPL.md)
 
 Generates data for Lumo, a fully fictional Polish online shop: 21 linked tables, from orders and reviews to competitor
 prices, shop costs, suppliers and stock, web sessions, returns and A/B tests, for analytics practice.
@@ -228,7 +227,7 @@ paid service; the only file it reads is the postal code list in `source/`.
 | Parquet (pyarrow) | The default output: it keeps dates, nullable integers and booleans as they are and is smaller than CSV. | CSV stays as an option, and the app downloads CSV by default for spreadsheet users. |
 | Dash with Mantine | The app: only pip packages and ready components for the form, the tables and the downloads. | Reflex needed Node.js, about 340 npm packages and a one-minute frontend build; Streamlit took the colours and the font but kept its own menus and layout. |
 | Plotly | The app's charts; `scripts/make_charts.py` renders the same figures with headless Chrome, so the README shows exactly what the app draws. | Altair, used for the earlier charts, went away together with the Streamlit app. |
-| pytest, ruff | 251 tests on small samples in about 45 seconds; lint and tests in CI on every push. | – |
+| pytest, ruff | 255 tests on small samples in about 45 seconds; lint and tests in CI on every push. | – |
 
 ## Project structure
 
@@ -264,4 +263,4 @@ criteria on the full default run.
 
 MIT, see [LICENSE](LICENSE). [Changelog](CHANGELOG.md).
 
-README last updated: 2026-11-24
+README last updated: 2026-11-27
