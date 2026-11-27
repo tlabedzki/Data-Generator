@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.8.1 - 2026-11-27
+Added:
+- A Polish version of the README (`READMEPL.md`) with an English | Polski link under the title of both files.
+
 ### 1.8.0 - 2026-11-27
 Added:
 - Suppliers, purchase orders and stock, in five new tables (21 in all), from the settings in `settings/inventory_settings.py` (described in `docs/settings.md`, section Suppliers And Stock). `supplier_data`: 24 fictional suppliers in Poland, Germany and China in the default run, each with its order weekdays, a promised lead time and, as truth, the mean and spread of the actual lead time (`true_lead_time_mean_days`, `true_lead_time_cv`). `product_supplier_data`: the supplier of every product (a brand comes from one supplier within a category), its pack size and minimum order. `purchase_order_data`: every purchase order line with the order, promised and received dates; deliveries never arrive on Sunday and the orders still on the way at the end have no received date. `stock_movement_data`: opening stock, receipts and the day's sales of every product, with the stock after each movement.
