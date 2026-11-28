@@ -30,13 +30,17 @@ TABLE_ROWS = {
     "stock_movement_data": "a change in the stock of a product: opening stock, a delivery or the units sold on a day",
     "lost_demand_data": "an order line the customer could not place because the product was out of stock (empty "
                         "unless stockouts is on)",
+    "markdown_data": "a markdown: the shop lowered the list price of a slow product or cleared the stock of a product "
+                     "about to be withdrawn (empty unless markdowns is on)",
+    "outlet_data": "stock of a withdrawn product sold to an outlet on its withdrawal day (empty unless markdowns is "
+                   "on)",
 }
 
 # Columns that hold the answer an analysis should find (hide them before you analyse).
 TRUTH = {"customer_segment", "preferred_category", "price_tier", "true_purchase_rate", "true_churn_date", "is_fraud",
          "true_daily_lift", "true_effect", "has_sample_ratio_mismatch", "anomaly_type", "clean_value",
          "competitor_strategy", "true_price_level", "true_market_price_gross", "true_lead_time_mean_days",
-         "true_lead_time_cv"}
+         "true_lead_time_cv", "true_elasticity", "true_uplift"}
 # Tables that are truth as a whole: every column is the answer.
 TRUTH_TABLES = {"lost_demand_data"}
 
@@ -106,7 +110,8 @@ NOTES = {
     "revenue_gross": "quantity × sales_price_gross_after_discount, PLN, as ordered: also for cancelled orders",
     "valid_from": "first day of this list price",
     "valid_to": "last day of this list price; empty for the current price",
-    "change_type": "initial, increase or decrease",
+    "change_type": "initial, increase or decrease; with markdowns on also markdown (start of a markdown) and "
+                   "markdown_end (the regular price is back)",
     ("price_history", "sales_price_gross"): "list price with VAT in this period, PLN",
     ("price_history", "sales_price_net"): "list price without VAT in this period, PLN",
     "competitor_price_id": "competitor price key (from 1)",
@@ -209,8 +214,10 @@ NOTES = {
     "is_express": "express delivery that filled an empty shelf the same day (only with stockouts off)",
     "stock_movement_id": "movement key, oldest first",
     "movement_date": "day of the movement",
-    "movement_type": "opening (stock on the first day), receipt (a delivery) or sale (units of the day's order lines)",
-    ("stock_movement_data", "quantity"): "change in units: plus for opening and receipts, minus for sales",
+    "movement_type": "opening (stock on the first day), receipt (a delivery), sale (units of the day's order lines) "
+                     "or outlet (stock left on the withdrawal day, with markdowns on)",
+    ("stock_movement_data", "quantity"): "change in units: plus for opening and receipts, minus for sales and the "
+                                         "outlet",
     "stock_after": "units in stock after the movement",
     ("stock_movement_data", "purchase_order_line_id"): "purchase order line of a receipt; empty otherwise",
     "lost_line_id": "lost line key",
@@ -218,6 +225,25 @@ NOTES = {
     ("lost_demand_data", "unit_price_gross"): "list price with VAT on that day, PLN",
     "lost_revenue_gross": "quantity × unit_price_gross × (1 - discount_rate), PLN",
     ("lost_demand_data", "session_id"): "session in which the customer found the product out of stock",
+    "markdown_id": "markdown key, oldest first",
+    ("markdown_data", "start_date"): "first day at the markdown price",
+    ("markdown_data", "end_date"): "last day at the markdown price; empty while the markdown runs at the end",
+    "reason": "slow_stock (stock that outlasts markdown_cover_days at recent sales) or clearance (stock of a product "
+              "withdrawn within clearance_days)",
+    "regular_price_gross": "list price with VAT on the first day, before the markdown, PLN",
+    "markdown_price_gross": "list price with VAT during the markdown, ending in ,99, PLN",
+    "markdown_rate": "1 - markdown_price_gross / regular_price_gross (0.30 = 30% off)",
+    "end_reason": "planned (the planned length passed), sold_out, clearance (a clearance took over), withdrawn (the "
+                  "product was withdrawn) or ongoing",
+    "true_elasticity": "price elasticity of the product's category",
+    "true_uplift": "demand during the markdown against demand at the regular price: (markdown price / regular price) "
+                   "** -true_elasticity",
+    "outlet_sale_id": "outlet sale key",
+    "sale_date": "withdrawal day: the outlet takes the stock left",
+    ("outlet_data", "quantity"): "units sold to the outlet",
+    ("outlet_data", "unit_price_net"): "price the outlet pays per unit without VAT: outlet_recovery_rate × "
+                                       "net_purchase_price, PLN",
+    "revenue_net": "quantity × unit_price_net, PLN",
 }
 
 

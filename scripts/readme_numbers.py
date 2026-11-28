@@ -140,7 +140,7 @@ PACK_NAMES = {"E": "Dirty data and anomalies", "A": "Customer behaviour",
               "D": "Prices, promotions, returns and shipping", "B": "Basket and preferences",
               "C": "Marketing and traffic", "F": "A/B experiments", "G": "Order status, reviews and churn",
               "H": "Competitor prices", "I": "Shop costs",
-              "J": "Suppliers and stock"}
+              "J": "Suppliers and stock", "K": "Markdowns, clearance and the outlet"}
 HEADLINES = [  # (pack, start of the check label in scripts/check_realism.py, wording in the README)
     ("A", "order growth first to last year", "Orders grow year over year (setting: 20% a year)"),
     ("D", f"Black Friday {s.end_year}", f"Black Friday {s.end_year} against an average November day"),

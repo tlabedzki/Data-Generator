@@ -6,9 +6,9 @@
 [![Wydanie](https://img.shields.io/github/v/release/tlabedzki/Data-Generator)](https://github.com/tlabedzki/Data-Generator/releases)
 [![English](docs/img/flag-gb.svg "English")](README.md)
 
-Generuje dane dla Lumo, w pełni fikcyjnego polskiego sklepu internetowego: 21 powiązanych tabel, od zamówień i opinii
-po ceny konkurencji, koszty sklepu, dostawców i stany magazynowe, sesje w serwisie, zwroty i testy A/B. Służy do
-ćwiczeń z analityki.
+Generuje dane dla Lumo, w pełni fikcyjnego polskiego sklepu internetowego: 23 powiązane tabele, od zamówień i opinii
+po ceny konkurencji, koszty sklepu, dostawców, stany magazynowe i przeceny, sesje w serwisie, zwroty i testy A/B.
+Służy do ćwiczeń z analityki.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/app-demo-dark.svg">
@@ -44,6 +44,7 @@ Każdy wiersz zaczyna się od pytania, które zadaje sobie sklep; ostatnia kolum
 | Ile naprawdę zarabia każdy produkt po kosztach wysyłki, zwrotów, płatności i prowizji? | Marża na pokrycie (contribution margin, czyli to, co zostaje z przychodu po kosztach zmiennych) według produktu w `sales_data`, `shipment_data`, `return_data`, `payment_data`: rozłóż `carrier_cost` i `payment_fee` na linie zamówień, dodaj koszty zwrotów i `affiliate_commission` | stawki w `settings/commerce_settings.py` (Shop costs); koszty sumują się co do grosza |
 | Czy rabaty zwiększają sprzedaż i co powoduje zwroty oraz spóźnione dostawy? | Elastyczność cenowa (price elasticity, czyli o ile zmienia się sprzedaż, gdy zmienia się cena), efekt promocji (promotion uplift, czyli ile więcej sprzedaje się w promocji), odsetek zwrotów i opóźnionych dostaw w `sales_data`, `price_history`, `return_data`, `shipment_data` | ustawienia w `docs/settings.md` |
 | Co i kiedy sklep powinien zamówić u każdego dostawcy? | Prognoza popytu (demand forecasting), zapas bezpieczeństwa (safety stock, czyli zapas na wypadek większej sprzedaży albo spóźnionej dostawy) i zasady zamawiania (reorder policy, czyli kiedy i ile zamówić) w `order_data`, `stock_movement_data`, `purchase_order_data`, `product_supplier_data`; test wsteczny (backtest, czyli sprawdzenie zasad na danych z przeszłości) na symulowanym stanie magazynu | `true_lead_time_mean_days`, `true_lead_time_cv`; przy `stockouts = True` także `lost_demand_data` (popyt utracony przez pustą półkę) |
+| Który towar nie schodzi i ile gotówki odzyska przecena? | Wiek zapasu, dni zapasu (days of cover, czyli na ile dni wystarczy towaru przy obecnej sprzedaży) i reakcja popytu na przeceny (markdown, czyli obniżka ceny katalogowej) w `stock_movement_data`, `price_history`, `markdown_data`, `outlet_data`, przy `markdowns = True` | `true_uplift`, `true_elasticity` w `markdown_data`; cena outletu w `outlet_data` |
 | Które zamówienia to oszustwa i kiedy sklep przestał działać? | Wykrywanie oszustw i anomalii (fraud and anomaly detection, czyli nietypowych zdarzeń) w `order_data`, `anomaly_data` | `is_fraud`, `anomaly_data` |
 | Czy możesz ufać danym, zanim zaczniesz je analizować? | Czyszczenie danych (data cleaning): braki, literówki, formaty, wartości odstające (outliers, czyli wartości daleko od reszty) i duplikaty w każdej tabeli przy `data_quality_level` low, medium albo high | `quality_issue_data` (czyste wartości) |
 
@@ -51,8 +52,8 @@ Każdy wiersz zaczyna się od pytania, które zadaje sobie sklep; ostatnia kolum
 
 - Generuje 21 powiązanych tabel: klientów, produkty, linie zamówień, linie sprzedaży, historię cen, ceny konkurencji,
   przesyłki, zwroty, płatności, opinie, kampanie, sesje w serwisie, eksperymenty, przydziały do eksperymentów,
-  anomalie, problemy z jakością danych, dostawców, dostawcę każdego produktu, zamówienia zakupowe, ruchy magazynowe
-  i utracony popyt.
+  anomalie, problemy z jakością danych, dostawców, dostawcę każdego produktu, zamówienia zakupowe, ruchy magazynowe,
+  utracony popyt, przeceny i sprzedaż do outletu.
 - Modeluje klientów w czasie: kohorty rejestracji (cohort, czyli grupa klientów, którzy założyli konto w tym samym
   okresie), konta bez żadnego zamówienia, segmenty, odejścia z prawdziwą datą i prawdziwym tempem zakupów, ulubione
   kategorie, produkty kupowane razem oraz ponowne zakupy tego, co się zużywa (replenishment).
@@ -70,6 +71,11 @@ Każdy wiersz zaczyna się od pytania, które zadaje sobie sklep; ostatnia kolum
   prawdziwej średniej. Kupiec zamawia „na oko” na podstawie sprzedaży z ostatnich czterech tygodni, a stan magazynu
   spada z każdą linią zamówienia. Przy `stockouts = True` sklep z pustą półką traci sprzedaż, a `lost_demand_data` ją
   zapisuje; domyślnie dostawa ekspresowa uzupełnia półkę, a pozostałe tabele są takie jak w 1.7.1.
+- Przecenia towar, który nie schodzi, przy `markdowns = True`. Raz w tygodniu kierownik „na oko” obniża o 10–50% cenę
+  towaru, którego zapas wystarczyłby na ponad 180 dni. Towar produktu, który wkrótce zniknie z oferty, wyprzedaje
+  z rabatem 30–60%, a resztę sprzedaje do outletu za 30% ceny zakupu. Każda przecena podnosi popyt o swój prawdziwy
+  wzrost (uplift): (cena po przecenie / cena regularna) do potęgi minus elastyczność kategorii. Domyślnie wyłączone,
+  więc pozostałe tabele są takie jak w 1.8.2.
 - Dodaje kanały, kampanie, urządzenia, lejek sesji i losowe testy A/B, a także oznaczone oszustwa, awarie sklepu
   i opcjonalne brudne dane (dirty data, czyli dane z celowymi błędami do wyczyszczenia).
 - Zapisuje pliki CSV albo Parquet z wartościami po angielsku albo po polsku; ten sam seed (ziarno losowania, czyli
@@ -130,7 +136,7 @@ we wtorki albo czwartki przesuwają udział dnia tak, jak w prawdziwym sklepie.
 Przychód każdej kategorii odbiega od docelowego udziału najwyżej o 3,1 punktu procentowego. Generator uwzględnia średnią
 cenę, więc drogie kategorie nie zabierają przychodu tylko dlatego, że mają wysokie ceny jednostkowe.
 
-Oprócz wykresów ten sam przebieg spełnia 89 z 89 kryteriów realizmu (sprawdzeń, czy dane zachowują się jak
+Oprócz wykresów ten sam przebieg spełnia 98 z 98 kryteriów realizmu (sprawdzeń, czy dane zachowują się jak
 w prawdziwym sklepie). Tabela pokazuje dziesięć z nich; [docs/realism.md](docs/realism.md) wymienia wszystkie razem
 z wartościami.
 
@@ -184,7 +190,7 @@ zatrzymuje.
 <!-- generated:cli -->
 
 `python main.py` tworzy 40 000 klientów, 50 000 produktów i 80 326 linii zamówień (55 568 zamówień w latach 2023
-i 2024) z seedem 42 i wartościami po angielsku, po czym zapisuje 21 tabel jako pliki Parquet w `export/`.
+i 2024) z seedem 42 i wartościami po angielsku, po czym zapisuje 23 tabele jako pliki Parquet w `export/`.
 
 <!-- /generated:cli -->
 
@@ -204,8 +210,8 @@ CSV albo Parquet, pojedynczo albo w pliku ZIP.
 Wszystkie osoby, adresy e-mail, numery telefonów, numery kont bankowych, produkty, ceny, sprzedaż i opinie są
 syntetyczne: generuje je kod z `func/` za pomocą biblioteki [Faker](https://faker.readthedocs.io/) (`pl_PL`) i NumPy z
 seedem 42. Komentarze w opiniach pochodzą z krótkiej listy gotowych zdań. Adresy e-mail używają zastrzeżonych domen
-`example.com`, `example.org` i `example.net`. [docs/data-model.md](docs/data-model.md) pokazuje, jak łączy się 21 tabel,
-a [docs/columns.md](docs/columns.md) opisuje każdą kolumnę i oznacza kolumny prawdy.
+`example.com`, `example.org` i `example.net`. [docs/data-model.md](docs/data-model.md) pokazuje, jak łączą się
+23 tabele, a [docs/columns.md](docs/columns.md) opisuje każdą kolumnę i oznacza kolumny prawdy.
 
 Nazwy marek, płatności i dostaw (na przykład Samsung, H&M, PayU, BLIK i InPost) służą tylko jako etykiety, żeby dane
 wyglądały znajomo. Produkty, ceny, marże, popularność i udziały w rynku są fikcyjne i nic nie mówią o tych firmach.
@@ -227,19 +233,19 @@ pliki z tą atrybucją; `scripts/build_postal_codes.py` odtwarza plik z `kody-po
 
 ## Dlaczego te technologie
 
-Data Generator tworzy dane, zamiast je czytać: jeden przebieg buduje wszystkie 21 tabel w pamięci jednego procesu
+Data Generator tworzy dane, zamiast je czytać: jeden przebieg buduje wszystkie 23 tabele w pamięci jednego procesu
 i je zapisuje. W przebiegu domyślnym to ok. 44 MB plików Parquet w ok. 12 sekund. Świeży klon nie potrzebuje
 serwera, konta, klucza ani płatnej usługi; jedyny plik, który czyta, to lista kodów pocztowych w `source/`.
 
 | Narzędzie | Co robi w projekcie i dlaczego pasuje | Rozważona alternatywa |
 |---|---|---|
-| Generatory liczb losowych NumPy | Każdy krok losuje z własnego generatora, którego ziarnem są seed i numer kroku (`func/rng.py`), więc nowa tabela nigdy nie przesuwa starych: wersja 1.8.0 dodała pięć tabel, a 16 tabel z 1.7.1 zostało identycznych co do bajtu. Zwektoryzowany silnik (vectorized, czyli liczący całe kolumny naraz zamiast wiersz po wierszu) z wersji 1.2 skrócił `python main.py` z ok. 35 do 7 sekund. | Jeden globalny seed: każda zmiana w jednym kroku przesunęłaby liczby we wszystkich kolejnych krokach. |
+| Generatory liczb losowych NumPy | Każdy krok losuje z własnego generatora, którego ziarnem są seed i numer kroku (`func/rng.py`), więc nowa tabela nigdy nie przesuwa starych: wersja 1.8.0 dodała pięć tabel, 1.9.0 dwie kolejne, a stare tabele za każdym razem zostały identyczne co do bajtu. Zwektoryzowany silnik (vectorized, czyli liczący całe kolumny naraz zamiast wiersz po wierszu) z wersji 1.2 skrócił `python main.py` z ok. 35 do 7 sekund. | Jeden globalny seed: każda zmiana w jednym kroku przesunęłaby liczby we wszystkich kolejnych krokach. |
 | pandas | Każda tabela jest ramką danych (DataFrame), którą w jednym miejscu się łączy, tłumaczy na wybrany język i zapisuje; generator korzysta z pandas od pierwszej wersji. | – |
 | Faker (`pl_PL`) | Fikcyjne polskie imiona i nazwiska, numery telefonów i numery kont bankowych, losowane z tym samym seedem. | Kody pocztowe z Fakera: nie pasują do żadnej prawdziwej miejscowości i nie mają wag, więc kody pochodzą z publicznego pliku (ZnajdzKod.pl) ważonego liczbą adresów. |
 | Parquet (pyarrow) | Format domyślny: zachowuje bez zmian daty, liczby całkowite z brakami (nullable integers) i wartości logiczne, a zajmuje mniej miejsca niż CSV. | CSV zostaje jako opcja, a aplikacja domyślnie pobiera CSV z myślą o użytkownikach arkuszy kalkulacyjnych. |
 | Dash z Mantine | Aplikacja: tylko pakiety z pip i gotowe komponenty do formularza, tabel i pobierania. | Reflex wymagał Node.js, ok. 340 pakietów npm i minutowego budowania frontendu; w Streamlit dało się ustawić kolory i czcionkę, ale menu i układ zostawały jego własne. |
 | Plotly | Wykresy aplikacji; `scripts/make_charts.py` renderuje te same wykresy w Chrome bez okna (headless), więc README pokazuje dokładnie to, co rysuje aplikacja. | Altair, w którym powstały wcześniejsze wykresy, zniknął razem z aplikacją w Streamlit. |
-| pytest, ruff | 256 testów na małych próbkach w ok. 45 sekund; lint (automatyczne sprawdzanie stylu i typowych błędów w kodzie) i testy w CI (ciągła integracja, czyli automatyczne uruchamianie na GitHubie) przy każdym pushu. | – |
+| pytest, ruff | 270 testów na małych próbkach w ok. minutę; lint (automatyczne sprawdzanie stylu i typowych błędów w kodzie) i testy w CI (ciągła integracja, czyli automatyczne uruchamianie na GitHubie) przy każdym pushu. | – |
 
 ## Struktura projektu
 
@@ -265,10 +271,10 @@ pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-256 testów pytest (ok. 45 sekund) sprawdza na małych próbkach kształt tabel, złączenia, powtarzalność przy tym samym
+270 testów pytest (ok. minuty) sprawdza na małych próbkach kształt tabel, złączenia, powtarzalność przy tym samym
 seedzie, sezonowość, zachowanie i odejścia klientów, ceny i VAT, ceny konkurencji, koszty sklepu, dostawców i stany
-magazynowe, status zamówień, zwroty i oceny, marketing, eksperymenty, brudne dane, eksporty oraz funkcje aplikacji
-reagujące na działania użytkownika (callbacks) i jej wykresy.
+magazynowe, przeceny i outlet, status zamówień, zwroty i oceny, marketing, eksperymenty, brudne dane, eksporty
+oraz funkcje aplikacji reagujące na działania użytkownika (callbacks) i jej wykresy.
 `ruff check .` sprawdza kod, a CI uruchamia oba narzędzia przy każdym pushu; `python scripts/check_realism.py`
 sprawdza kryteria realizmu na pełnym przebiegu domyślnym.
 

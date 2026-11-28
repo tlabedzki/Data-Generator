@@ -70,7 +70,7 @@ generated_files = [
     "customer_data", "product_data", "order_data", "sales_data", "price_history", "competitor_prices", "shipment_data",
     "return_data", "payment_data", "review_data", "campaign_data", "session_data", "experiment_data",
     "experiment_assignment_data", "anomaly_data", "quality_issue_data", "supplier_data", "product_supplier_data",
-    "purchase_order_data", "stock_movement_data", "lost_demand_data",
+    "purchase_order_data", "stock_movement_data", "lost_demand_data", "markdown_data", "outlet_data",
 ]
 ```
 
@@ -82,7 +82,7 @@ Available values:
 | `product_data` | a product | `parcel_size` for shipping costs |
 | `order_data` | an order line | `order_line_id` is unique unless dirty data duplicates a line; `order_status` per order; `affiliate_commission` |
 | `sales_data` | an order line joined with its product and customer | revenue columns added |
-| `price_history` | a list price of a product with its validity period | the last price equals `sales_price_gross` |
+| `price_history` | a list price of a product with its validity period | the last regular price equals `sales_price_gross`; markdown periods with `markdowns = True` |
 | `competitor_prices` | a list price of a product at one competing shop, with its validity period | 5 fictional shops, sale prices flagged in `is_promotion`; truth: strategy, price level, market price |
 | `shipment_data` | the shipment of an order | only orders that shipped; fee paid by the customer, carrier cost to the shop, dispatch, delivery, late or not |
 | `return_data` | a returned order line | reason, quantity, refund; return label, handling and goods written off |
@@ -97,8 +97,10 @@ Available values:
 | `supplier_data` | a supplier the shop buys from | order weekdays, promised lead time; truth: mean and spread of the actual lead time |
 | `product_supplier_data` | the supplier of a product | pack size and minimum order |
 | `purchase_order_data` | a purchase order line | ordered, promised and received dates; express deliveries flagged |
-| `stock_movement_data` | a change in the stock of a product | opening, receipt or the day's sales, with the stock after it |
+| `stock_movement_data` | a change in the stock of a product | opening, receipt, the day's sales or the outlet, with the stock after it |
 | `lost_demand_data` | an order line lost to an empty shelf | empty unless `stockouts = True` (truth) |
+| `markdown_data` | a markdown of slow stock or a clearance | empty unless `markdowns = True`; truth: elasticity and uplift |
+| `outlet_data` | stock of a withdrawn product sold to an outlet | empty unless `markdowns = True` |
 
 Source tables needed by a selected file are always generated, but only the selected files are saved.
 
@@ -530,6 +532,60 @@ in `anomaly_data` describe what happened before the stock check (some of their l
 are most realistic with a catalog in which most products sell every month: in `scripts/check_realism.py` (pack J),
 1,500 products and 100,000 order lines serve about 91% of the units asked for. The default run has 50,000 products,
 most of which sell only a few units in two years.
+
+## Markdowns, Clearance And The Outlet
+
+Markdowns are off by default (`markdowns = False` in `settings/inventory_settings.py`): `markdown_data` and
+`outlet_data` stay empty and the 21 tables of 1.8.2 come out of seed 42 exactly as before, byte for byte. They need
+`stockouts = True`, because a sold-out markdown is not refilled by an express delivery. All markdown draws come from
+their own random stream (`markdowns`).
+
+**Slow stock.** Once a week (`markdown_review_weekday`, Monday) a manager looks at the stock "by eye": a product on sale
+for at least `markdown_min_age_days = 90` with at least `markdown_min_stock = 3` units is slow when its stock would
+last more than `markdown_cover_days = 180` at the average sales of the last `markdown_history_days = 56` (no sales
+at all counts as slow). The manager notices a slow product with the chance `markdown_notice_rate = 0.25` and marks
+it down from the next day by one of `markdown_rates` (10% to 50%, 27.5% on average) for 21 to 56 days
+(`markdown_days`), or until it sells out. Then the product waits `markdown_cooldown_days = 91` before it can be
+marked down again. The markdown price ends in ,99 and is never above the regular price × (1 - rate), so
+`markdown_rate` in `markdown_data` is the rate after rounding.
+
+**Clearance and the outlet.** `clearance_days = 42` before its `discontinued_date` a product gets no more purchase
+orders, and its stock gets a clearance markdown of one of `clearance_rates` (30% to 60%) until it sells out or is
+withdrawn; a slow-stock markdown that is still running ends there (`end_reason = clearance`). On the withdrawal day
+the outlet takes the stock left at `outlet_recovery_rate = 0.30` of the net purchase price: an `outlet` row in
+`stock_movement_data` and a row in `outlet_data`.
+
+**Demand.** A markdown raises the product's demand by `true_uplift = (markdown price / regular price) **
+-true_elasticity`, with the price elasticity of its category (`category_price_elasticity`, section Price Elasticity
+And Discounts): 30% off a Clothing product (elasticity 1.8) gives about 1.9 times the demand. For every order line of
+a marked-down product on a day, a Poisson number with mean `true_uplift - 1` of other lines of the same category and
+day (not fraud, not of another marked-down product) switch to it. The number of order lines and their days,
+customers and quantities stay as they were; only the product changes, and a marked-down product takes its extra
+demand from the rest of its category. A product nobody buys stays unsold at any markdown. Order lines carry the
+markdown price as `unit_price_gross`, and `price_history` gets a `markdown` row at the start of each markdown and a
+`markdown_end` row when the regular price comes back, so `sales_price_gross` in `product_data` stays the last
+regular price. Competitor prices are built from the regular prices: the matcher does not follow markdowns.
+
+`holding_cost_rate = 0.25` is the shop's yearly cost of holding stock (capital, space, insurance) as a share of its
+purchase value. The generator does not use it; it is there for analyses that weigh holding stock against marking it
+down.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `markdowns` | `False` | the manager, clearance and the outlet |
+| `markdown_review_weekday` | `0` | weekday of the weekly look (0 = Monday) |
+| `markdown_min_age_days`, `markdown_min_stock` | `90`, `3` | a product too new or with too few units is left alone |
+| `markdown_history_days`, `markdown_cover_days` | `56`, `180` | slow: stock lasts longer than this at recent sales |
+| `markdown_notice_rate` | `0.25` | chance per weekly look that a slow product is marked down |
+| `markdown_rates`, `markdown_days` | 10-50%, `(21, 56)` | depth with probabilities, and length of a markdown |
+| `markdown_cooldown_days` | `91` | days between two markdowns of a product |
+| `clearance_days`, `clearance_rates` | `42`, 30-60% | clearance before withdrawal and its depth |
+| `outlet_recovery_rate` | `0.30` | outlet price per unit / net purchase price |
+| `holding_cost_rate` | `0.25` | yearly holding cost / purchase value of the stock (not used by the generator) |
+
+Realism pack K in `scripts/check_realism.py` measures the markdowns on 1,500 products and 100,000 order lines: the
+demand during markdowns against the same days without them (true_uplift), the uplift by depth, the clearance, the
+outlet price and the value of stock with no sale in the last 90 days with and without markdowns.
 
 ## Marketing And Traffic
 

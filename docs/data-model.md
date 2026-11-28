@@ -1,6 +1,6 @@
 # Data model
 
-The 21 tables of one run and how they link. [columns.md](columns.md) describes every column; the columns marked
+The 23 tables of one run and how they link. [columns.md](columns.md) describes every column; the columns marked
 "truth" hold what an analysis should find.
 
 ```mermaid
@@ -25,6 +25,8 @@ erDiagram
     product_data ||--o{ stock_movement_data : "moves in"
     purchase_order_data |o--o| stock_movement_data : "arrives as"
     product_data ||--o{ lost_demand_data : "is missing in"
+    product_data ||--o{ markdown_data : "is marked down in"
+    product_data ||--o{ outlet_data : "is sold to the outlet in"
     customer_data {
         int customer_id PK
         string customer_segment "truth"
@@ -136,6 +138,18 @@ erDiagram
         int product_id FK
         int quantity "truth"
     }
+    markdown_data {
+        int markdown_id PK
+        int product_id FK
+        float markdown_rate
+        float true_uplift "truth"
+    }
+    outlet_data {
+        int outlet_sale_id PK
+        int product_id FK
+        int quantity
+        float revenue_net
+    }
 ```
 
 Each row of `order_data` is one order line, so `order_id` repeats for multi-line orders, and so does its
@@ -151,6 +165,10 @@ Stock goes down on the order day of every order line: the `sale` rows of `stock_
 `quantity` of `order_data` by product and day. Every received line of `purchase_order_data` is one `receipt` row. With
 `stockouts` on, the lines that did not fit the stock are not in `order_data` (nor in the tables built on it) but in
 `lost_demand_data`, the truth of what customers asked for.
+
+With `markdowns` on, every row of `markdown_data` is a period of `price_history` that starts with a `markdown` row
+(and ends with a `markdown_end` row when the regular price comes back), and the order lines of those days carry the
+markdown price. Every row of `outlet_data` is one `outlet` row of `stock_movement_data` on the withdrawal day.
 
 | Table | One row is | Links |
 |---|---|---|
@@ -175,3 +193,5 @@ Stock goes down on the order day of every order line: the `sale` rows of `stock_
 | `purchase_order_data` | a purchase order line | `supplier_id`, `product_id` |
 | `stock_movement_data` | a change in the stock of a product | `product_id`, `purchase_order_line_id` |
 | `lost_demand_data` | an order line lost to an empty shelf (with `stockouts` on) | `customer_id`, `product_id`, `session_id` |
+| `markdown_data` | a markdown of slow stock or a clearance (with `markdowns` on) | `product_id` |
+| `outlet_data` | stock of a withdrawn product sold to an outlet (with `markdowns` on) | `product_id` |

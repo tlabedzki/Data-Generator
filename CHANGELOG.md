@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### 1.9.0 - 2026-11-28
+Added:
+- Markdowns, clearance and the outlet behind a new setting `markdowns` in `settings/inventory_settings.py` (off by default, needs `stockouts = True`; described in `docs/settings.md`, section Markdowns, Clearance And The Outlet). Once a week a manager "by eye" marks down slow stock, stock that would last more than 180 days at the sales of the last 8 weeks, by 10% to 50% for three to eight weeks. Six weeks before a product is withdrawn the buyer stops ordering it and its stock gets a clearance markdown of 30% to 60%; on the withdrawal day an outlet takes what is left at 30% of the net purchase price.
+- Two new tables (23 in all). `markdown_data`: every markdown with its dates, reason (`slow_stock` or `clearance`), regular and markdown price, rate, end reason and, as truth, the category's elasticity and the markdown's `true_uplift`. `outlet_data`: the stock each withdrawn product sold to the outlet, with the price and revenue.
+- A markdown raises demand by `true_uplift = (markdown price / regular price) ** -elasticity`: other order lines of the same category and day switch to the marked-down product, so the number of order lines stays as set. Order lines carry the markdown price, and `price_history` gets `markdown` and `markdown_end` rows. On 1,500 products and 100,000 order lines over two years 57% of products get a slow-stock markdown, the demand in markdowns is 0.96 of the regular demand times `true_uplift`, and the stock value in products with no sale in the last 90 days falls from 26% to 15% of the stock at the end.
+- `holding_cost_rate` (25% of the purchase value a year), the shop's cost of holding stock for analyses; the generator does not use it.
+- 9 realism criteria in a new pack K (markdowns, clearance and the outlet) of `scripts/check_realism.py`, 98 in all; 12 tests in `tests/test_markdowns.py`, among them markdown prices on the order lines and in `price_history`, markdowns that move lines and never add them, demand that rises by the true uplift and the outlet that takes the stock left.
+
+Changed:
+- Nothing in the earlier tables with the default settings: markdowns draw from their own random stream, so seed 42 gives the 21 tables of 1.8.2 exactly as before, byte for byte; `markdown_data` and `outlet_data` are empty.
+
 ### 1.8.2 - 2026-11-27
 Changed:
 - The README language switch is a flag at the end of the badge row (the Polish flag in `README.md`, the British

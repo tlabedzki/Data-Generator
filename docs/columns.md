@@ -108,7 +108,7 @@ One row is a list price of a product with its validity period. 146,183 rows in t
 | `valid_to` | datetime | 2023-10-12 | last day of this list price; empty for the current price |  |
 | `sales_price_gross` | float | 699 | list price with VAT in this period, PLN |  |
 | `sales_price_net` | float | 568.3 | list price without VAT in this period, PLN |  |
-| `change_type` | text | initial | initial, increase or decrease |  |
+| `change_type` | text | initial | initial, increase or decrease; with markdowns on also markdown (start of a markdown) and markdown_end (the regular price is back) |  |
 
 ## competitor_prices
 
@@ -339,8 +339,8 @@ One row is a change in the stock of a product: opening stock, a delivery or the 
 | `stock_movement_id` | int | 1 | movement key, oldest first |  |
 | `product_id` | int | 200001 | product key (from 200001) |  |
 | `movement_date` | datetime | 2023-01-01 | day of the movement |  |
-| `movement_type` | text | opening | opening (stock on the first day), receipt (a delivery) or sale (units of the day's order lines) |  |
-| `quantity` | int | 1 | change in units: plus for opening and receipts, minus for sales |  |
+| `movement_type` | text | opening | opening (stock on the first day), receipt (a delivery), sale (units of the day's order lines) or outlet (stock left on the withdrawal day, with markdowns on) |  |
+| `quantity` | int | 1 | change in units: plus for opening and receipts, minus for sales and the outlet |  |
 | `stock_after` | int | 1 | units in stock after the movement |  |
 | `purchase_order_line_id` | int (nullable) | 262 | purchase order line of a receipt; empty otherwise |  |
 
@@ -361,3 +361,34 @@ One row is an order line the customer could not place because the product was ou
 | `lost_revenue_gross` | float |  | quantity × unit_price_gross × (1 - discount_rate), PLN | yes |
 | `channel` | text |  | traffic channel | yes |
 | `session_id` | int (nullable) |  | session in which the customer found the product out of stock | yes |
+
+## markdown_data
+
+One row is a markdown: the shop lowered the list price of a slow product or cleared the stock of a product about to be withdrawn (empty unless markdowns is on). 0 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `markdown_id` | int |  | markdown key, oldest first |  |
+| `product_id` | int |  | product key (from 200001) |  |
+| `start_date` | datetime |  | first day at the markdown price |  |
+| `end_date` | datetime |  | last day at the markdown price; empty while the markdown runs at the end |  |
+| `reason` | text |  | slow_stock (stock that outlasts markdown_cover_days at recent sales) or clearance (stock of a product withdrawn within clearance_days) |  |
+| `regular_price_gross` | float |  | list price with VAT on the first day, before the markdown, PLN |  |
+| `markdown_price_gross` | float |  | list price with VAT during the markdown, ending in ,99, PLN |  |
+| `markdown_rate` | float |  | 1 - markdown_price_gross / regular_price_gross (0.30 = 30% off) |  |
+| `end_reason` | text |  | planned (the planned length passed), sold_out, clearance (a clearance took over), withdrawn (the product was withdrawn) or ongoing |  |
+| `true_elasticity` | float |  | price elasticity of the product's category | yes |
+| `true_uplift` | float |  | demand during the markdown against demand at the regular price: (markdown price / regular price) ** -true_elasticity | yes |
+
+## outlet_data
+
+One row is stock of a withdrawn product sold to an outlet on its withdrawal day (empty unless markdowns is on). 0 rows in the default run.
+
+| Column | Type | Example | Meaning | Truth |
+|---|---|---|---|---|
+| `outlet_sale_id` | int |  | outlet sale key |  |
+| `product_id` | int |  | product key (from 200001) |  |
+| `sale_date` | datetime |  | withdrawal day: the outlet takes the stock left |  |
+| `quantity` | int |  | units sold to the outlet |  |
+| `unit_price_net` | float |  | price the outlet pays per unit without VAT: outlet_recovery_rate × net_purchase_price, PLN |  |
+| `revenue_net` | float |  | quantity × unit_price_net, PLN |  |

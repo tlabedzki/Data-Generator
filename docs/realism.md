@@ -1,6 +1,6 @@
 # Realism criteria
 
-89 of 89 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
+98 of 98 criteria pass on the default run (seed 42). `python scripts/check_realism.py` runs the same checks and exits
 with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 
 ## Dirty data and anomalies
@@ -121,3 +121,15 @@ with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 - ✅ stockouts on: lost share of demand, November-December / other months: 14.0% / 6.6%
 - ✅ stockouts on: stock value at the end in products with no sale in the last 90 days: 26%
 - ✅ stockouts on: sessions linked to an order / orders: 66,069 / 66,069
+
+## Markdowns, clearance and the outlet
+
+- ✅ markdowns off (default): markdown_data and outlet_data: 0 / 0 rows
+- ✅ products with a slow-stock markdown (2 years) / clearance markdowns: 57% / 212
+- ✅ mean slow-stock markdown against the setting: 27.8% / 27.5%
+- ✅ demand in markdowns / the same days without markdowns × true_uplift: 0.96
+- ✅ measured uplift by markdown depth, up to 25% / 25-45% / over 45%: 1.25 / 1.80 / 2.75
+- ✅ order lines and lost lines, without / with markdowns (lines move, none are added): 100,420 / 100,420
+- ✅ withdrawn stock sold in clearance / sold in clearance or to the outlet: 65%
+- ✅ outlet pays / purchase value of the stock it takes: 30%
+- ✅ stock value at the end in products with no sale in the last 90 days, without / with markdowns: 26% / 15%

@@ -26,7 +26,7 @@ MOVEMENT_COLUMNS = ["stock_movement_id", "product_id", "movement_date", "movemen
 LOST_DEMAND_COLUMNS = ["lost_line_id", "order_date", "order_datetime", "customer_id", "product_id", "quantity",
                        "unit_price_gross", "discount_rate", "lost_revenue_gross", "channel", "session_id"]
 WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-MOVEMENT_ORDER = {"opening": 0, "receipt": 1, "sale": 2}
+MOVEMENT_ORDER = {"opening": 0, "receipt": 1, "sale": 2, "outlet": 3}
 FIRST_SUPPLIER_ID = 1
 
 # Invented company names (no real firms), one per supplier; the legal form follows the country.
@@ -123,9 +123,12 @@ def round_up_to_pack(quantity, pack):
 class Simulation:
     """Day-by-day stock of every product: receipts, sales (or lost lines) and the buyer's orders."""
 
-    def __init__(self, order_data, product_data, supplier_data, product_supplier_data, dates, generator, stockouts):
+    def __init__(self, order_data, product_data, supplier_data, product_supplier_data, dates, generator, stockouts,
+                 clearance_days=0):
         self.generator = generator
         self.stockouts = stockouts
+        self.clearance_days = clearance_days
+        self.desk = None  # func.markdowns.MarkdownDesk with markdowns on
         self.dates = pd.DatetimeIndex(dates)
         self.days = len(self.dates)
         self.products = product_data["product_id"].to_numpy()
@@ -158,6 +161,7 @@ class Simulation:
             "order_date"].to_numpy()
         self.line_product = self.position.reindex(order_data["product_id"]).to_numpy()
         self.line_quantity = order_data["quantity"].to_numpy().astype(np.int64)
+        self.line_when = when
         self.line_order = np.lexsort((np.arange(len(day)), when, self.line_product, day))
         self.line_day = day[self.line_order]
         self.day_start = np.searchsorted(self.line_day, np.arange(self.days + 1))
@@ -210,6 +214,13 @@ class Simulation:
                 movements.append((t, p, "receipt", quantity, line))
 
             lo, hi = self.day_start[t], self.day_start[t + 1]
+            if self.desk is not None:
+                self.desk.start_of_day(t, stock, movements)
+                if hi > lo:
+                    index = self.line_order[lo:hi]
+                    self.desk.switch_lines(t, index)
+                    product = self.line_product[index]
+                    self.line_order[lo:hi] = index[np.lexsort((index, self.line_when[index], product))]
             sold = np.zeros(count, dtype=np.int64)
             if hi > lo:
                 index = self.line_order[lo:hi]
@@ -242,6 +253,9 @@ class Simulation:
                 sold_products = np.flatnonzero(sold)
                 movements += [(t, p, "sale", -int(sold[p]), -1) for p in sold_products]
             history[t % inv.buyer_history_days] = sold
+            if self.desk is not None:
+                self.desk.end_of_day(t, stock, sold)
+                self.desk.review(t, stock)
             self.buy(t, stock, on_order, history, arrivals, po_lines)
 
         return served_lines, movements, po_lines
@@ -254,7 +268,7 @@ class Simulation:
         supplier = self.product_supplier
         promised, review = self.promised[supplier], self.review[supplier]
         active = (np.isin(supplier, ordering) & (self.launch_day <= t)
-                  & (t + promised + review < self.stop_day))
+                  & (t + promised + review < self.stop_day - self.clearance_days))
         if not active.any():
             return
         seen = np.minimum(inv.buyer_history_days, t - self.launch_day + 1).clip(1)
@@ -282,7 +296,8 @@ class Simulation:
             on_order[p] += quantity[p]
 
 
-def build_inventory(order_data, product_data, dates, generator, stockouts=None):
+def build_inventory(order_data, product_data, dates, generator, stockouts=None, price_book=None,
+                    markdown_generator=None, markdowns=None):
     """
     Suppliers, purchase orders, stock movements and the order lines the stock could serve.
 
@@ -292,23 +307,40 @@ def build_inventory(order_data, product_data, dates, generator, stockouts=None):
     dates (sequence): Every day of the period, in order.
     generator (np.random.Generator): The "inventory" stream.
     stockouts (bool, optional): Lose lines that do not fit the stock; defaults to inventory_settings.stockouts.
+    price_book (func.prices.PriceBook, optional): Regular list prices; needed with markdowns on.
+    markdown_generator (np.random.Generator, optional): The "markdowns" stream; needed with markdowns on.
+    markdowns (bool, optional): Markdowns, clearance and the outlet; defaults to inventory_settings.markdowns.
 
     Returns:
-    dict: supplier_data, product_supplier_data, purchase_order_data, stock_movement_data and served (a boolean
-    array over the rows of order_data: False for a lost line).
+    dict: supplier_data, product_supplier_data, purchase_order_data, stock_movement_data, served (a boolean array
+    over the rows of order_data: False for a lost line) and, with markdowns on, product_id (the product of every
+    row of order_data after the markdowns took their lines), markdown_data and outlet_data.
     """
     stockouts = inv.stockouts if stockouts is None else stockouts
+    markdowns = inv.markdowns if markdowns is None else markdowns
+    if markdowns and not stockouts:
+        raise ValueError("markdowns needs stockouts = True: a sold-out markdown is not refilled by express delivery.")
     supplier_data, product_supplier_data = build_suppliers(product_data, generator)
-    sim = Simulation(order_data, product_data, supplier_data, product_supplier_data, dates, generator, stockouts)
+    sim = Simulation(order_data, product_data, supplier_data, product_supplier_data, dates, generator, stockouts,
+                     inv.clearance_days if markdowns else 0)
+    if markdowns:
+        from func.markdowns import MarkdownDesk
+        fraud = order_data["is_fraud"].to_numpy() if "is_fraud" in order_data else np.zeros(len(order_data), bool)
+        sim.desk = MarkdownDesk(sim, product_data, price_book, fraud, markdown_generator)
     served, movements, po_lines = sim.run()
     purchase_orders, line_ids = purchase_order_frame(po_lines, sim)
-    return {
+    result = {
         "supplier_data": supplier_data,
         "product_supplier_data": product_supplier_data,
         "purchase_order_data": purchase_orders,
         "stock_movement_data": movement_frame(movements, sim, line_ids),
         "served": served,
     }
+    if markdowns:
+        result["product_id"] = sim.products[sim.line_product]
+        result["markdown_data"] = sim.desk.markdown_frame()
+        result["outlet_data"] = sim.desk.outlet_frame()
+    return result
 
 
 def purchase_order_frame(po_lines, sim):

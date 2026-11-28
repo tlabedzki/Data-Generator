@@ -58,3 +58,37 @@ empty_shelf_notice_rate = 0.5
 # guess of its sales over this many days (drawn per product), at least one pack.
 opening_cover_days = (20, 45)
 launch_cover_days = (15, 40)
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Markdowns, clearance and the outlet (Data Generator 1.9.0):
+
+# markdowns turns on a shop manager who marks down slow stock "by eye" (needs stockouts = True: a sold-out markdown is
+# not refilled by an express delivery). Off (default), markdown_data and outlet_data stay empty and the 21 tables of
+# 1.8.2 stay exactly as they were (seed 42, byte for byte).
+# - Once a week (markdown_review_weekday, 0 = Monday) the manager looks at products on sale for at least
+#   markdown_min_age_days with at least markdown_min_stock units. Stock that would last longer than
+#   markdown_cover_days at the average sales of the last markdown_history_days is slow; the manager notices it with
+#   the chance markdown_notice_rate and marks it down by one of markdown_rates for markdown_days (drawn), or until it
+#   sells out. After a markdown the product waits markdown_cooldown_days before the next one.
+# - clearance_days before a product is withdrawn the buyer stops ordering it and its stock gets a clearance markdown
+#   (one of clearance_rates) until it sells out or is withdrawn. What is left on the withdrawal day goes to an outlet,
+#   which pays outlet_recovery_rate of the net purchase price per unit (outlet_data).
+# - A markdown raises the product's demand by (markdown price / regular price) ** -elasticity of its category
+#   (true_uplift in markdown_data): extra order lines of the same category and day switch to the marked-down product,
+#   so the number of order lines stays as set.
+# holding_cost_rate is the yearly cost of holding stock (capital, space, insurance) as a share of its purchase value;
+# the generator does not use it, it is the shop's figure for analyses that weigh holding against marking down.
+markdowns = False
+markdown_review_weekday = 0
+markdown_min_age_days = 90
+markdown_min_stock = 3
+markdown_history_days = 56
+markdown_cover_days = 180
+markdown_notice_rate = 0.25
+markdown_rates = {0.10: 0.20, 0.20: 0.25, 0.30: 0.25, 0.40: 0.20, 0.50: 0.10}
+markdown_days = (21, 56)
+markdown_cooldown_days = 91
+clearance_days = 42
+clearance_rates = {0.30: 0.30, 0.40: 0.30, 0.50: 0.25, 0.60: 0.15}
+outlet_recovery_rate = 0.30
+holding_cost_rate = 0.25

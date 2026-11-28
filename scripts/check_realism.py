@@ -596,8 +596,87 @@ def check_j(data):
           f"{lines['order_id'].nunique():,}", sessions["order_id"].notna().sum() == lines["order_id"].nunique())
 
 
+# ---------------------------------------------------------------------------------------------------------------- #
+# Pack K: markdowns, clearance and the outlet
+
+def demand_lines(data):
+    """Served and lost order lines per product and day: the demand before the stock check."""
+    keep = ["product_id", "order_date"]
+    lines = pd.concat([data["order_data"][keep], data["lost_demand_data"][keep]], ignore_index=True)
+    return lines.groupby(keep).size().rename("lines").reset_index()
+
+
+def lines_in_markdowns(lines, markdown_data):
+    joined = lines.merge(markdown_data[["markdown_id", "product_id", "start_date", "end_date"]], on="product_id")
+    inside = joined[(joined["order_date"] >= joined["start_date"]) & (joined["order_date"] <= joined["end_date"])]
+    return inside.groupby("markdown_id")["lines"].sum().reindex(markdown_data["markdown_id"], fill_value=0)
+
+
+def check_k(data):
+    import settings.inventory_settings as inv
+    check("K", "markdowns off (default): markdown_data and outlet_data", f"{len(data['markdown_data'])} / "
+          f"{len(data['outlet_data'])} rows", data["markdown_data"].empty and data["outlet_data"].empty)
+
+    with service.overridden_settings({"stockouts": True}, inv):
+        plain = generate(**STOCKOUT_RUN)
+    with service.overridden_settings({"stockouts": True, "markdowns": True}, inv):
+        marked = generate(**STOCKOUT_RUN)
+    md = marked["markdown_data"].copy()
+    md["end_date"] = md["end_date"].fillna(marked["order_data"]["order_date"].max())
+    slow = md["reason"] == "slow_stock"
+    years = marked["order_data"]["order_date"].dt.year.nunique()
+    products = len(marked["product_data"])
+    per_year = md.loc[slow, "product_id"].nunique() / products
+    check("K", f"products with a slow-stock markdown ({years} years) / clearance markdowns",
+          f"{per_year:.0%} / {(~slow).sum():,}", 0.15 <= per_year <= 0.75 and (~slow).sum() > 20)
+    depth = md.loc[slow, "markdown_rate"].mean()
+    planned = sum(rate * weight for rate, weight in inv.markdown_rates.items()) / sum(inv.markdown_rates.values())
+    check("K", "mean slow-stock markdown against the setting", f"{depth:.1%} / {planned:.1%}",
+          abs(depth - planned) <= 0.02)
+
+    natural = lines_in_markdowns(demand_lines(plain), md).to_numpy()
+    observed = lines_in_markdowns(demand_lines(marked), md).to_numpy()
+    expected = natural * md["true_uplift"].to_numpy()
+    ratio = observed.sum() / expected.sum()
+    check("K", "demand in markdowns / the same days without markdowns × true_uplift", f"{ratio:.2f}",
+          abs(ratio - 1) <= 0.10)
+    buckets = pd.cut(md["markdown_rate"], [0, 0.25, 0.45, 1], labels=["up to 25%", "25-45%", "over 45%"])
+    measured = (pd.Series(observed, index=md.index).groupby(buckets, observed=True).sum()
+                / pd.Series(natural, index=md.index).groupby(buckets, observed=True).sum())
+    check("K", "measured uplift by markdown depth, " + " / ".join(measured.index.astype(str)),
+          " / ".join(f"{v:.2f}" for v in measured), measured.is_monotonic_increasing and measured.iloc[0] > 1)
+    before = plain["order_data"].shape[0] + plain["lost_demand_data"].shape[0]
+    after = marked["order_data"].shape[0] + marked["lost_demand_data"].shape[0]
+    check("K", "order lines and lost lines, without / with markdowns (lines move, none are added)",
+          f"{before:,} / {after:,}", before == after)
+
+    clearance = md[~slow]
+    movements = marked["stock_movement_data"]
+    sold = movements[movements["movement_type"] == "sale"].merge(clearance[["product_id", "start_date", "end_date"]])
+    sold = sold[(sold["movement_date"] >= sold["start_date"]) & (sold["movement_date"] <= sold["end_date"])]
+    outlet = marked["outlet_data"]
+    cleared = -sold["quantity"].sum()
+    share = cleared / (cleared + outlet["quantity"].sum())
+    check("K", "withdrawn stock sold in clearance / sold in clearance or to the outlet", f"{share:.0%}",
+          0.2 <= share <= 0.9)
+    recovery = outlet["revenue_net"].sum() / (outlet["quantity"] * outlet["product_id"].map(
+        marked["product_data"].set_index("product_id")["net_purchase_price"])).sum()
+    check("K", "outlet pays / purchase value of the stock it takes", f"{recovery:.0%}",
+          abs(recovery - inv.outlet_recovery_rate) < 0.005)
+    end = lambda frame: frame["order_date"].max() - pd.Timedelta(days=90)  # noqa: E731
+
+    def idle_share(run):
+        value = end_stock_value(run)
+        recent = run["order_data"].loc[run["order_data"]["order_date"] > end(run["order_data"]), "product_id"]
+        return value[~value.index.isin(recent)].sum() / value.sum()
+
+    idle_plain, idle_marked = idle_share(plain), idle_share(marked)
+    check("K", "stock value at the end in products with no sale in the last 90 days, without / with markdowns",
+          f"{idle_plain:.0%} / {idle_marked:.0%}", idle_marked < idle_plain)
+
+
 PACKS = {"E": check_e, "A": check_a, "D": check_d, "B": check_b, "C": check_c, "F": check_f, "G": check_g,
-         "H": check_h, "I": check_i, "J": check_j}
+         "H": check_h, "I": check_i, "J": check_j, "K": check_k}
 
 
 def main(selected):

@@ -29,6 +29,7 @@ STREAMS = {
     "competitors": 17,
     "costs": 18,
     "inventory": 19,
+    "markdowns": 20,
 }
 
 

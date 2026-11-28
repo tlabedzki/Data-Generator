@@ -27,6 +27,7 @@ from func import (
     inventory,
     localization,
     log,
+    markdowns,
     marketing,
     order,
     prices,
@@ -49,7 +50,7 @@ DATASET_NAMES = ["customer_data", "product_data", "order_data", "sales_data", "p
                  "shipment_data", "return_data", "payment_data", "review_data", "campaign_data", "session_data",
                  "experiment_data", "experiment_assignment_data", "anomaly_data", "quality_issue_data",
                  "supplier_data", "product_supplier_data", "purchase_order_data", "stock_movement_data",
-                 "lost_demand_data"]
+                 "lost_demand_data", "markdown_data", "outlet_data"]
 SOURCE_DATASETS = {"customer_data", "product_data", "order_data"}
 
 # Share of total run time per stage, used to turn stage progress into overall progress:
@@ -137,8 +138,18 @@ def run_generation_pipeline(progress: ProgressCallback | None = None) -> dict[st
             order_data, extra["session_data"], day_calendar, rng.stream("experiments"))
         # Suppliers, purchase orders and stock draw from their own stream. With stockouts off every line is served
         # and the tables above and below stay as in 1.7.1; with stockouts on, lost lines leave order_data here.
-        stock = inventory.build_inventory(order_data, products, day_calendar["date"], rng.stream("inventory"))
-        extra.update({name: frame for name, frame in stock.items() if name != "served"})
+        # With markdowns on (1.9.0), marked-down products take order lines of their category and the markdowns are
+        # cut into price_history; off, nothing changes and markdown_data and outlet_data stay empty.
+        stock = inventory.build_inventory(order_data, products, day_calendar["date"], rng.stream("inventory"),
+                                          price_book=price_book, markdown_generator=rng.stream("markdowns"))
+        extra.update({name: frame for name, frame in stock.items() if name not in ("served", "product_id")})
+        extra.setdefault("markdown_data", markdowns.empty_markdowns())
+        extra.setdefault("outlet_data", markdowns.empty_outlet())
+        if "product_id" in stock:
+            order_data = order_data.assign(product_id=stock["product_id"])
+            extra["price_history"] = markdowns.add_markdowns_to_price_history(extra["price_history"],
+                                                                              extra["markdown_data"], products)
+            price_book = prices.PriceBook(products, extra["price_history"], day_calendar)
         order_data, extra["session_data"], extra["lost_demand_data"] = inventory.remove_lost_lines(
             order_data, extra["session_data"], stock["served"], price_book, anomaly.renumber_orders)
         order_data = fulfilment.add_unit_prices(order_data, price_book)
