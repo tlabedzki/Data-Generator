@@ -125,11 +125,11 @@ with 1 when any of them fails; `scripts/make_charts.py` writes this page.
 ## Markdowns, clearance and the outlet
 
 - ✅ markdowns off (default): markdown_data and outlet_data: 0 / 0 rows
-- ✅ products with a slow-stock markdown (2 years) / clearance markdowns: 57% / 212
+- ✅ products with a slow-stock markdown (2 years) / clearance markdowns: 58% / 213
 - ✅ mean slow-stock markdown against the setting: 27.8% / 27.5%
-- ✅ demand in markdowns / the same days without markdowns × true_uplift: 0.96
-- ✅ measured uplift by markdown depth, up to 25% / 25-45% / over 45%: 1.25 / 1.80 / 2.75
+- ✅ demand in markdowns / the same days without markdowns × true_uplift: 1.00
+- ✅ measured uplift by markdown depth, up to 25% / 25-45% / over 45%: 1.30 / 1.81 / 3.09
 - ✅ order lines and lost lines, without / with markdowns (lines move, none are added): 100,420 / 100,420
-- ✅ withdrawn stock sold in clearance / sold in clearance or to the outlet: 65%
+- ✅ withdrawn stock sold in clearance / sold in clearance or to the outlet: 63%
 - ✅ outlet pays / purchase value of the stock it takes: 30%
-- ✅ stock value at the end in products with no sale in the last 90 days, without / with markdowns: 26% / 15%
+- ✅ stock value at the end in products with no sale in the last 90 days, without / with markdowns: 26% / 16%

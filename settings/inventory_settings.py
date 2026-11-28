@@ -74,8 +74,9 @@ launch_cover_days = (15, 40)
 #   (one of clearance_rates) until it sells out or is withdrawn. What is left on the withdrawal day goes to an outlet,
 #   which pays outlet_recovery_rate of the net purchase price per unit (outlet_data).
 # - A markdown raises the product's demand by (markdown price / regular price) ** -elasticity of its category
-#   (true_uplift in markdown_data): extra order lines of the same category and day switch to the marked-down product,
-#   so the number of order lines stays as set.
+#   (true_uplift in markdown_data): extra order lines of the same day switch to the marked-down product (of its own
+#   category first, of other categories when its category runs out of lines that day), so the number of order lines
+#   stays as set.
 # holding_cost_rate is the yearly cost of holding stock (capital, space, insurance) as a share of its purchase value;
 # the generator does not use it, it is the shop's figure for analyses that weigh holding against marking down.
 markdowns = False

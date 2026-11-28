@@ -4,8 +4,8 @@ Markdowns, clearance and the outlet (Data Generator 1.9.0, off by default).
 A shop manager marks down slow stock "by eye" once a week, and stock of a product about to be withdrawn gets a
 clearance markdown; what is left on the withdrawal day goes to an outlet. The stock simulation in func/inventory.py
 calls the MarkdownDesk every day. A markdown raises demand by (markdown price / regular price) ** -elasticity: for
-every order line of the marked-down product, a Poisson number of other lines of the same category and day switch
-to it, so the expected demand is the regular demand times true_uplift and the number of order lines stays as set.
+every order line of the marked-down product, a Poisson number of other lines of the same day (of its category
+first) switch to it, so the expected demand is the regular demand times true_uplift and the number of order lines stays as set.
 
 All draws come from the "markdowns" stream; with markdowns off nothing is drawn and no table changes.
 """
@@ -80,7 +80,8 @@ class MarkdownDesk:
     def switch_lines(self, t, index):
         """
         Switch other lines of the day to the marked-down products: for every line of a product on markdown, a Poisson
-        (true_uplift - 1) number of lines of the same category, not fraud and not of a marked-down product.
+        (true_uplift - 1) number of lines, not fraud and not of a marked-down product. Lines of the same category go
+        first; when a small category runs out of lines that day, lines of other categories make up the rest.
         """
         if not self.active or not len(index):
             return
@@ -96,10 +97,14 @@ class MarkdownDesk:
             extra = int(self.generator.poisson((uplift - 1) * natural))
             if not extra:
                 continue
-            donors = np.flatnonzero(~taken & (self.category[product] == self.category[p]))
-            if not len(donors):
+            same = np.flatnonzero(~taken & (self.category[product] == self.category[p]))
+            chosen = self.generator.choice(same, size=min(extra, len(same)), replace=False)
+            if len(chosen) < extra:
+                other = np.flatnonzero(~taken & (self.category[product] != self.category[p]))
+                more = self.generator.choice(other, size=min(extra - len(chosen), len(other)), replace=False)
+                chosen = np.concatenate([chosen, more])
+            if not len(chosen):
                 continue
-            chosen = self.generator.choice(donors, size=min(extra, len(donors)), replace=False)
             self.sim.line_product[index[chosen]] = p
             taken[chosen] = True
 

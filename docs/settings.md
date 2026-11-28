@@ -558,10 +558,11 @@ the outlet takes the stock left at `outlet_recovery_rate = 0.30` of the net purc
 **Demand.** A markdown raises the product's demand by `true_uplift = (markdown price / regular price) **
 -true_elasticity`, with the price elasticity of its category (`category_price_elasticity`, section Price Elasticity
 And Discounts): 30% off a Clothing product (elasticity 1.8) gives about 1.9 times the demand. For every order line of
-a marked-down product on a day, a Poisson number with mean `true_uplift - 1` of other lines of the same category and
-day (not fraud, not of another marked-down product) switch to it. The number of order lines and their days,
-customers and quantities stay as they were; only the product changes, and a marked-down product takes its extra
-demand from the rest of its category. A product nobody buys stays unsold at any markdown. Order lines carry the
+a marked-down product on a day, a Poisson number with mean `true_uplift - 1` of other lines of the same day (not
+fraud, not of another marked-down product) switch to it: lines of its own category first, and lines of other
+categories when a small category runs out of lines that day. The number of order lines and their days, customers
+and quantities stay as they were; only the product changes, and a marked-down product takes its extra demand mostly
+from the rest of its category. A product nobody buys stays unsold at any markdown. Order lines carry the
 markdown price as `unit_price_gross`, and `price_history` gets a `markdown` row at the start of each markdown and a
 `markdown_end` row when the regular price comes back, so `sales_price_gross` in `product_data` stays the last
 regular price. Competitor prices are built from the regular prices: the matcher does not follow markdowns.

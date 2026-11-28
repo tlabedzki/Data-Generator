@@ -103,13 +103,16 @@ def test_markdowns_move_lines_and_never_add_them(plain, marked):
     before, after = all_lines(plain), all_lines(marked)
     pd.testing.assert_frame_equal(before[LINE_KEY].sort_values(LINE_KEY).reset_index(drop=True),
                                   after[LINE_KEY].sort_values(LINE_KEY).reset_index(drop=True), check_dtype=False)
-    # A line switches to a product of its own category: lines per category and day stay as they were.
+    # Lines switch to marked-down products of their own category first: the lines of each category and day stay
+    # nearly as they were, and the lines of each day exactly.
     category = marked["product_data"].set_index("product_id")["category"]
 
     def per_category_day(lines):
         return lines.assign(category=lines["product_id"].map(category)).groupby(["order_date", "category"]).size()
 
-    pd.testing.assert_series_equal(per_category_day(before), per_category_day(after))
+    pd.testing.assert_series_equal(before.groupby("order_date").size(), after.groupby("order_date").size())
+    change = per_category_day(after).sub(per_category_day(before), fill_value=0).abs().sum()
+    assert 0 < change <= 0.02 * len(before)
     assert (before.sort_values(LINE_KEY, kind="stable")["product_id"].to_numpy()
             != after.sort_values(LINE_KEY, kind="stable")["product_id"].to_numpy()).any()
 

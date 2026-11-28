@@ -639,7 +639,7 @@ def check_k(data):
     expected = natural * md["true_uplift"].to_numpy()
     ratio = observed.sum() / expected.sum()
     check("K", "demand in markdowns / the same days without markdowns × true_uplift", f"{ratio:.2f}",
-          abs(ratio - 1) <= 0.10)
+          abs(ratio - 1) <= 0.05)
     buckets = pd.cut(md["markdown_rate"], [0, 0.25, 0.45, 1], labels=["up to 25%", "25-45%", "over 45%"])
     measured = (pd.Series(observed, index=md.index).groupby(buckets, observed=True).sum()
                 / pd.Series(natural, index=md.index).groupby(buckets, observed=True).sum())
