@@ -5,7 +5,8 @@ A shop manager marks down slow stock "by eye" once a week, and stock of a produc
 clearance markdown; what is left on the withdrawal day goes to an outlet. The stock simulation in func/inventory.py
 calls the MarkdownDesk every day. A markdown raises demand by (markdown price / regular price) ** -elasticity: for
 every order line of the marked-down product, a Poisson number of other lines of the same day (of its category
-first) switch to it, so the expected demand is the regular demand times true_uplift and the number of order lines stays as set.
+first) switch to it, so the expected demand is the regular demand times true_uplift and the number of order lines
+stays as set.
 
 All draws come from the "markdowns" stream; with markdowns off nothing is drawn and no table changes.
 """
